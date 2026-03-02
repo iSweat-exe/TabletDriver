@@ -55,4 +55,4 @@ I'm very open to contributions! If you're a Rust developer and want to dive in, 
 3.  **General refactoring** of the prototyping code.
 
 **On AI for contributors:**
-I have no problem with you using AI for your contributions—I use it myself! All I ask is that you **understand what you're submitting**. Don't just paste code without knowing what it does. If you don't fully understand a part of your contribution but it works, just be honest and mention it! I'd rather have an honest contribution I can help refine than a blind one.
+I have no problem with you using AI for your contributions I use it myself! All I ask is that you **understand what you're submitting**. Don't just paste code without knowing what it does. If you don't fully understand a part of your contribution but it works, just be honest and mention it! I'd rather have an honest contribution I can help refine than a blind one.
