@@ -1,0 +1,31 @@
+[package]
+name = "tablet_driver"
+authors = ["iSweat"]
+description = "Tablet Driver for Osu! and Drawing"
+version = "1.26.0301.05"
+edition = "2021"
+
+
+[dependencies]
+hidapi = "2.6.3"
+eframe = "0.29.1"
+display-info = "0.5.0"
+enigo = "0.6.1"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+base64 = "0.21.7"
+directories = "5.0"
+rfd = "0.14"
+log = "0.4"
+chrono = "0.4"
+lazy_static = "1.4"
+egui_extras = { version = "0.29.1" }
+winreg = "0.52"
+crossbeam-channel = "0.5.15"
+include_dir = "0.7"
+tungstenite = { version = "0.26.1" }
+reqwest = { version = "0.12", features = ["blocking", "json"] }
+windows-sys = { version = "0.52", features = ["Win32_Foundation", "Win32_System_Threading", "Win32_Security"] }
+
+[build-dependencies]
+winres = "0.1"
