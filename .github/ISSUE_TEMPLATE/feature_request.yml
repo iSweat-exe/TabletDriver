@@ -1,6 +1,6 @@
 name: "✨ Feature Request"
 description: "Propose a new idea or improvement"
-labels: ["✨ FEATURE : NEW IDEA", "⏳ TODO : TO DO"]
+labels: ["✨ Feature", "⏳ Todo"]
 body:
   - type: textarea
     id: feature_desc

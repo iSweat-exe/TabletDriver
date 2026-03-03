@@ -1,6 +1,6 @@
 name: "🐛 Bug Report"
 description: "Report a driver malfunction or crash"
-labels: ["🐛 BUG : ERREUR TECHNIQUE", "🚨 CRITICAL : URGENT"]
+labels: ["🐛 Bug", "🚨 Critical"]
 body:
   - type: markdown
     attributes:
