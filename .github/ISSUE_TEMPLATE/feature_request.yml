@@ -1,0 +1,16 @@
+name: "✨ Feature Request"
+description: "Propose a new idea or improvement"
+labels: ["✨ FEATURE : NEW IDEA", "⏳ TODO : TO DO"]
+body:
+  - type: textarea
+    id: feature_desc
+    attributes:
+      label: "The Big Idea"
+      placeholder: "Describe the functionality you'd like to see..."
+    validations:
+      required: true
+  - type: textarea
+    id: use_case
+    attributes:
+      label: "Use Case"
+      placeholder: "How would this help you or other users?"

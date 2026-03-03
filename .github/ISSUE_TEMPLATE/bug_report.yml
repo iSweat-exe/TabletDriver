@@ -1,0 +1,37 @@
+name: "🐛 Bug Report"
+description: "Report a driver malfunction or crash"
+labels: ["🐛 BUG : ERREUR TECHNIQUE", "🚨 CRITICAL : URGENT"]
+body:
+  - type: markdown
+    attributes:
+      value: "Thank you for reporting a bug! Please provide as much detail as possible to help me fix it."
+  - type: input
+    id: tablet_model
+    attributes:
+      label: "Tablet Model"
+      placeholder: "e.g., Gaomon S620, Huion H640P..."
+    validations:
+      required: true
+  - type: dropdown
+    id: os_version
+    attributes:
+      label: "Windows Version"
+      options:
+        - "Windows 11"
+        - "Windows 10"
+        - "Other / Insider Build"
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: "Problem Description"
+      placeholder: "What exactly is happening?"
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: "Console Logs"
+      placeholder: "Paste any error messages or logs from the terminal here..."
+      render: shell
