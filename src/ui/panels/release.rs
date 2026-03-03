@@ -10,7 +10,7 @@ struct ReleaseEntry {
 
 const RELEASES: &[ReleaseEntry] = &[
     ReleaseEntry {
-        version: "1.26.0303.02",
+        version: "1.26.0303.03",
         date: "2026-03-03",
         additions: &[
             "New 'Release' tab to track changes",
