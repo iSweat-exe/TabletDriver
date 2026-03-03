@@ -2,7 +2,7 @@
 name = "tablet_driver"
 authors = ["iSweat"]
 description = "Tablet Driver for Osu! and Drawing"
-version = "1.26.0301.05"
+version = "1.0.0"
 edition = "2021"
 
 

@@ -24,7 +24,7 @@ pub fn render_output_panel(app: &TabletMapperApp, ui: &mut egui::Ui, config: &mu
              let offset_y = rect.center().y - (desk_h * scale) / 2.0;
              
              // Draw Screens
-             for (_i, d) in app.displays.iter().enumerate() {
+             for d in app.displays.iter() {
                  let s_rect = egui::Rect::from_min_size(
                      egui::pos2(offset_x + (d.x as f32 - min_x) * scale, offset_y + (d.y as f32 - min_y) * scale),
                      egui::vec2(d.width as f32 * scale, d.height as f32 * scale)

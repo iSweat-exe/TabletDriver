@@ -173,10 +173,9 @@ pub fn input_loop(
 
                                 // 5. Eraser Handling (Simple for now)
                                 // We check if eraser bit is set or eraser pressure exceeds threshold
-                                let eraser_threshold_raw =
+                                let _eraser_threshold_raw =
                                     (local_config.eraser_threshold as f32 / 100.0) * _max_p;
-                                let eraser_down = data.eraser
-                                    || (data.pressure as f32 > eraser_threshold_raw && data.eraser);
+                                let eraser_down = data.eraser;
 
                                 if eraser_down {
                                     // Future: Handle eraser binding

@@ -87,8 +87,8 @@ impl TabletApp {
 impl eframe::App for TabletApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         // --- AUTO-RECONNECT & USB READ ---
-        if self.device.is_none() {
-             if self.last_update.elapsed().as_secs() >= 1 {
+        if self.device.is_none()
+             && self.last_update.elapsed().as_secs() >= 1 {
                  if let Some((dev, drv)) = detect_tablet(&self.api) {
                      let _ = dev.set_blocking_mode(false);
                      let specs = drv.get_specs();
@@ -103,7 +103,6 @@ impl eframe::App for TabletApp {
                  }
                  self.last_update = Instant::now();
              }
-        }
 
         if let (Some(dev), Some(drv)) = (&self.device, &self.driver) {
             let mut buf = [0u8; 64];

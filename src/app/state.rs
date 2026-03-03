@@ -16,6 +16,8 @@ pub enum AppTab {
     Tools,
     Console,
     Settings,
+    Support,
+    Release,
 }
 
 pub struct TabletMapperApp {

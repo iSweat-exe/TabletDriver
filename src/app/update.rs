@@ -4,7 +4,9 @@ use crate::ui::panels::console::render_console_panel;
 use crate::ui::panels::filters::render_filters_panel;
 use crate::ui::panels::output::render_output_panel;
 use crate::ui::panels::pen_settings::render_pen_settings_panel;
+use crate::ui::panels::release::render_release_panel;
 use crate::ui::panels::settings::render_settings_panel;
+use crate::ui::panels::support::render_support_panel;
 use crate::ui::panels::tools::render_tools_panel;
 use eframe::egui;
 use std::sync::atomic::Ordering;
@@ -289,6 +291,18 @@ impl eframe::App for TabletMapperApp {
                     {
                         log::debug!(target: "App", "Switched to Settings tab");
                     }
+                    if ui
+                        .selectable_value(&mut self.active_tab, AppTab::Support, "Support")
+                        .clicked()
+                    {
+                        log::debug!(target: "App", "Switched to Support tab");
+                    }
+                    if ui
+                        .selectable_value(&mut self.active_tab, AppTab::Release, "Release")
+                        .clicked()
+                    {
+                        log::debug!(target: "App", "Switched to Release tab");
+                    }
                 });
             });
 
@@ -349,6 +363,12 @@ impl eframe::App for TabletMapperApp {
                 }
                 AppTab::Tools => {
                     render_tools_panel(self, ui, &mut config);
+                }
+                AppTab::Support => {
+                    render_support_panel(self, ui);
+                }
+                AppTab::Release => {
+                    render_release_panel(self, ui);
                 }
             });
         });

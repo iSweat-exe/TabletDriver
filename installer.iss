@@ -1,7 +1,7 @@
 [Setup]
 ; --- IDENTIFICATION ---
 AppName=Tablet Driver
-AppVersion=1.26.0301.05
+AppVersion=1.26.0303.02
 AppPublisher=iSweat
 OutputBaseFilename=Tablet_Driver_Setup_x64
 

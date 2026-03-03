@@ -115,7 +115,7 @@ pub fn websocket_loop(shared: Arc<SharedState>) {
                     let mut dead_clients = vec![];
                     
                     for (id, client) in clients.iter_mut() {
-                        if let Err(_) = client.send(Message::Text(json.clone().into())) {
+                        if client.send(Message::Text(json.clone().into())).is_err() {
                             dead_clients.push(*id);
                         }
                     }

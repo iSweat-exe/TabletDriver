@@ -81,13 +81,26 @@ pub fn render_debugger_panel(shared: Arc<SharedState>, displayed_hz: f32, ui: &m
 
     ui.add_space(20.0);
 
-    // 3. RAW DATA
+    // 3. RAW DATA (Hexadecimal and Binary)
     egui::Frame::group(ui.style())
         .fill(egui::Color32::from_gray(30))
         .show(ui, |ui: &mut egui::Ui| {
             ui.set_width(ui.available_width());
+            
             ui.label(egui::RichText::new("Raw Tablet Stream").weak().size(11.0));
             ui.label(egui::RichText::new(&tablet_data.raw_data).code().size(12.0).color(egui::Color32::LIGHT_GRAY));
+
+            ui.add_space(20.0);
+
+            ui.label(egui::RichText::new("Raw Tablet Stream (Binary)").weak().size(11.0));
+            let binary_string = tablet_data.raw_data
+                .split_whitespace()
+                .filter_map(|hex| u8::from_str_radix(hex, 16).ok())
+                .map(|byte| format!("{:08b}", byte))
+                .collect::<Vec<String>>()
+                .join(" ");
+
+            ui.label(egui::RichText::new(binary_string).code().size(12.0).color(egui::Color32::LIGHT_GRAY));
         });
 }
 
