@@ -6,10 +6,10 @@
 ![Version](https://img.shields.io/badge/Version-1.26.0301.05-orange?style=for-the-badge)
 ![Osu!](https://img.shields.io/badge/Osu!-Tablet%20Driver-pink?style=for-the-badge&logo=osu)
 
+</div>
+
 > [!IMPORTANT]
 > **I'm currently looking for a definitive name!** If you have any cool suggestions, please feel free to open a discussion and let me know.
-
-</div>
 
 ---
 
