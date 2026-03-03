@@ -26,9 +26,8 @@ jobs:
         run: cargo build --release
 
       - name: Compile Inno Setup
-        uses: ayosec/iscc-action@v2
-        with:
-          filepath: installer.iss
+        run: |
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer.iss
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
