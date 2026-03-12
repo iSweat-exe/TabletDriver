@@ -1,10 +1,10 @@
 <div align="center">
 
-# TabletDriver
+# NextTabletDriver
 
 ![Rust](https://img.shields.io/badge/Rust-000000?style=for-the-badge&logo=rust&logoColor=white)
 ![Version](https://img.shields.io/badge/Version-1.26.1203.02-orange?style=for-the-badge)
-![Osu!](https://img.shields.io/badge/Osu!-Tablet%20Driver-pink?style=for-the-badge&logo=osu)
+![Osu!](https://img.shields.io/badge/Osu!-Next%20Tablet%20Driver-pink?style=for-the-badge&logo=osu)
 
 </div>
 
@@ -13,7 +13,7 @@
 
 ---
 
-Welcome to my project! I'm building a high-performance, event-driven tablet driver in Rust, specifically tailored for **Osu!** and digital drawing.
+Welcome to my project! I'm building a high-performance, event-driven tablet driver in Rust, specifically tailored for **Osu!** and digital drawing. called Next Tablet Driver.. or NTD (or NextTD) yess..
 
 ## My Vision for the Project
 

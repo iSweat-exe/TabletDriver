@@ -74,7 +74,7 @@ pub fn download_and_install(release: Release) -> Result<(), Box<dyn std::error::
         .build()?;
     let mut response = client.get(download_url).send()?;
     let mut temp_path = env::temp_dir();
-    temp_path.push("Tablet_Driver_Setup.exe");
+    temp_path.push("Next_Tablet_Driver_Setup.exe");
 
     {
         let mut file = fs::File::create(&temp_path)?;

@@ -1,9 +1,9 @@
 #![windows_subsystem = "windows"]
 
 use eframe::egui;
-use tablet_driver::app::TabletMapperApp;
-use tablet_driver::logger;
-use tablet_driver::ui::theme::apply_theme;
+use next_tablet_driver::app::TabletMapperApp;
+use next_tablet_driver::logger;
+use next_tablet_driver::ui::theme::apply_theme;
 
 use windows_sys::Win32::Foundation::{GetLastError, ERROR_ALREADY_EXISTS, HANDLE};
 use windows_sys::Win32::System::Threading::CreateMutexW;
@@ -33,12 +33,12 @@ fn main() -> eframe::Result {
         viewport: egui::ViewportBuilder::default()
             .with_icon(icon_data)
             .with_inner_size([1000.0, 850.0])
-            .with_title(format!("TabletDriver v{}", tablet_driver::VERSION)),
+            .with_title(format!("TabletDriver v{}", next_tablet_driver::VERSION)),
         ..Default::default()
     };
 
     eframe::run_native(
-        &format!("TabletDriver v{}", tablet_driver::VERSION),
+        &format!("TabletDriver v{}", next_tablet_driver::VERSION),
         options,
         Box::new(|cc| {
             apply_theme(&cc.egui_ctx);

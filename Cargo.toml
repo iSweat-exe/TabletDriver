@@ -1,5 +1,5 @@
 [package]
-name = "tablet_driver"
+name = "next_tablet_driver"
 authors = ["iSweat"]
 description = "Tablet Driver for Osu! and Drawing"
 version = "1.0.0"

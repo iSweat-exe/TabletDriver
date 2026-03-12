@@ -37,6 +37,6 @@ jobs:
         with:
           name: Release ${{ github.ref_name }}
           generate_release_notes: true
-          files: user_mode_dist/Tablet_Driver_Setup_x64.exe
+          files: user_mode_dist/Next_Tablet_Driver_Setup_x64.exe
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

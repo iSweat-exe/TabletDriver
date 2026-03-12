@@ -113,7 +113,7 @@ fn render_release_entry(ui: &mut egui::Ui, entry: &ReleaseEntry) {
             ui.set_width(ui.available_width());
             ui.vertical(|ui| {
                 ui.horizontal(|ui| {
-                    ui.heading(format!("Tablet Driver | v{}", entry.version));
+                    ui.heading(format!("Next Tablet Driver | v{}", entry.version));
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                         ui.label(egui::RichText::new(entry.date).weak());
                     });

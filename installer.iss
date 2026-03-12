@@ -1,9 +1,9 @@
 [Setup]
 ; --- IDENTIFICATION ---
-AppName=Tablet Driver
+AppName=Next Tablet Driver
 AppVersion=1.26.1203.02
 AppPublisher=iSweat
-OutputBaseFilename=Tablet_Driver_Setup_x64
+OutputBaseFilename=Next_Tablet_Driver_Setup_x64
 
 ; --- ARCHITECTURE ---
 ArchitecturesAllowed=x64compatible
@@ -11,8 +11,8 @@ ArchitecturesInstallIn64BitMode=x64compatible
 
 ; --- INSTALLATION ---
 DefaultDirName={commonpf}\TabletDriver
-DefaultGroupName=Tablet Driver
-UninstallDisplayIcon={app}\tablet_driver.exe
+DefaultGroupName=Next Tablet Driver
+UninstallDisplayIcon={app}\next_tablet_driver.exe
 Compression=lzma2
 SolidCompression=yes
 OutputDir=user_mode_dist
@@ -31,11 +31,11 @@ SetupMutex=TabletDriverSetupMutex
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
 
 [Files]
-Source: "target\release\tablet_driver.exe"; DestDir: "{app}"; Flags: ignoreversion restartreplace
+Source: "target\release\next_tablet_driver.exe"; DestDir: "{app}"; Flags: ignoreversion restartreplace
 
 [Icons]
-Name: "{group}\Tablet Driver"; Filename: "{app}\tablet_driver.exe"
-Name: "{commondesktop}\Tablet Driver"; Filename: "{app}\tablet_driver.exe"; Tasks: desktopicon
+Name: "{group}\Next Table tDriver"; Filename: "{app}\next_tablet_driver.exe"
+Name: "{commondesktop}\Next Tablet Driver"; Filename: "{app}\next_tablet_driver.exe"; Tasks: desktopicon
 
 [Run]
-Filename: "{app}\tablet_driver.exe"; Description: "{cm:LaunchProgram,Tablet Driver}"; Flags: nowait postinstall skipifsilent
+Filename: "{app}\next_tablet_driver.exe"; Description: "{cm:LaunchProgram,Next Tablet Driver}"; Flags: nowait postinstall skipifsilent
