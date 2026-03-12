@@ -22,6 +22,9 @@ jobs:
       - name: Rust Cache
         uses: swatinem/rust-cache@v2
 
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+
       - name: Build Rust Project
         run: cargo build --release
 
@@ -33,7 +36,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           name: Release ${{ github.ref_name }}
-          body: "New Release"
+          generate_release_notes: true
           files: user_mode_dist/Tablet_Driver_Setup_x64.exe
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

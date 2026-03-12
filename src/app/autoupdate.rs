@@ -7,6 +7,7 @@ use std::process::Command;
 #[derive(Deserialize, Clone)]
 pub struct Release {
     pub tag_name: String,
+    pub body: Option<String>,
     pub assets: Vec<Asset>,
 }
 

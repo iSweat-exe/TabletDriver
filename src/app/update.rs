@@ -121,7 +121,7 @@ impl eframe::App for TabletMapperApp {
                     .with_title("Tablet Debugger")
                     .with_inner_size([600.0, 750.0])
                     .with_resizable(true),
-                |ctx, class| {
+                |ctx, _class| {
                     if ctx.input(|i| i.viewport().close_requested()) {
                         close_requested = true;
                     }
