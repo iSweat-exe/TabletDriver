@@ -72,6 +72,7 @@ impl TabletApp {
             run_at_startup: false,
             enable_telemetry: false,
             websocket: Default::default(),
+            antichatter: Default::default(),
         };
 
         let shared = Arc::new(SharedState {

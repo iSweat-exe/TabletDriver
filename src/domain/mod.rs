@@ -105,6 +105,41 @@ impl Default for WebSocketConfig {
     }
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
+pub struct AntichatterConfig {
+    pub enabled: bool,
+    pub latency: f32,
+    pub antichatter_strength: f32,
+    pub antichatter_multiplier: f32,
+    pub antichatter_offset_x: f32,
+    pub antichatter_offset_y: f32,
+    pub prediction_enabled: bool,
+    pub prediction_strength: f32,
+    pub prediction_sharpness: f32,
+    pub prediction_offset_x: f32,
+    pub prediction_offset_y: f32,
+    pub frequency: f32,
+}
+
+impl Default for AntichatterConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            latency: 2.0,
+            antichatter_strength: 3.0,
+            antichatter_multiplier: 1.0,
+            antichatter_offset_x: 0.0,
+            antichatter_offset_y: 1.0,
+            prediction_enabled: false,
+            prediction_strength: 1.1,
+            prediction_sharpness: 1.0,
+            prediction_offset_x: 3.0,
+            prediction_offset_y: 0.3,
+            frequency: 1000.0,
+        }
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct MappingConfig {
     #[serde(default)]
@@ -113,6 +148,8 @@ pub struct MappingConfig {
     pub target_area: TargetArea,
     #[serde(default)]
     pub relative_config: RelativeConfig,
+    #[serde(default)]
+    pub antichatter: AntichatterConfig,
     #[serde(default = "default_threshold")]
     pub tip_threshold: u16,
     #[serde(default = "default_threshold")]

@@ -1,14 +1,15 @@
-pub mod drivers;
 pub mod app;
-pub mod ui;
 pub mod domain;
+pub mod drivers;
+pub mod filters;
 pub mod input;
-pub mod settings;
 pub mod logger;
+pub mod settings;
 pub mod startup;
 pub mod telemetry;
+pub mod ui;
 
-pub const VERSION: &str = "1.26.0503.01";
+pub const VERSION: &str = "1.26.1203.01";
 // Version Naming:         V.YY.DDMM.SV
 // VV: Version
 // YY: Year

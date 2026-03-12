@@ -3,7 +3,7 @@
         "event_id": "550e8400-e29b-41d4-a716-446655440000",
         "schema_version": "1.0.0",
         "timestamp_utc": "2024-05-13T12:20:00Z",
-        "app_version": "1.26.0503.01"
+        "app_version": "1.26.1203.01"
     },
     "user": {
         "id_hash": "e3b0c442ffd678b855523123123",

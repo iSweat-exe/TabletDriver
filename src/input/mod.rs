@@ -40,6 +40,11 @@ pub fn input_loop(
     let mut last_screen_y = -1.0;
     let mut last_packet_time = Instant::now();
 
+    let mut filters = crate::filters::FilterPipeline::new();
+    filters.add(Box::new(
+        crate::filters::antichatter::DevocubAntichatter::new(),
+    ));
+
     loop {
         // 1. Connection handling
         if let Some((device, driver, vid, pid)) = detect_tablet(&hid_api) {
@@ -140,6 +145,11 @@ pub fn input_loop(
                                     u = cu * cos - cv * sin + 0.5;
                                     v = cu * sin + cv * cos + 0.5;
                                 }
+
+                                // 1.5. Apply Filters
+                                let (nx, ny) = filters.process(u, v, &local_config);
+                                u = nx;
+                                v = ny;
 
                                 // 2. Project to Screen Space
                                 u = u.clamp(0.0, 1.0);
@@ -253,6 +263,7 @@ pub fn input_loop(
                                 // Reset last position when pen leaves range to avoid large jumps in relative mode
                                 last_screen_x = -1.0;
                                 last_screen_y = -1.0;
+                                filters.reset();
                             }
                         }
                     }

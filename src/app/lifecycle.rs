@@ -49,6 +49,7 @@ impl TabletMapperApp {
                 run_at_startup: crate::startup::is_run_at_startup_registered(),
                 enable_telemetry: true,
                 websocket: WebSocketConfig::default(),
+                antichatter: crate::domain::AntichatterConfig::default(),
             }
         };
 
@@ -104,6 +105,7 @@ impl TabletMapperApp {
             tablet_receiver,
             update_receiver,
             update_status: UpdateStatus::Idle,
+            selected_filter: "Devocub Antichatter".to_string(),
         }
     }
 }

@@ -108,3 +108,44 @@ pub fn ui_input_box_u32(ui: &mut egui::Ui, label: &str, value: &mut u32, unit: &
             });
         });
 }
+
+// Wide helper for settings with long labels (like filters)
+pub fn ui_setting_row(ui: &mut egui::Ui, label: &str, value: &mut f32, unit: &str) {
+    egui::Frame::none()
+        .fill(egui::Color32::from_gray(250))
+        .rounding(4.0)
+        .stroke(egui::Stroke::new(1.0, egui::Color32::from_gray(235)))
+        .inner_margin(egui::Margin::symmetric(10.0, 6.0))
+        .show(ui, |ui| {
+            ui.set_min_width(350.0);
+            ui.horizontal(|ui| {
+                ui.label(
+                    egui::RichText::new(label)
+                        .size(11.0)
+                        .color(egui::Color32::from_gray(120)),
+                );
+
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    if !unit.is_empty() {
+                        ui.label(
+                            egui::RichText::new(unit)
+                                .size(10.0)
+                                .color(egui::Color32::from_gray(180)),
+                        );
+                        ui.add_space(4.0);
+                    }
+
+                    ui.spacing_mut().item_spacing.x = 4.0;
+                    let response = ui.add(
+                        egui::DragValue::new(value)
+                            .speed(0.1)
+                            .fixed_decimals(1)
+                            .clamp_existing_to_range(false),
+                    );
+                    if response.hovered() {
+                        ui.output_mut(|o| o.cursor_icon = egui::CursorIcon::ResizeHorizontal);
+                    }
+                });
+            });
+        });
+}

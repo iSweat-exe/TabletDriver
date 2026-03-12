@@ -24,29 +24,30 @@ pub fn render_support_panel(_app: &crate::app::state::TabletMapperApp, ui: &mut 
             .color(egui::Color32::from_rgb(200, 000, 000)),
         );
 
-        ui.add_space(20.0);
-        ui.separator();
-        ui.add_space(20.0);
+        // TODO: Add crypto donations
+        // ui.add_space(20.0);
+        // ui.separator();
+        // ui.add_space(20.0);
 
-        ui.heading("Crypto Donations");
-        ui.add_space(10.0);
+        // ui.heading("Crypto Donations");
+        // ui.add_space(10.0);
 
-        egui::Grid::new("crypto_donations")
-            .num_columns(3)
-            .spacing([10.0, 10.0])
-            .show(ui, |ui| {
-                render_crypto_row(ui, "BTC", "EX");
-                render_crypto_row(ui, "ETH", "EX");
-                render_crypto_row(ui, "LTC", "EX");
-            });
+        // egui::Grid::new("crypto_donations")
+        //     .num_columns(3)
+        //     .spacing([10.0, 10.0])
+        //     .show(ui, |ui| {
+        //         render_crypto_row(ui, "BTC", "EX");
+        //         render_crypto_row(ui, "ETH", "EX");
+        //         render_crypto_row(ui, "LTC", "EX");
+        //     });
     });
 }
 
-fn render_crypto_row(ui: &mut egui::Ui, name: &str, address: &str) {
-    ui.label(egui::RichText::new(name).strong());
-    ui.label(egui::RichText::new(address).monospace());
-    if ui.button("Copy").clicked() {
-        ui.ctx().copy_text(address.to_string());
-    }
-    ui.end_row();
-}
+// fn render_crypto_row(ui: &mut egui::Ui, name: &str, address: &str) {
+//     ui.label(egui::RichText::new(name).strong());
+//     ui.label(egui::RichText::new(address).monospace());
+//     if ui.button("Copy").clicked() {
+//         ui.ctx().copy_text(address.to_string());
+//     }
+//     ui.end_row();
+// }

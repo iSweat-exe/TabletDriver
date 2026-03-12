@@ -4,20 +4,43 @@ struct ReleaseEntry {
     version: &'static str,
     date: &'static str,
     additions: &'static [&'static str],
+    removals: &'static [&'static str],
     fixes: &'static [&'static str],
     improvements: &'static [&'static str],
 }
 
 const RELEASES: &[ReleaseEntry] = &[
     ReleaseEntry {
+        version: "1.26.1203.01",
+        date: "12/03/2026",
+        additions: &[
+            "Add: 'Relative Mode' for pen input",
+            "Add: 'Filters' tab and 'Devocub Antichatter' settings like Open Tablet Driver Filters",
+        ],
+        removals: &[
+            "Remove: Crypto Donations",
+            "Remove: 'Tools' tab"
+        ],
+        fixes: &[
+            "Nothing"
+        ],
+        improvements: &[
+            "Nothing"
+        ],
+    },
+    ReleaseEntry {
         version: "1.26.0503.01",
         date: "05/03/2026",
         additions: &[
             "Add: Telemetry System for improvement (you can disable it in 'Settings' tab)",
+            "Add: 'Relative Mode' for pen input",
             "Info: The telemetry doesn't collect any personally identifiable information; it’s only there to improve the driver. An example of the shared data is available to view on GitHub."
         ],
+        removals: &[
+            "Nothing"
+        ],
         fixes: &[
-            "Change version format to European format instead of US format (MMDD -> DDMM)"
+            "Change version format to European format instead of US format (MMDD -> DDMM)",
         ],
         improvements: &[
             "Nothing"
@@ -29,6 +52,9 @@ const RELEASES: &[ReleaseEntry] = &[
         additions: &[
             "New 'Release' tab to track changes",
             "Added Support & Contribution panel with Crypto donations",
+        ],
+        removals: &[
+            "Nothing"
         ],
         fixes: &[
             "Fix all 'cargo clippy' issues and warnings (as mentioned in ISSUE#2)"
@@ -42,6 +68,9 @@ const RELEASES: &[ReleaseEntry] = &[
         date: "01/03/2026",
         additions: &[
             "New 'Websocket Server' settings in 'Settings' tab",
+        ],
+        removals: &[
+            "Nothing"
         ],
         fixes: &[
             "Improved 'Run At Startup' feature, before it was not working properly and flagged by Windows Defender", 
@@ -96,6 +125,14 @@ fn render_release_entry(ui: &mut egui::Ui, entry: &ReleaseEntry) {
                     ui.label(egui::RichText::new("Additions").strong());
                     for add in entry.additions {
                         ui.label(format!("• {}", add));
+                    }
+                    ui.add_space(8.0);
+                }
+
+                if !entry.removals.is_empty() {
+                    ui.label(egui::RichText::new("Removals").strong());
+                    for rem in entry.removals {
+                        ui.label(format!("• {}", rem));
                     }
                     ui.add_space(8.0);
                 }

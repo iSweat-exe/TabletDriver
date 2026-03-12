@@ -7,7 +7,6 @@ use crate::ui::panels::pen_settings::render_pen_settings_panel;
 use crate::ui::panels::release::render_release_panel;
 use crate::ui::panels::settings::render_settings_panel;
 use crate::ui::panels::support::render_support_panel;
-use crate::ui::panels::tools::render_tools_panel;
 use eframe::egui;
 use std::sync::atomic::Ordering;
 
@@ -274,12 +273,6 @@ impl eframe::App for TabletMapperApp {
                         log::debug!(target: "App", "Switched to Pen Settings tab");
                     }
                     if ui
-                        .selectable_value(&mut self.active_tab, AppTab::Tools, "Tools")
-                        .clicked()
-                    {
-                        log::debug!(target: "App", "Switched to Tools tab");
-                    }
-                    if ui
                         .selectable_value(&mut self.active_tab, AppTab::Console, "Console")
                         .clicked()
                     {
@@ -376,9 +369,6 @@ impl eframe::App for TabletMapperApp {
                 }
                 AppTab::Settings => {
                     render_settings_panel(self, ui, &mut config);
-                }
-                AppTab::Tools => {
-                    render_tools_panel(self, ui, &mut config);
                 }
                 AppTab::Support => {
                     render_support_panel(self, ui);

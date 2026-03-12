@@ -13,7 +13,6 @@ pub enum AppTab {
     Output,
     Filters,
     PenSettings,
-    Tools,
     Console,
     Settings,
     Support,
@@ -34,4 +33,7 @@ pub struct TabletMapperApp {
     pub tablet_receiver: Receiver<TabletData>,
     pub update_receiver: Receiver<UpdateStatus>,
     pub update_status: UpdateStatus,
+
+    // Filters UI State
+    pub selected_filter: String,
 }
