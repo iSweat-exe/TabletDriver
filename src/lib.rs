@@ -9,7 +9,7 @@ pub mod startup;
 pub mod telemetry;
 pub mod ui;
 
-pub const VERSION: &str = "1.26.1203.01";
+pub const VERSION: &str = "1.26.1203.02";
 // Version Naming:         V.YY.DDMM.SV
 // VV: Version
 // YY: Year
