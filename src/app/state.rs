@@ -36,4 +36,10 @@ pub struct TabletMapperApp {
 
     // Filters UI State
     pub selected_filter: String,
+
+    // Debugger UI State
+    pub show_debugger: bool,
+    pub displayed_hz: f32,
+    pub last_hz_update: Instant,
+    pub last_packet_count: u32,
 }

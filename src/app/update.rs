@@ -9,7 +9,6 @@ use crate::ui::panels::settings::render_settings_panel;
 use crate::ui::panels::support::render_support_panel;
 use eframe::egui;
 use std::sync::atomic::Ordering;
-use std::sync::Arc;
 
 impl eframe::App for TabletMapperApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
@@ -107,8 +106,52 @@ impl eframe::App for TabletMapperApp {
                 // Signal change to backend thread
                 self.shared.config_version.fetch_add(1, Ordering::SeqCst);
             }
-            // Auto-save session
+        // Auto-save session
             let _ = save_last_session(&config);
+        }
+
+        // --- Debugger Window ---
+        if self.show_debugger {
+            let viewport_id = egui::ViewportId::from_hash_of("debugger_viewport");
+            let mut close_requested = false;
+
+            ctx.show_viewport_immediate(
+                viewport_id,
+                egui::ViewportBuilder::default()
+                    .with_title("Tablet Debugger")
+                    .with_inner_size([600.0, 750.0])
+                    .with_resizable(true),
+                |ctx, class| {
+                    if ctx.input(|i| i.viewport().close_requested()) {
+                        close_requested = true;
+                    }
+                    
+                    egui::CentralPanel::default().show(ctx, |ui| {
+                        // --- HZ CALCULATION ---
+                        let current_packets = self.shared.packet_count.load(Ordering::Relaxed);
+                        let elapsed_hz = self.last_hz_update.elapsed();
+                        if elapsed_hz >= std::time::Duration::from_millis(200) {
+                            let delta = current_packets.saturating_sub(self.last_packet_count);
+                            let hz = delta as f32 / elapsed_hz.as_secs_f32();
+                            self.displayed_hz += (hz - self.displayed_hz) * 0.3;
+                            self.last_packet_count = current_packets;
+                            self.last_hz_update = std::time::Instant::now();
+                        }
+
+                        ui.vertical_centered(|ui| {
+                            let name = self.shared.tablet_name.read().unwrap().clone();
+                            ui.add_space(5.0);
+                            ui.heading(egui::RichText::new(name).strong().extra_letter_spacing(1.5));
+                        });
+
+                        crate::ui::panels::debugger::render_debugger_panel(self.shared.clone(), self.displayed_hz, ui);
+                    });
+                },
+            );
+
+            if close_requested {
+                self.show_debugger = false;
+            }
         }
 
         // Ensure we keep polling occasionally for UI status (battery, connection, etc)

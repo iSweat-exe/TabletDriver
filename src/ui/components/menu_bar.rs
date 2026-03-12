@@ -131,9 +131,7 @@ pub fn render_menu_bar(app: &mut TabletMapperApp, ctx: &egui::Context) {
                 ui.menu_button("Tablet", |ui| {
                     if ui.button("Open Debugger").clicked() {
                         ui.close_menu();
-                        let _ = std::process::Command::new("cargo")
-                            .args(["run", "--bin", "debugger"])
-                            .spawn();
+                        app.show_debugger = true;
                     }
                 });
                 ui.menu_button("Plugins", |_| {});

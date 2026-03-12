@@ -109,6 +109,10 @@ impl TabletMapperApp {
             update_receiver,
             update_status: UpdateStatus::Idle,
             selected_filter: "Devocub Antichatter".to_string(),
+            show_debugger: false,
+            displayed_hz: 0.0,
+            last_hz_update: Instant::now(),
+            last_packet_count: 0,
         }
     }
 }
