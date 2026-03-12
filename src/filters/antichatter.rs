@@ -18,6 +18,12 @@ impl DevocubAntichatter {
     }
 }
 
+impl Default for DevocubAntichatter {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Filter for DevocubAntichatter {
     fn name(&self) -> &'static str {
         "Devocub Antichatter"

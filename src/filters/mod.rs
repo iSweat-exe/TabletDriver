@@ -46,3 +46,9 @@ impl FilterPipeline {
         }
     }
 }
+
+impl Default for FilterPipeline {
+    fn default() -> Self {
+        Self::new()
+    }
+}

@@ -66,10 +66,7 @@ impl SpeedStatsFilter {
 
                     clients.retain_mut(
                         |client: &mut tungstenite::WebSocket<std::net::TcpStream>| {
-                            match client.send(tungstenite::Message::Text(msg.clone().into())) {
-                                Ok(_) => true,
-                                Err(_) => false, // Client disconnected
-                            }
+                            client.send(tungstenite::Message::Text(msg.clone().into())).is_ok()
                         },
                     );
                 }

@@ -17,16 +17,11 @@ pub struct TargetArea {
     pub h: f32, // Pixels
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, Default)]
 pub enum DriverMode {
+    #[default]
     Absolute,
     Relative,
-}
-
-impl Default for DriverMode {
-    fn default() -> Self {
-        Self::Absolute
-    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
@@ -140,18 +135,13 @@ impl Default for AntichatterConfig {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, Default)]
 pub enum SpeedUnit {
+    #[default]
     MillimetersPerSecond,
     MetersPerSecond,
     KilometersPerHour,
     MilesPerHour,
-}
-
-impl Default for SpeedUnit {
-    fn default() -> Self {
-        Self::MillimetersPerSecond
-    }
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
