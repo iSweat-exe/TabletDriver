@@ -73,7 +73,7 @@ pub fn run_manager(shared: Arc<SharedState>, ctx: egui::Context, tablet_sender: 
                             ctx.request_repaint();
 
                             // Process the packet and apply coordinate transforms + OS injection
-                            pipeline.process(&data, &driver, &local_config, &mut injector, &mut filters);
+                            pipeline.process(&data, driver.as_ref(), &local_config, &mut injector, &mut filters);
                         }
                     }
                     Ok(_) => {

@@ -5,6 +5,12 @@ pub struct Injector {
     last_pressure_down: bool,
 }
 
+impl Default for Injector {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Injector {
     pub fn new() -> Self {
         Self {

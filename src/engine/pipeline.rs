@@ -9,6 +9,12 @@ pub struct Pipeline {
     last_packet_time: Instant,
 }
 
+impl Default for Pipeline {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Pipeline {
     pub fn new() -> Self {
         Self {
@@ -26,7 +32,7 @@ impl Pipeline {
     pub fn process(
         &mut self,
         data: &TabletData,
-        driver: &Box<dyn crate::drivers::TabletDriver>,
+        driver: &dyn crate::drivers::TabletDriver,
         config: &MappingConfig,
         injector: &mut crate::engine::injector::Injector,
         filters: &mut crate::filters::FilterPipeline,

@@ -51,8 +51,6 @@ impl ReportParser for IntuosParser {
                         raw_data: raw,
                         is_connected: true,
                     })
-                } else if data[1] == 0x80 {
-                    None
                 } else {
                     None
                 }
