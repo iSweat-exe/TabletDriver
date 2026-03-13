@@ -3,6 +3,7 @@ use include_dir::{include_dir, Dir, DirEntry};
 use std::collections::HashSet;
 use std::fs;
 use std::path::Path;
+use std::time::{Instant, Duration};
 
 pub mod config;
 pub mod generic;
@@ -19,7 +20,7 @@ pub struct TabletData {
     pub pressure: u16,
     pub tilt_x: i8,
     pub tilt_y: i8,
-    pub buttons: u8, // bitmask
+    pub buttons: u8,
     pub eraser: bool,
     pub hover_distance: u8,
     pub raw_data: String,
@@ -34,8 +35,8 @@ pub struct DriverStats {
 
 pub trait TabletDriver {
     fn get_name(&self) -> &str;
-    fn get_specs(&self) -> (f32, f32, f32); // Max X, Max Y, Max Pressure
-    fn get_physical_specs(&self) -> (f32, f32); // Physical Width (mm), Physical Height (mm)
+    fn get_specs(&self) -> (f32, f32, f32);
+    fn get_physical_specs(&self) -> (f32, f32);
     fn get_vid_pid(&self) -> (u16, u16);
     fn parse(&self, data: &[u8]) -> Option<TabletData>;
 }
@@ -46,25 +47,19 @@ lazy_static::lazy_static! {
     static ref LOADED_CONFIGS: Vec<TabletConfiguration> = load_configurations();
 }
 
-/// Charge les configurations depuis le dossier local (prioritaire) et les ressources embarquées
 fn load_configurations() -> Vec<TabletConfiguration> {
     let mut configs = Vec::new();
     let mut loaded_names = HashSet::new();
 
-    // 1. Scan récursif du dossier "tablets" sur le disque (Overrides)
     let local_dir = Path::new("tablets");
     if local_dir.exists() {
         load_from_disk_recursive(local_dir, &mut configs, &mut loaded_names);
     }
 
-    // 2. Scan récursif des ressources embarquées (Baseline)
     load_embedded_recursive(&TABLET_CONFIGS_DIR, &mut configs, &mut loaded_names);
-
-    log::debug!(target: "Config", "Total configurations loaded: {}", configs.len());
     configs
 }
 
-/// Parcourt récursivement les dossiers EMBARQUÉS (fix pour les sous-dossiers de marques)
 fn load_embedded_recursive(
     dir: &Dir,
     configs: &mut Vec<TabletConfiguration>,
@@ -78,13 +73,9 @@ fn load_embedded_recursive(
             DirEntry::File(file) => {
                 if file.path().extension().and_then(|s| s.to_str()) == Some("json") {
                     if let Some(content_str) = file.contents_utf8() {
-                        if let Ok(config) = serde_json::from_str::<TabletConfiguration>(content_str)
-                        {
+                        if let Ok(config) = serde_json::from_str::<TabletConfiguration>(content_str) {
                             if !names.contains(&config.name) {
-                                log::debug!(target: "Config", "Loaded embedded config: {}", config.name);
                                 configs.push(config);
-                            } else {
-                                log::debug!(target: "Config", "Embedded config {} is shadowed", config.name);
                             }
                         }
                     }
@@ -94,7 +85,6 @@ fn load_embedded_recursive(
     }
 }
 
-/// Parcourt récursivement les dossiers sur le DISQUE
 fn load_from_disk_recursive(
     path: &Path,
     configs: &mut Vec<TabletConfiguration>,
@@ -108,7 +98,6 @@ fn load_from_disk_recursive(
             } else if p.extension().and_then(|s| s.to_str()) == Some("json") {
                 if let Ok(content) = fs::read_to_string(&p) {
                     if let Ok(config) = serde_json::from_str::<TabletConfiguration>(&content) {
-                        log::debug!(target: "Config", "Loaded override config: {} from {:?}", config.name, p.display());
                         names.insert(config.name.clone());
                         configs.push(config);
                     }
@@ -119,11 +108,16 @@ fn load_from_disk_recursive(
 }
 
 pub fn detect_tablet(api: &HidApi) -> Option<(HidDevice, Box<dyn TabletDriver>, u16, u16)> {
-    let start = std::time::Instant::now();
-    log::debug!(target: "Detect", "Starting tablet detection...");
+    let global_start = Instant::now();
+    let enum_start = Instant::now();
+    let devices: Vec<_> = api.device_list().collect();
+    let enum_duration = enum_start.elapsed();
+    
+    if enum_duration > Duration::from_millis(500) {
+        log::warn!(target: "Detect", "HID Enumeration SLOW: {:.2?}", enum_duration);
+    }
 
     let configs = &*LOADED_CONFIGS;
-    let devices: Vec<_> = api.device_list().collect();
 
     for config in configs {
         for digitizer in &config.digitizer_identifiers {
@@ -132,60 +126,69 @@ pub fn detect_tablet(api: &HidApi) -> Option<(HidDevice, Box<dyn TabletDriver>, 
                     && device_info.product_id() == digitizer.product_id
                 {
                     let interface = device_info.interface_number();
+                    let open_start = Instant::now();
+                    
+                    match api.open_path(device_info.path()) {
+                        Ok(device) => {
+                            let open_duration = open_start.elapsed();
+                            let mut init_success = true;
+                            use base64::{engine::general_purpose, Engine as _};
 
-                    if let Ok(device) = api.open_path(device_info.path()) {
-                        let mut init_success = true;
-                        use base64::{engine::general_purpose, Engine as _};
+                            let init_start = Instant::now();
 
-                        if let Some(reports) = &digitizer.feature_init_report {
-                            for report_str in reports {
-                                if let Ok(data) = general_purpose::STANDARD.decode(report_str) {
-                                    if let Err(e) = device.send_feature_report(&data) {
-                                        log::error!(target: "Detect", "Failed feature report ({}): {}", config.name, e);
-                                        init_success = false;
-                                        break;
+                            // Feature Reports
+                            if let Some(reports) = &digitizer.feature_init_report {
+                                for report_str in reports {
+                                    if let Ok(data) = general_purpose::STANDARD.decode(report_str) {
+                                        if let Err(e) = device.send_feature_report(&data) {
+                                            log::error!(target: "Detect", "Init Error (Feature): {}", e);
+                                            init_success = false;
+                                            break;
+                                        }
                                     }
                                 }
                             }
-                        }
 
-                        if !init_success {
-                            continue;
-                        }
-
-                        if let Some(reports) = &digitizer.output_init_report {
-                            for report_str in reports {
-                                if let Ok(data) = general_purpose::STANDARD.decode(report_str) {
-                                    if let Err(e) = device.write(&data) {
-                                        log::error!(target: "Detect", "Failed output report ({}): {}", config.name, e);
-                                        init_success = false;
-                                        break;
+                            // Output Reports
+                            if init_success {
+                                if let Some(reports) = &digitizer.output_init_report {
+                                    for report_str in reports {
+                                        if let Ok(data) = general_purpose::STANDARD.decode(report_str) {
+                                            if let Err(e) = device.write(&data) {
+                                                log::error!(target: "Detect", "Init Error (Output): {}", e);
+                                                init_success = false;
+                                                break;
+                                            }
+                                        }
                                     }
                                 }
                             }
-                        }
 
-                        if !init_success {
-                            continue;
-                        }
+                            if !init_success { continue; }
 
-                        log::info!(target: "Detect", "Initialized {} (Intf {}) in {:.2?}", config.name, interface, start.elapsed());
-                        return Some((
-                            device,
-                            Box::new(GenericTabletDriver::new(
-                                config.clone(),
+                            log::info!(target: "Detect", 
+                                "{} | Enum: {:.2?} | Open: {:.2?} | Init: {:.2?} | Total: {:.2?}", 
+                                config.name, enum_duration, open_duration, init_start.elapsed(), global_start.elapsed()
+                            );
+
+                            return Some((
+                                device,
+                                Box::new(GenericTabletDriver::new(
+                                    config.clone(),
+                                    digitizer.vendor_id,
+                                    digitizer.product_id,
+                                )),
                                 digitizer.vendor_id,
                                 digitizer.product_id,
-                            )),
-                            digitizer.vendor_id,
-                            digitizer.product_id,
-                        ));
+                            ));
+                        }
+                        Err(e) => {
+                            log::trace!(target: "Detect", "Interface {} busy: {}", interface, e);
+                        }
                     }
                 }
             }
         }
     }
-
-    log::debug!(target: "Detect", "No tablet found ({:.2?})", start.elapsed());
     None
 }
