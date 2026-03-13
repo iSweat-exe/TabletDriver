@@ -31,10 +31,6 @@ pub fn render_settings_panel(
                 config.run_at_startup = old_run_at_startup;
             }
         }
-
-        ui.add_space(5.0);
-        ui.checkbox(&mut config.enable_telemetry, "Send anonymous telemetry")
-            .on_hover_text("Help improve the driver by sending anonymous usage and hardware data.");
     });
 
     ui.add_space(10.0);
@@ -51,10 +47,10 @@ pub fn render_settings_panel(
             ui.checkbox(&mut config.websocket.enabled, "Enable WebSocket Server");
             if config.websocket.enabled {
                 ui.label(
-                    egui::RichText::new("â— Running").color(egui::Color32::from_rgb(0, 200, 0)),
+                    egui::RichText::new("Running").color(egui::Color32::from_rgb(0, 200, 0)),
                 );
             } else {
-                ui.label(egui::RichText::new("â—‹ Stopped").color(egui::Color32::GRAY));
+                ui.label(egui::RichText::new("Stopped").color(egui::Color32::RED));
             }
         });
 

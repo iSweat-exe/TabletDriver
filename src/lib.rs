@@ -6,7 +6,6 @@ pub mod filters;
 pub mod logger;
 pub mod settings;
 pub mod startup;
-pub mod telemetry;
 pub mod ui;
 
 pub const VERSION: &str = "1.26.1303.01";

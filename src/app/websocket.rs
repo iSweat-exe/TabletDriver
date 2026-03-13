@@ -32,7 +32,7 @@ pub fn websocket_loop(shared: Arc<SharedState>) {
 
     loop {
         // 1. Read current config
-        let (enabled, port, hz, send_coords, send_pressure, _, send_status) = {
+        let (enabled, port, hz, send_coords, send_pressure, send_tilt, send_status) = {
             let config = shared.config.read().unwrap();
             let ws = &config.websocket;
             (

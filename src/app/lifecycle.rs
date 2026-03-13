@@ -48,7 +48,7 @@ impl TabletMapperApp {
                 eraser_binding: "None".to_string(),
                 pen_button_bindings: vec!["None".to_string(), "None".to_string()],
                 run_at_startup: crate::startup::is_run_at_startup_registered(),
-                enable_telemetry: true,
+
                 websocket: WebSocketConfig::default(),
                 antichatter: crate::core::config::models::AntichatterConfig::default(),
                 speed_stats: crate::core::config::models::SpeedStatsConfig::default(),
@@ -83,10 +83,6 @@ impl TabletMapperApp {
         thread::spawn(move || {
             crate::app::websocket::websocket_loop(ws_shared);
         });
-
-        // Spawn Telemetry Thread
-        let telemetry_shared = Arc::clone(&shared);
-        crate::telemetry::init_telemetry(telemetry_shared);
 
         let (update_sender, update_receiver) = crossbeam_channel::bounded(1);
         thread::spawn(move || match autoupdate::check_for_updates() {

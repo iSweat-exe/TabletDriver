@@ -24,10 +24,6 @@ crossbeam-channel = "0.5.15"
 include_dir = "0.7"
 tungstenite = { version = "0.26.1" }
 reqwest = { version = "0.12", features = ["blocking", "json"] }
-uuid = { version = "1.7", features = ["v4"] }
-os_info = "3.8"
-sys-locale = "0.3"
-machine-uid = "0.3"
 
 # Windows
 [target.'cfg(windows)'.dependencies]

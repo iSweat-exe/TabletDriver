@@ -9,7 +9,7 @@ pub fn render_menu_bar(app: &mut TabletMapperApp, ctx: &egui::Context) {
         .frame(
             egui::Frame::none()
                 .fill(ctx.style().visuals.panel_fill)
-                .inner_margin(2.0),
+                .inner_margin(5.0),
         )
         .show(ctx, |ui| {
             ui.horizontal(|ui| {
@@ -135,7 +135,6 @@ pub fn render_menu_bar(app: &mut TabletMapperApp, ctx: &egui::Context) {
                         app.show_debugger = true;
                     }
                 });
-                ui.menu_button("Plugins", |_| {});
                 ui.menu_button("Help", |_| {});
             });
         });

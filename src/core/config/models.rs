@@ -191,8 +191,6 @@ pub struct MappingConfig {
     pub pen_button_bindings: Vec<String>,
     #[serde(default = "default_false")]
     pub run_at_startup: bool,
-    #[serde(default = "default_true")]
-    pub enable_telemetry: bool,
     #[serde(default)]
     pub websocket: WebSocketConfig,
 }
