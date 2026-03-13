@@ -1,2 +1,2 @@
-pub mod intuos;
 pub mod bamboo;
+pub mod intuos;

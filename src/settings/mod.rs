@@ -1,10 +1,10 @@
-use std::path::PathBuf;
-use std::fs;
-use directories::ProjectDirs;
 use crate::core::config::models::MappingConfig;
+use directories::ProjectDirs;
+use std::fs;
+use std::path::PathBuf;
 
 pub fn get_settings_dir() -> PathBuf {
-    if let Some(proj_dirs) = ProjectDirs::from("com", "TabletDriver", "TabletReader") {
+    if let Some(proj_dirs) = ProjectDirs::from("com", "NextTabletDriver", "NextTabletReader") {
         let config_dir = proj_dirs.config_dir().join("Settings");
         if !config_dir.exists() {
             let _ = fs::create_dir_all(&config_dir);
@@ -17,18 +17,22 @@ pub fn get_settings_dir() -> PathBuf {
 
 pub fn save_settings(name: &str, config: &MappingConfig) -> Result<(), String> {
     let dir = get_settings_dir();
-    let filename = if name.ends_with(".json") { name.to_string() } else { format!("{}.json", name) };
+    let filename = if name.ends_with(".json") {
+        name.to_string()
+    } else {
+        format!("{}.json", name)
+    };
     let path = dir.join(filename);
 
     let json = serde_json::to_string_pretty(config).map_err(|e| e.to_string())?;
     fs::write(&path, json).map_err(|e| e.to_string())?;
     log::info!(target: "Settings", "Saved preset '{}'", name);
-    
+
     // Also update "last_session.json" to point to this or save state?
-    // User requested "last settings applied". We can save a "last_session.json" with the current config content 
+    // User requested "last settings applied". We can save a "last_session.json" with the current config content
     // OR a reference. Saving content is safer.
     save_last_session(config)?;
-    
+
     Ok(())
 }
 

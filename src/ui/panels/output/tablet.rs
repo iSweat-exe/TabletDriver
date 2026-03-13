@@ -120,7 +120,8 @@ pub fn render_tablet_section(app: &TabletMapperApp, ui: &mut egui::Ui, config: &
             );
 
             let drag_id = ui.id().with("tablet_drag");
-            let mut current_drag_delta = ui.data_mut(|d| d.get_temp::<egui::Vec2>(drag_id).unwrap_or_default());
+            let mut current_drag_delta =
+                ui.data_mut(|d| d.get_temp::<egui::Vec2>(drag_id).unwrap_or_default());
 
             if response.dragged() {
                 if let Some(pointer_pos) = response.interact_pointer_pos() {

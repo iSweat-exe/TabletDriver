@@ -1,5 +1,5 @@
-use crate::drivers::TabletData;
 use crate::drivers::parsers::ReportParser;
+use crate::drivers::TabletData;
 
 pub struct XpPenStarG640Parser;
 
@@ -13,7 +13,7 @@ impl ReportParser for XpPenStarG640Parser {
         let x = ((data[3] as u16) << 8) | (data[2] as u16);
         let y = ((data[5] as u16) << 8) | (data[4] as u16);
         let pressure = ((data[7] as u16) << 8) | (data[6] as u16);
-        
+
         // Tilt (X at 8, Y at 9)
         let tilt_x = data.get(8).copied().unwrap_or(0) as i8;
         let tilt_y = data.get(9).copied().unwrap_or(0) as i8;
@@ -26,7 +26,8 @@ impl ReportParser for XpPenStarG640Parser {
         let eraser = (data[1] & 0x08) != 0;
 
         // Raw hex string for debugging
-        let raw = data.iter()
+        let raw = data
+            .iter()
             .take(14)
             .map(|b| format!("{:02X}", b))
             .collect::<Vec<_>>()
@@ -36,8 +37,15 @@ impl ReportParser for XpPenStarG640Parser {
             0xA0 => "Hover",
             0xA1 => "Contact",
             0xC0 | 0x00 => "Out of Range",
-            _ => if (data[1] & 0x80) != 0 { "Out of Range" } else { "Active" },
-        }.to_string();
+            _ => {
+                if (data[1] & 0x80) != 0 {
+                    "Out of Range"
+                } else {
+                    "Active"
+                }
+            }
+        }
+        .to_string();
 
         let is_connected = status != "Out of Range" && (x != 0 || y != 0);
 

@@ -1,5 +1,5 @@
-use eframe::egui;
 use crate::app::state::{AppTab, TabletMapperApp};
+use eframe::egui;
 
 pub fn render_tabs(app: &mut TabletMapperApp, ctx: &egui::Context) {
     egui::TopBottomPanel::top("tabs")

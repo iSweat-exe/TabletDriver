@@ -1,5 +1,5 @@
-use crate::drivers::TabletData;
 use crate::drivers::parsers::ReportParser;
+use crate::drivers::TabletData;
 
 pub struct IntuosTabletReport {
     pub x: u16,
@@ -29,17 +29,29 @@ pub struct IntuosParser;
 
 impl ReportParser for IntuosParser {
     fn parse(&self, data: &[u8]) -> Option<TabletData> {
-        if data.is_empty() { return None; }
-        
+        if data.is_empty() {
+            return None;
+        }
+
         match data[0] {
             0x02 => {
                 if (data[1] & 0x40) != 0 {
                     let report = IntuosTabletReport::new(data);
-                    
-                    let raw = data.iter().map(|b| format!("{:02X}", b)).collect::<Vec<_>>().join(" ");
-                    
+
+                    let raw = data
+                        .iter()
+                        .map(|b| format!("{:02X}", b))
+                        .collect::<Vec<_>>()
+                        .join(" ");
+
                     Some(TabletData {
-                        status: if report.pressure > 0 { "Contact".to_string() } else if report.near_proximity { "Hover".to_string() } else { "Out of Range".to_string() },
+                        status: if report.pressure > 0 {
+                            "Contact".to_string()
+                        } else if report.near_proximity {
+                            "Hover".to_string()
+                        } else {
+                            "Out of Range".to_string()
+                        },
                         x: report.x,
                         y: report.y,
                         pressure: report.pressure,
@@ -54,8 +66,8 @@ impl ReportParser for IntuosParser {
                 } else {
                     None
                 }
-            },
-            _ => None
+            }
+            _ => None,
         }
     }
 }
@@ -64,7 +76,9 @@ pub struct WacomDriverIntuosParser;
 
 impl ReportParser for WacomDriverIntuosParser {
     fn parse(&self, data: &[u8]) -> Option<TabletData> {
-        if data.len() < 2 { return None; }
+        if data.len() < 2 {
+            return None;
+        }
         // We reuse the basic IntuosParser logic but offset by 1
         IntuosParser.parse(&data[1..])
     }

@@ -37,11 +37,11 @@ impl UpdateStatus {
     }
 }
 
-const GITHUB_API_URL: &str = "https://api.github.com/repos/isweat-exe/TabletDriver/releases/latest";
+const GITHUB_API_URL: &str = "https://api.github.com/repos/isweat-exe/NextTabletDriver/releases/latest";
 
 pub fn check_for_updates() -> Result<Option<Release>, Box<dyn std::error::Error>> {
     let client = reqwest::blocking::Client::builder()
-        .user_agent("TabletDriver-AutoUpdate")
+        .user_agent("NextTabletDriver-AutoUpdate")
         .build()?;
 
     let release: Release = client.get(GITHUB_API_URL).send()?.json()?;
@@ -70,7 +70,7 @@ pub fn download_and_install(release: Release) -> Result<(), Box<dyn std::error::
     log::info!(target: "Update", "Downloading update from {}", download_url);
 
     let client = reqwest::blocking::Client::builder()
-        .user_agent("TabletDriver-AutoUpdate")
+        .user_agent("NextTabletDriver-AutoUpdate")
         .build()?;
     let mut response = client.get(download_url).send()?;
     let mut temp_path = env::temp_dir();

@@ -1,8 +1,8 @@
-pub mod xp_pen;
-pub mod wacom;
+pub mod fallback;
 pub mod huion;
 pub mod veikk;
-pub mod fallback;
+pub mod wacom;
+pub mod xp_pen;
 
 use crate::drivers::TabletData;
 
@@ -28,9 +28,15 @@ pub fn create_parser(parser_name: &str) -> Box<dyn ReportParser> {
     }
 
     match parser_name {
-        "OpenTabletDriver.Configurations.Parsers.XP_Pen.XP_PenReportParser" => Box::new(xp_pen::star_g640::XpPenStarG640Parser),
-        "OpenTabletDriver.Configurations.Parsers.Wacom.Intuos.IntuosReportParser" => Box::new(wacom::intuos::IntuosParser),
-        "OpenTabletDriver.Configurations.Parsers.Wacom.Intuos.WacomDriverIntuosReportParser" => Box::new(wacom::intuos::WacomDriverIntuosParser),
+        "OpenTabletDriver.Configurations.Parsers.XP_Pen.XP_PenReportParser" => {
+            Box::new(xp_pen::star_g640::XpPenStarG640Parser)
+        }
+        "OpenTabletDriver.Configurations.Parsers.Wacom.Intuos.IntuosReportParser" => {
+            Box::new(wacom::intuos::IntuosParser)
+        }
+        "OpenTabletDriver.Configurations.Parsers.Wacom.Intuos.WacomDriverIntuosReportParser" => {
+            Box::new(wacom::intuos::WacomDriverIntuosParser)
+        }
         _ => Box::new(fallback::FallbackParser),
     }
 }

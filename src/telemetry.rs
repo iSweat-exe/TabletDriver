@@ -47,7 +47,7 @@ pub struct TabletInfo {
 
 fn get_machine_hash() -> String {
     let mut hasher = DefaultHasher::new();
-    
+
     // Get stable machine ID (registry MachineGuid on Windows)
     let machine_id = machine_uid::get().unwrap_or_else(|_| "unknown_machine".to_string());
     machine_id.hash(&mut hasher);
@@ -129,7 +129,7 @@ fn send_telemetry(machine_hash: &str, session_id: &str, shared: &SharedState) {
 
     let client = reqwest::blocking::Client::new();
     match client
-    // TODO: Dev Telemetry Dashboard in React
+        // TODO: Dev Telemetry Dashboard in React
         .post("http://localhost:3000/api/telemetry")
         .json(&payload)
         .timeout(Duration::from_secs(10))

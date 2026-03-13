@@ -1,12 +1,12 @@
+use std::collections::HashMap;
+use std::net::TcpListener;
 use std::sync::Arc;
 use std::thread;
 use std::time::Duration;
-use std::net::TcpListener;
-use std::collections::HashMap;
 
-use serde::{Serialize};
-use tungstenite::{accept, Message};
+use serde::Serialize;
 use tungstenite::protocol::WebSocket;
+use tungstenite::{accept, Message};
 
 use crate::engine::state::SharedState;
 
@@ -36,13 +36,13 @@ pub fn websocket_loop(shared: Arc<SharedState>) {
             let config = shared.config.read().unwrap();
             let ws = &config.websocket;
             (
-                ws.enabled, 
-                ws.port, 
+                ws.enabled,
+                ws.port,
                 ws.polling_rate_hz.max(1), // Prevent div by 0
                 ws.send_coordinates,
                 ws.send_pressure,
                 ws.send_tilt,
-                ws.send_status
+                ws.send_status,
             )
         };
 
@@ -58,13 +58,13 @@ pub fn websocket_loop(shared: Arc<SharedState>) {
             if listener.is_none() || current_port != port {
                 log::info!(target: "WebSocket", "Starting WebSocket Server on 127.0.0.1:{}", port);
                 clients.clear();
-                
+
                 match TcpListener::bind(format!("127.0.0.1:{}", port)) {
                     Ok(l) => {
                         l.set_nonblocking(true).unwrap();
                         listener = Some(l);
                         current_port = port;
-                    },
+                    }
                     Err(e) => {
                         log::error!(target: "WebSocket", "Failed to bind to port {}: {}", port, e);
                         listener = None;
@@ -85,15 +85,15 @@ pub fn websocket_loop(shared: Arc<SharedState>) {
                             websocket.get_mut().set_nonblocking(true).unwrap(); // Non-blocking for data
                             clients.insert(next_client_id, websocket);
                             next_client_id += 1;
-                        },
+                        }
                         Err(e) => {
                             log::warn!(target: "WebSocket", "Error during WebSocket handshake: {}", e);
                         }
                     }
-                },
+                }
                 Err(ref e) if e.kind() == std::io::ErrorKind::WouldBlock => {
                     // No new connections
-                },
+                }
                 Err(e) => {
                     log::error!(target: "WebSocket", "Listener error: {}", e);
                 }
@@ -102,18 +102,30 @@ pub fn websocket_loop(shared: Arc<SharedState>) {
             // Prepare Payload
             if !clients.is_empty() {
                 let data = shared.tablet_data.read().unwrap().clone();
-                
+
                 let payload = WsPayload {
                     x: if send_coords { Some(data.x) } else { None },
                     y: if send_coords { Some(data.y) } else { None },
-                    pressure: if send_pressure { Some(data.pressure) } else { None },
-                    status: if send_status { Some(data.status.clone()) } else { None },
-                    is_connected: if send_status { Some(data.is_connected) } else { None },
+                    pressure: if send_pressure {
+                        Some(data.pressure)
+                    } else {
+                        None
+                    },
+                    status: if send_status {
+                        Some(data.status.clone())
+                    } else {
+                        None
+                    },
+                    is_connected: if send_status {
+                        Some(data.is_connected)
+                    } else {
+                        None
+                    },
                 };
 
                 if let Ok(json) = serde_json::to_string(&payload) {
                     let mut dead_clients = vec![];
-                    
+
                     for (id, client) in clients.iter_mut() {
                         if client.send(Message::Text(json.clone().into())).is_err() {
                             dead_clients.push(*id);

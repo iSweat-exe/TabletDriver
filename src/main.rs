@@ -11,13 +11,13 @@ use windows_sys::Win32::System::Threading::CreateMutexW;
 fn main() -> eframe::Result {
     // --- Single Instance Mutex ---
     // This allows Inno Setup to know if the app is running and allows us to release it before update.
-    let mutex_name: Vec<u16> = "TabletDriverMutex\0".encode_utf16().collect();
+    let mutex_name: Vec<u16> = "NextTabletDriverMutex\0".encode_utf16().collect();
     let handle: HANDLE = unsafe { CreateMutexW(std::ptr::null(), 1, mutex_name.as_ptr()) };
     if handle == 0 {
         return Ok(());
     }
     if unsafe { GetLastError() } == ERROR_ALREADY_EXISTS {
-        log::error!("Another instance of TabletDriver is already running.");
+        log::error!("Another instance of NextTabletDriver is already running.");
         return Ok(());
     }
 
@@ -33,12 +33,12 @@ fn main() -> eframe::Result {
         viewport: egui::ViewportBuilder::default()
             .with_icon(icon_data)
             .with_inner_size([1000.0, 850.0])
-            .with_title(format!("TabletDriver v{}", next_tablet_driver::VERSION)),
+            .with_title(format!("NextTabletDriver v{}", next_tablet_driver::VERSION)),
         ..Default::default()
     };
 
     eframe::run_native(
-        &format!("TabletDriver v{}", next_tablet_driver::VERSION),
+        &format!("NextTabletDriver v{}", next_tablet_driver::VERSION),
         options,
         Box::new(|cc| {
             apply_theme(&cc.egui_ctx);

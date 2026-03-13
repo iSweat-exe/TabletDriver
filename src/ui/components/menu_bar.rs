@@ -1,8 +1,8 @@
+use crate::app::state::TabletMapperApp;
+use crate::settings::save_last_session;
 use eframe::egui;
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
-use crate::app::state::TabletMapperApp;
-use crate::settings::save_last_session;
 
 pub fn render_menu_bar(app: &mut TabletMapperApp, ctx: &egui::Context) {
     egui::TopBottomPanel::top("menu_bar")
@@ -24,7 +24,8 @@ pub fn render_menu_bar(app: &mut TabletMapperApp, ctx: &egui::Context) {
                             let shared_clone = Arc::clone(&app.shared);
                             let path_clone = path.clone();
                             std::thread::spawn(move || {
-                                if let Ok(cfg) = crate::settings::load_settings_from_file(path_clone)
+                                if let Ok(cfg) =
+                                    crate::settings::load_settings_from_file(path_clone)
                                 {
                                     let mut shared_config = shared_clone.config.write().unwrap();
                                     *shared_config = cfg.clone();

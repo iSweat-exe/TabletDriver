@@ -1,15 +1,15 @@
 use super::config::TabletConfiguration;
 use super::parsers::{create_parser, ReportParser};
-use super::{TabletData, TabletDriver};
+use super::{TabletData, NextTabletDriver};
 
-pub struct GenericTabletDriver {
+pub struct GenericNextTabletDriver {
     config: TabletConfiguration,
     vid: u16,
     pid: u16,
     parser: Box<dyn ReportParser>,
 }
 
-impl GenericTabletDriver {
+impl GenericNextTabletDriver {
     pub fn new(config: TabletConfiguration, vid: u16, pid: u16) -> Self {
         let parser_name = config
             .digitizer_identifiers
@@ -28,7 +28,7 @@ impl GenericTabletDriver {
     }
 }
 
-impl TabletDriver for GenericTabletDriver {
+impl NextTabletDriver for GenericNextTabletDriver {
     fn get_name(&self) -> &str {
         &self.config.name
     }

@@ -1,6 +1,6 @@
 use crate::core::config::models::{MappingConfig, SpeedUnit};
-use crate::filters::Filter;
 use crate::engine::state::SharedState;
+use crate::filters::Filter;
 use crossbeam_channel::{unbounded, Sender};
 use std::net::TcpListener;
 use std::sync::{Arc, Mutex};
@@ -66,7 +66,9 @@ impl SpeedStatsFilter {
 
                     clients.retain_mut(
                         |client: &mut tungstenite::WebSocket<std::net::TcpStream>| {
-                            client.send(tungstenite::Message::Text(msg.clone().into())).is_ok()
+                            client
+                                .send(tungstenite::Message::Text(msg.clone().into()))
+                                .is_ok()
                         },
                     );
                 }

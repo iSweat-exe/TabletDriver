@@ -35,13 +35,13 @@ impl Log for GlobalLogger {
                 "Input",
                 "Config",
                 "Driver",
-                "TabletDriver",
+                "NextTabletDriver",
                 "WS",
                 "Update",
                 "Telemetry",
             ];
             let is_allowed =
-                allowed_targets.contains(&target) || target.starts_with("TabletDriver");
+                allowed_targets.contains(&target) || target.starts_with("NextTabletDriver");
 
             let entry = LogEntry {
                 time: Local::now().format("%H:%M:%S").to_string(),

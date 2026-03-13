@@ -10,7 +10,7 @@ ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 
 ; --- INSTALLATION ---
-DefaultDirName={commonpf}\TabletDriver
+DefaultDirName={commonpf}\NextTabletDriver
 DefaultGroupName=Next Tablet Driver
 UninstallDisplayIcon={app}\next_tablet_driver.exe
 Compression=lzma2
@@ -22,10 +22,10 @@ PrivilegesRequired=admin
 PrivilegesRequiredOverridesAllowed=dialog
 
 ; --- LOGIQUE D'AUTO-UPDATE ---
-AppMutex=TabletDriverMutex
+AppMutex=NextTabletDriverMutex
 CloseApplications=yes
 DirExistsWarning=no
-SetupMutex=TabletDriverSetupMutex
+SetupMutex=NextTabletDriverSetupMutex
 
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked

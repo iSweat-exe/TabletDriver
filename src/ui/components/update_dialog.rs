@@ -21,7 +21,10 @@ pub fn render_update_dialog(app: &mut TabletMapperApp, ctx: &egui::Context) {
         // --- 2. The Centered Dialog Window ---
         let mut open = true;
         let version = release.tag_name.clone();
-        let body = release.body.clone().unwrap_or_else(|| "No changelog provided.".to_string());
+        let body = release
+            .body
+            .clone()
+            .unwrap_or_else(|| "No changelog provided.".to_string());
 
         egui::Window::new("Update Available")
             .title_bar(false) // Hide standard title bar for custom styling
@@ -53,9 +56,18 @@ pub fn render_update_dialog(app: &mut TabletMapperApp, ctx: &egui::Context) {
                         .show(ui, |ui| {
                             ui.set_width(ui.available_width());
                             ui.vertical_centered(|ui| {
-                                ui.label(egui::RichText::new("Update Available!").size(24.0).strong().color(egui::Color32::WHITE));
+                                ui.label(
+                                    egui::RichText::new("Update Available!")
+                                        .size(24.0)
+                                        .strong()
+                                        .color(egui::Color32::WHITE),
+                                );
                                 ui.add_space(5.0);
-                                ui.label(egui::RichText::new(format!("Version {}", version)).size(14.0).color(egui::Color32::from_gray(180)));
+                                ui.label(
+                                    egui::RichText::new(format!("Version {}", version))
+                                        .size(14.0)
+                                        .color(egui::Color32::from_gray(180)),
+                                );
                             });
                         });
 
@@ -65,15 +77,24 @@ pub fn render_update_dialog(app: &mut TabletMapperApp, ctx: &egui::Context) {
                     egui::Frame::none()
                         .inner_margin(egui::Margin::symmetric(20.0, 0.0))
                         .show(ui, |ui| {
-                            ui.label(egui::RichText::new("What's new:").strong().size(16.0).color(egui::Color32::LIGHT_GRAY));
+                            ui.label(
+                                egui::RichText::new("What's new:")
+                                    .strong()
+                                    .size(16.0)
+                                    .color(egui::Color32::LIGHT_GRAY),
+                            );
                             ui.add_space(8.0);
-                            
+
                             // Scrollable area for the changelog
                             egui::ScrollArea::vertical()
                                 .max_height(150.0)
                                 .auto_shrink([false; 2])
                                 .show(ui, |ui| {
-                                    ui.label(egui::RichText::new(body).size(13.0).color(egui::Color32::from_gray(160)));
+                                    ui.label(
+                                        egui::RichText::new(body)
+                                            .size(13.0)
+                                            .color(egui::Color32::from_gray(160)),
+                                    );
                                 });
                         });
 
@@ -85,29 +106,39 @@ pub fn render_update_dialog(app: &mut TabletMapperApp, ctx: &egui::Context) {
                         .show(ui, |ui| {
                             ui.horizontal(|ui| {
                                 let later_btn = egui::Button::new(
-                                    egui::RichText::new("Remind Me Later").size(14.0).color(egui::Color32::WHITE)
-                                ).fill(egui::Color32::TRANSPARENT)
-                                 .stroke(egui::Stroke::new(1.0, egui::Color32::WHITE))
-                                 .min_size(egui::vec2(120.0, 36.0));
+                                    egui::RichText::new("Remind Me Later")
+                                        .size(14.0)
+                                        .color(egui::Color32::WHITE),
+                                )
+                                .fill(egui::Color32::TRANSPARENT)
+                                .stroke(egui::Stroke::new(1.0, egui::Color32::WHITE))
+                                .min_size(egui::vec2(120.0, 36.0));
 
                                 if ui.add(later_btn).clicked() {
                                     update_action = Some(false);
                                 }
 
-                                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                                    let update_btn = egui::Button::new(
-                                        egui::RichText::new("Install Update").size(14.0).strong().color(egui::Color32::BLACK)
-                                    ).fill(egui::Color32::from_rgb(0, 120, 215)) // #0078d7
-                                     .rounding(6.0)
-                                     .min_size(egui::vec2(160.0, 36.0));
+                                ui.with_layout(
+                                    egui::Layout::right_to_left(egui::Align::Center),
+                                    |ui| {
+                                        let update_btn = egui::Button::new(
+                                            egui::RichText::new("Install Update")
+                                                .size(14.0)
+                                                .strong()
+                                                .color(egui::Color32::BLACK),
+                                        )
+                                        .fill(egui::Color32::from_rgb(0, 120, 215)) // #0078d7
+                                        .rounding(6.0)
+                                        .min_size(egui::vec2(160.0, 36.0));
 
-                                    if ui.add(update_btn).clicked() {
-                                        update_action = Some(true);
-                                    }
-                                });
+                                        if ui.add(update_btn).clicked() {
+                                            update_action = Some(true);
+                                        }
+                                    },
+                                );
                             });
                         });
-                        
+
                     ui.add_space(5.0);
                 });
             });

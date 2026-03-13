@@ -3,14 +3,14 @@ use include_dir::{include_dir, Dir, DirEntry};
 use std::collections::HashSet;
 use std::fs;
 use std::path::Path;
-use std::time::{Instant, Duration};
+use std::time::{Duration, Instant};
 
 pub mod config;
 pub mod generic;
 pub mod parsers;
 
 use config::TabletConfiguration;
-use generic::GenericTabletDriver;
+use generic::GenericNextTabletDriver;
 
 #[derive(Debug, Clone, Default)]
 pub struct TabletData {
@@ -33,7 +33,7 @@ pub struct DriverStats {
     pub total_distance_mm: f32,
 }
 
-pub trait TabletDriver {
+pub trait NextTabletDriver {
     fn get_name(&self) -> &str;
     fn get_specs(&self) -> (f32, f32, f32);
     fn get_physical_specs(&self) -> (f32, f32);
@@ -73,7 +73,8 @@ fn load_embedded_recursive(
             DirEntry::File(file) => {
                 if file.path().extension().and_then(|s| s.to_str()) == Some("json") {
                     if let Some(content_str) = file.contents_utf8() {
-                        if let Ok(config) = serde_json::from_str::<TabletConfiguration>(content_str) {
+                        if let Ok(config) = serde_json::from_str::<TabletConfiguration>(content_str)
+                        {
                             if !names.contains(&config.name) {
                                 configs.push(config);
                             }
@@ -107,12 +108,12 @@ fn load_from_disk_recursive(
     }
 }
 
-pub fn detect_tablet(api: &HidApi) -> Option<(HidDevice, Box<dyn TabletDriver>, u16, u16)> {
+pub fn detect_tablet(api: &HidApi) -> Option<(HidDevice, Box<dyn NextTabletDriver>, u16, u16)> {
     let global_start = Instant::now();
     let enum_start = Instant::now();
     let devices: Vec<_> = api.device_list().collect();
     let enum_duration = enum_start.elapsed();
-    
+
     if enum_duration > Duration::from_millis(500) {
         log::warn!(target: "Detect", "HID Enumeration SLOW: {:.2?}", enum_duration);
     }
@@ -127,7 +128,7 @@ pub fn detect_tablet(api: &HidApi) -> Option<(HidDevice, Box<dyn TabletDriver>, 
                 {
                     let interface = device_info.interface_number();
                     let open_start = Instant::now();
-                    
+
                     match api.open_path(device_info.path()) {
                         Ok(device) => {
                             let open_duration = open_start.elapsed();
@@ -153,7 +154,9 @@ pub fn detect_tablet(api: &HidApi) -> Option<(HidDevice, Box<dyn TabletDriver>, 
                             if init_success {
                                 if let Some(reports) = &digitizer.output_init_report {
                                     for report_str in reports {
-                                        if let Ok(data) = general_purpose::STANDARD.decode(report_str) {
+                                        if let Ok(data) =
+                                            general_purpose::STANDARD.decode(report_str)
+                                        {
                                             if let Err(e) = device.write(&data) {
                                                 log::error!(target: "Detect", "Init Error (Output): {}", e);
                                                 init_success = false;
@@ -164,16 +167,18 @@ pub fn detect_tablet(api: &HidApi) -> Option<(HidDevice, Box<dyn TabletDriver>, 
                                 }
                             }
 
-                            if !init_success { continue; }
+                            if !init_success {
+                                continue;
+                            }
 
-                            log::info!(target: "Detect", 
-                                "{} | Enum: {:.2?} | Open: {:.2?} | Init: {:.2?} | Total: {:.2?}", 
+                            log::info!(target: "Detect",
+                                "{} | Enum: {:.2?} | Open: {:.2?} | Init: {:.2?} | Total: {:.2?}",
                                 config.name, enum_duration, open_duration, init_start.elapsed(), global_start.elapsed()
                             );
 
                             return Some((
                                 device,
-                                Box::new(GenericTabletDriver::new(
+                                Box::new(GenericNextTabletDriver::new(
                                     config.clone(),
                                     digitizer.vendor_id,
                                     digitizer.product_id,

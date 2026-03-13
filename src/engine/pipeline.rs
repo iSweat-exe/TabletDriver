@@ -1,7 +1,7 @@
 use crate::core::config::models::{DriverMode, MappingConfig};
 use crate::drivers::TabletData;
-use std::time::Instant;
 use std::time::Duration;
+use std::time::Instant;
 
 pub struct Pipeline {
     last_screen_x: f32,
@@ -32,7 +32,7 @@ impl Pipeline {
     pub fn process(
         &mut self,
         data: &TabletData,
-        driver: &dyn crate::drivers::TabletDriver,
+        driver: &dyn crate::drivers::NextTabletDriver,
         config: &MappingConfig,
         injector: &mut crate::engine::injector::Injector,
         filters: &mut crate::filters::FilterPipeline,
@@ -76,14 +76,18 @@ impl Pipeline {
                     config.target_area.h,
                 );
 
-                if (screen_x - self.last_screen_x).abs() > 0.1 || (screen_y - self.last_screen_y).abs() > 0.1 {
+                if (screen_x - self.last_screen_x).abs() > 0.1
+                    || (screen_y - self.last_screen_y).abs() > 0.1
+                {
                     injector.move_absolute(screen_x, screen_y);
                     self.last_screen_x = screen_x;
                     self.last_screen_y = screen_y;
                 }
             }
             DriverMode::Relative => {
-                if now.duration_since(self.last_packet_time) > Duration::from_millis(config.relative_config.reset_time_ms as u64) {
+                if now.duration_since(self.last_packet_time)
+                    > Duration::from_millis(config.relative_config.reset_time_ms as u64)
+                {
                     self.reset_relative();
                 }
                 self.last_packet_time = now;
@@ -106,10 +110,14 @@ impl Pipeline {
             }
         }
 
-        let pressure = if config.disable_pressure { max_p as u16 } else { data.pressure };
+        let pressure = if config.disable_pressure {
+            max_p as u16
+        } else {
+            data.pressure
+        };
         let threshold_raw = (config.tip_threshold as f32 / 100.0) * max_p;
         let is_down = pressure as f32 > threshold_raw;
-        
+
         injector.set_left_button(is_down);
     }
 }

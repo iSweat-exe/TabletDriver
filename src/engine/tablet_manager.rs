@@ -9,7 +9,11 @@ use std::sync::Arc;
 use std::thread;
 use std::time::{Duration, Instant};
 
-pub fn run_manager(shared: Arc<SharedState>, ctx: egui::Context, tablet_sender: Sender<crate::drivers::TabletData>) {
+pub fn run_manager(
+    shared: Arc<SharedState>,
+    ctx: egui::Context,
+    tablet_sender: Sender<crate::drivers::TabletData>,
+) {
     let hid_api = hidapi::HidApi::new().unwrap();
     let mut injector = Injector::new();
     let mut pipeline = Pipeline::new();
@@ -19,8 +23,12 @@ pub fn run_manager(shared: Arc<SharedState>, ctx: egui::Context, tablet_sender: 
     let mut last_config_check = Instant::now();
 
     let mut filters = crate::filters::FilterPipeline::new();
-    filters.add(Box::new(crate::filters::antichatter::DevocubAntichatter::new()));
-    filters.add(Box::new(crate::filters::stats::SpeedStatsFilter::new(Arc::clone(&shared))));
+    filters.add(Box::new(
+        crate::filters::antichatter::DevocubAntichatter::new(),
+    ));
+    filters.add(Box::new(crate::filters::stats::SpeedStatsFilter::new(
+        Arc::clone(&shared),
+    )));
     filters.update_config(&local_config);
 
     loop {
@@ -73,7 +81,13 @@ pub fn run_manager(shared: Arc<SharedState>, ctx: egui::Context, tablet_sender: 
                             ctx.request_repaint();
 
                             // Process the packet and apply coordinate transforms + OS injection
-                            pipeline.process(&data, driver.as_ref(), &local_config, &mut injector, &mut filters);
+                            pipeline.process(
+                                &data,
+                                driver.as_ref(),
+                                &local_config,
+                                &mut injector,
+                                &mut filters,
+                            );
                         }
                     }
                     Ok(_) => {
