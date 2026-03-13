@@ -3,7 +3,7 @@
 # NextTabletDriver
 
 ![Rust](https://img.shields.io/badge/Rust-000000?style=for-the-badge&logo=rust&logoColor=white)
-![Version](https://img.shields.io/badge/Version-1.26.1203.02-orange?style=for-the-badge)
+![Version](https://img.shields.io/badge/Version-1.26.1303.01-orange?style=for-the-badge)
 ![Osu!](https://img.shields.io/badge/Osu!-Next%20Tablet%20Driver-pink?style=for-the-badge&logo=osu)
 
 </div>
