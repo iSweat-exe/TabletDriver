@@ -28,4 +28,4 @@ pub mod ui;
 /// - `YY`: Year
 /// - `DDMM`: Day and Month
 /// - `SV`: Sub-Version (e.g. build increment for the day)
-pub const VERSION: &str = "1.26.1303.01";
+pub const VERSION: &str = "1.26.1303.03";

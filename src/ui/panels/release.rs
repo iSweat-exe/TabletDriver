@@ -11,14 +11,16 @@ struct ReleaseEntry {
 
 const RELEASES: &[ReleaseEntry] = &[
     ReleaseEntry {
-        version: "1.26.1303.01",
+        version: "1.26.1303.03",
         date: "13/03/2026",
         additions: &[],
         removals: &[
             "Remove: Telemetry System",
         ],
         fixes: &[],
-        improvements: &[],
+        improvements: &[
+            "Internal Documentation",
+        ],
     },
     ReleaseEntry {
         version: "1.26.1203.01",
