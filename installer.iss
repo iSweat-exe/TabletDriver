@@ -34,7 +34,7 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 Source: "target\release\next_tablet_driver.exe"; DestDir: "{app}"; Flags: ignoreversion restartreplace
 
 [Icons]
-Name: "{group}\Next Table tDriver"; Filename: "{app}\next_tablet_driver.exe"
+Name: "{group}\Next Tablet Driver"; Filename: "{app}\next_tablet_driver.exe"
 Name: "{commondesktop}\Next Tablet Driver"; Filename: "{app}\next_tablet_driver.exe"; Tasks: desktopicon
 
 [Run]
