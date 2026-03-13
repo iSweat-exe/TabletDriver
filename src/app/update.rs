@@ -1,3 +1,9 @@
+//! # Application Update Loop
+//!
+//! This module contains the implementation of the `eframe::App` trait for
+//! `TabletMapperApp`. The `update` function defined here is called by egui
+//! every frame to process events, update state, and render the user interface.
+
 use crate::app::state::{AppTab, TabletMapperApp};
 use crate::settings::save_last_session;
 use crate::ui::panels::console::render_console_panel;
@@ -11,6 +17,21 @@ use eframe::egui;
 use std::sync::atomic::Ordering;
 
 impl eframe::App for TabletMapperApp {
+    /// The main application loop called by egui.
+    ///
+    /// # Responsibilities
+    /// 1. **Data Synchronization**: Flushes the backend receiver queues to get the latest
+    ///    tablet state (`TabletData`) and update statuses.
+    /// 2. **Dialogs & Modals**: Renders global overlay elements (e.g., update dialog).
+    /// 3. **UI Layout**: Organizes the screen into Menu Bar, Tabs, Main Panel, and Footer.
+    /// 4. **State Persistence**: Detects if user interaction modified the configuration
+    ///    and writes changes to both the shared engine state and disk.
+    /// 5. **Debugging & Overlays**: Handles the optional advanced debugger viewport.
+    ///
+    /// # Performance
+    /// The GUI runs asynchronously from the input capture thread. `update` requests
+    /// repaints automatically when events are fired, but also enforces a minimum 1Hz
+    /// refresh rate for passive status updates.
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         // --- Event Driven Data Sync ---
         // Drain all pending tablet events to get the latest state

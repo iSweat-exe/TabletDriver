@@ -1,3 +1,9 @@
+//! # NextTabletDriver Entry Point
+//!
+//! This is the main executable for the NextTabletDriver application.
+//! It initializes logging, checks for single-instance via a mutex (on Windows),
+//! configures the window properties, and launches the `eframe` (egui) graphical interface.
+
 #![windows_subsystem = "windows"]
 
 use eframe::egui;
@@ -8,6 +14,17 @@ use next_tablet_driver::ui::theme::apply_theme;
 use windows_sys::Win32::Foundation::{GetLastError, ERROR_ALREADY_EXISTS, HANDLE};
 use windows_sys::Win32::System::Threading::CreateMutexW;
 
+/// The main entry point of the application.
+///
+/// # Platform Specifics
+/// On Windows, it creates a named Mutex to ensure only one instance of the
+/// application is running at any given time. This mutex is also checked by the Inno Setup installer.
+///
+/// # Execution Flow
+/// 1. Verifies no other instance is running.
+/// 2. Initializes the application logger.
+/// 3. Configures the GUI window options (icon, dimensions, title).
+/// 4. Enters the `eframe::run_native` GUI event loop.
 fn main() -> eframe::Result {
     // --- Single Instance Mutex ---
     // This allows Inno Setup to know if the app is running and allows us to release it before update.

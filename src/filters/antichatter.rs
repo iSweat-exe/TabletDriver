@@ -1,8 +1,17 @@
+//! # Devocub Antichatter Filter
+//!
+//! An implementation of the popular "Devocub" smoothing algorithm. It uses a moving
+//! average window (latency buffer) to eliminate high-frequency noise (chatter)
+//! from hardware sensors, coupled with a linear prediction curve to compensate
+//! for the latency introduced by the averaging.
+
 use crate::core::config::models::MappingConfig;
 use crate::filters::Filter;
 use std::collections::VecDeque;
 
+/// The Devocub hardware chatter reduction filter.
 pub struct DevocubAntichatter {
+    /// A limited-length ring buffer of past coordinates.
     history: VecDeque<(f32, f32)>,
     last_x: f32,
     last_y: f32,

@@ -1,3 +1,8 @@
+//! # Tab Panels
+//!
+//! Each module within this directory encapsulates the layout and interactivity
+//! for a specific tab in the main application view (e.g., Output Mapping, Filters, Settings).
+
 pub mod console;
 pub mod debugger;
 pub mod filters;

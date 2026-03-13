@@ -1,7 +1,19 @@
+//! # Generic Tablet Driver
+//!
+//! This module implements a generic driver layer that unifies the interaction
+//! with all supported tablet models. It reads their JSON configurations, routes
+//! initialization patterns, and instantiates the correct specific data parser.
+
 use super::config::TabletConfiguration;
 use super::parsers::{create_parser, ReportParser};
-use super::{TabletData, NextTabletDriver};
+use super::{NextTabletDriver, TabletData};
 
+/// A universal wrapper implementing the `NextTabletDriver` trait.
+///
+/// Instead of writing a different `Driver` struct for every single tablet model,
+/// this generic struct uses the loaded `TabletConfiguration` to dynamically answer
+/// questions about its specs and routes the raw USB byte array `parse()` calls
+/// to the specific sub-parser (Wacom, Huion, XP-Pen, etc.) defined in the config.
 pub struct GenericNextTabletDriver {
     config: TabletConfiguration,
     vid: u16,

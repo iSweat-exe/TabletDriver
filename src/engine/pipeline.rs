@@ -1,11 +1,26 @@
+//! # Input Processing Pipeline
+//!
+//! This module defines the `Pipeline` struct, which is responsible for taking raw
+//! decoded hardware packets (`TabletData`) from a specific vendor driver and
+//! pushing them through the mathematical and filtering transformations required
+//! to produce OS-ready cursor coordinates.
+
 use crate::core::config::models::{DriverMode, MappingConfig};
 use crate::drivers::TabletData;
 use std::time::Duration;
 use std::time::Instant;
 
+/// The core processing pipeline for tablet input events.
+///
+/// It maintains internal state across frames (such as previous coordinates for
+/// relative mode or filter history) and orchestrates the flow from raw data ->
+/// filters -> transformation -> OS injection.
 pub struct Pipeline {
+    /// The last known absolute screen X coordinate, used for calculating relative deltas.
     last_screen_x: f32,
+    /// The last known absolute screen Y coordinate, used for calculating relative deltas.
     last_screen_y: f32,
+    /// The timestamp of the previous packet, used to reset relative tracking after inactivity.
     last_packet_time: Instant,
 }
 
@@ -24,11 +39,28 @@ impl Pipeline {
         }
     }
 
+    /// Resets the internal tracking for relative mode.
+    /// This prevents massive cursor jumps when the pen is lifted and placed back
+    /// down on a different part of the tablet.
     pub fn reset_relative(&mut self) {
         self.last_screen_x = -1.0;
         self.last_screen_y = -1.0;
     }
 
+    /// Processes a single hardware packet through the entire stack.
+    ///
+    /// # Processing Steps
+    /// 1. **Connection Check**: If the tablet is disconnected or out of range,
+    ///    releases the primary button and resets filters/relative tracking.
+    /// 2. **Physical Mapping**: Converts raw hardware units to millimeters (`x_mm`, `y_mm`).
+    /// 3. **Normalization**: Maps the physical `mm` coordinates onto a `[0.0, 1.0]` UV
+    ///    space based on the user's Active Area and Rotation settings.
+    /// 4. **Filtering**: Passes the UV coordinates through the active `FilterPipeline`
+    ///    (e.g., Antichatter, Smoothing).
+    /// 5. **Projection & Injection**:
+    ///    - *Absolute Mode*: Projects UV to Screen Space pixels and injects absolute changes.
+    ///    - *Relative Mode*: Converts physical `mm` deltas to pixel deltas based on sensitivity.
+    /// 6. **Pressure**: Evaluates current pressure against the tip threshold to trigger clicks.
     pub fn process(
         &mut self,
         data: &TabletData,

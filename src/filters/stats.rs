@@ -1,3 +1,9 @@
+//! # Speed Statistics Filter
+//!
+//! A passive "filter" that observes the coordinate stream without mutating it.
+//! It calculates the physical hand speed of the user (e.g., in mm/s or km/h)
+//! and broadcasts this data via a dedicated WebSocket server for streaming overlays.
+
 use crate::core::config::models::{MappingConfig, SpeedUnit};
 use crate::engine::state::SharedState;
 use crate::filters::Filter;
@@ -8,6 +14,7 @@ use std::thread;
 use std::time::Instant;
 use tungstenite::accept;
 
+/// Analyzes coordinate deltas over time to calculate physical hand speed.
 pub struct SpeedStatsFilter {
     last_pos: Option<(f32, f32)>,
     last_time: Instant,

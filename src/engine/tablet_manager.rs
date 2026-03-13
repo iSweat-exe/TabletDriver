@@ -1,3 +1,9 @@
+//! # Tablet Device Manager
+//!
+//! This module is the execution environment for the background USB polling thread.
+//! It handles detecting devices, reading raw USB packets, checking for configuration
+//! updates, and feeding data to the UI thread and `Pipeline`.
+
 use crate::drivers::detect_tablet;
 use crate::engine::injector::Injector;
 use crate::engine::pipeline::Pipeline;
@@ -9,6 +15,22 @@ use std::sync::Arc;
 use std::thread;
 use std::time::{Duration, Instant};
 
+/// The main background loop for device interaction.
+///
+/// This function runs indefinitely in its own thread, blocking on USB reads.
+///
+/// # Lifecycle
+/// 1. **Initialization**: Sets up `hidapi`, `Injector`, `Pipeline`, and default `Filters`.
+/// 2. **Detection Loop**: Periodically scans USB buses for a supported device.
+/// 3. **Connection Hook**: Upon connection, populates `SharedState` with device metadata
+///    (Name, VID, PID, Physical Size) and applies default area mappings if it's the first run.
+/// 4. **Polling Loop**: Continuously reads from the USB endpoint.
+///    - Parses raw bytes via the specific vendor driver.
+///    - Updates packet statistics.
+///    - Checks if the user changed the configuration in the UI (throttled to 50ms checks).
+///    - Sends the parsed data to the GUI thread for rendering.
+///    - Passes the data to the `Pipeline` for math/injection.
+/// 5. **Disconnection Hook**: If reading fails, cleans up state and drops back to detection loop.
 pub fn run_manager(
     shared: Arc<SharedState>,
     ctx: egui::Context,

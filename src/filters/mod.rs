@@ -1,16 +1,40 @@
+//! # Data Filters
+//!
+//! This module defines the plugin-like `Filter` architecture. Filters are applied
+//! sequentially in a pipeline to manipulate the `(u, v)` normalized coordinate stream
+//! before it gets projected onto the screen. This allows for features like smoothing,
+//! latency prediction, and telemetry extraction.
+
 pub mod antichatter;
 pub mod stats;
 
 use crate::core::config::models::MappingConfig;
 
+/// A trait defining a standardized interface for coordinate mutations.
 pub trait Filter: Send + Sync {
+    /// Returns the UI-friendly name of the filter.
     fn name(&self) -> &'static str;
+    /// Applies the mathematical filter to the current coordinate.
+    ///
+    /// # Arguments
+    /// * `x`, `y` - The incoming coordinate (usually in `[0.0, 1.0]` UV space).
+    /// * `config` - The global `MappingConfig` containing user preferences.
+    ///
+    /// # Returns
+    /// The mutated `(x, y)` coordinate.
     fn process(&mut self, x: f32, y: f32, config: &MappingConfig) -> (f32, f32);
+
+    /// Optional hook called whenever the global configuration changes.
     fn update_config(&mut self, _config: &MappingConfig) {}
+
+    /// Clears any internal state bounds (e.g., previous positions, moving averages).
+    /// Called when the pen leaves proximity or the tablet disconnects.
     fn reset(&mut self);
 }
 
+/// A collection of filters that execute in sequence.
 pub struct FilterPipeline {
+    /// The ordered list of active filters.
     pub filters: Vec<Box<dyn Filter>>,
 }
 

@@ -1,5 +1,5 @@
 //! # Startup Management
-//! 
+//!
 //! This module provides utilities to manage the application's lifecycle on Windows,
 //! specifically handling the "run at startup" functionality by managing
 //! shell shortcuts in the user's Startup folder.
@@ -18,10 +18,10 @@ use std::process::Command;
 const APP_NAME: &str = "NextTabletDriver";
 
 /// Locates the Windows Startup folder for the current user.
-/// 
+///
 /// # Internal Logic
 /// It constructs the path: `C:\Users\<User>\AppData\Roaming\Microsoft\Windows\Start Menu\Programs\Startup`
-/// 
+///
 /// # Returns
 /// * `Some(PathBuf)` containing the absolute path to the startup folder.
 /// * `None` if the home directory cannot be determined via OS APIs.
@@ -126,7 +126,7 @@ pub fn set_run_at_startup(enabled: bool) -> Result<(), Box<dyn std::error::Error
 }
 
 /// Checks if the application is currently configured to run at startup.
-/// 
+///
 /// # Returns
 /// * `true` if the shortcut file (`NextTabletDriver.lnk`) exists in the Startup folder.
 /// * `false` otherwise or if the path cannot be determined.

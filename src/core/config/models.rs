@@ -1,5 +1,15 @@
+//! # Configuration Models
+//!
+//! This module defines the data structures used to serialize and deserialize
+//! the application's configuration state (typically saved to `settings.json`).
+//! It includes models for tablet mapping arrays, UI preferences, and filter settings.
+
 use serde::{Deserialize, Serialize};
 
+/// Represents the absolute physical mapping area on the tablet surface.
+///
+/// Units are in **millimeters** representing the distance from the top-left corner
+/// of the tablet's active zone.
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
 pub struct ActiveArea {
     pub x: f32,        // Millimeters
@@ -9,6 +19,9 @@ pub struct ActiveArea {
     pub rotation: f32, // Degrees
 }
 
+/// Represents the target mapping area on the user's connected monitors.
+///
+/// Units are in absolute virtual **pixels** spanning across all displays.
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
 pub struct TargetArea {
     pub x: f32, // Pixels
@@ -17,6 +30,7 @@ pub struct TargetArea {
     pub h: f32, // Pixels
 }
 
+/// Determines how pen movement translates to cursor movement.
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, Default)]
 pub enum DriverMode {
     #[default]
@@ -24,6 +38,7 @@ pub enum DriverMode {
     Relative,
 }
 
+/// Settings specific to `Relative` (mouse-like) driver mode.
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
 pub struct RelativeConfig {
     pub x_sensitivity: f32,
@@ -68,6 +83,7 @@ fn default_ws_hz() -> u32 {
     60
 }
 
+/// Configuration for the embedded WebSocket server.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct WebSocketConfig {
     #[serde(default = "default_false")]
@@ -100,6 +116,7 @@ impl Default for WebSocketConfig {
     }
 }
 
+/// Configuration for the Devocub Antichatter implementation.
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
 pub struct AntichatterConfig {
     pub enabled: bool,
@@ -135,6 +152,7 @@ impl Default for AntichatterConfig {
     }
 }
 
+/// Units used for reporting pen speed telemetry.
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, Default)]
 pub enum SpeedUnit {
     #[default]
@@ -144,6 +162,7 @@ pub enum SpeedUnit {
     MilesPerHour,
 }
 
+/// Configuration for the Speed Statistics UDP telemetry sender.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct SpeedStatsConfig {
     pub enabled: bool,
@@ -163,6 +182,11 @@ impl Default for SpeedStatsConfig {
     }
 }
 
+/// The root configuration struct for the application.
+///
+/// This structure holds all user-adjustable parameters and is the
+/// primary object serialized to disk. Default struct fields are provided by individual functions
+/// to facilitate serde compatibility for adding new fields to older config files.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct MappingConfig {
     #[serde(default)]

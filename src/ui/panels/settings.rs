@@ -46,9 +46,7 @@ pub fn render_settings_panel(
         ui.horizontal(|ui| {
             ui.checkbox(&mut config.websocket.enabled, "Enable WebSocket Server");
             if config.websocket.enabled {
-                ui.label(
-                    egui::RichText::new("Running").color(egui::Color32::from_rgb(0, 200, 0)),
-                );
+                ui.label(egui::RichText::new("Running").color(egui::Color32::from_rgb(0, 200, 0)));
             } else {
                 ui.label(egui::RichText::new("Stopped").color(egui::Color32::RED));
             }

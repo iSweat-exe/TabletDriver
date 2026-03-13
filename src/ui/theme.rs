@@ -1,5 +1,14 @@
+//! # Visual Theme and Custom Widgets
+//!
+//! This module configures the egui global styling to create a clean, modern
+//! Light theme that visually aligns with the aesthetics of OpenTabletDriver (OTD).
+//! It also provides reusable helper functions for consistent layout paradigms
+//! (like section headers and standardized input boxes) across panels.
+
 use eframe::egui;
 
+/// Injects custom spacing, colors, and strokes into the `egui::Context`.
+/// Called once at application startup.
 pub fn apply_theme(ctx: &egui::Context) {
     // LIGHT THEME
     ctx.set_visuals(egui::Visuals::light());
@@ -14,7 +23,7 @@ pub fn apply_theme(ctx: &egui::Context) {
     ctx.set_style(style);
 }
 
-// Helper for OTD-style section headers
+/// Renders a standardized section header with a title and a horizontal separator line.
 pub fn ui_section_header(ui: &mut egui::Ui, title: &str) {
     ui.horizontal(|ui| {
         ui.add_space(2.0);
@@ -29,7 +38,9 @@ pub fn ui_section_header(ui: &mut egui::Ui, title: &str) {
     ui.add_space(4.0);
 }
 
-// Helper for OTD-style input boxes
+/// Renders a styled container holding a label and an `f32` DragValue input.
+///
+/// This creates the "pill" style input boxes heavily used in the Output tab.
 pub fn ui_input_box(ui: &mut egui::Ui, label: &str, value: &mut f32, unit: &str) {
     egui::Frame::none()
         .fill(egui::Color32::from_gray(250))
@@ -71,6 +82,7 @@ pub fn ui_input_box(ui: &mut egui::Ui, label: &str, value: &mut f32, unit: &str)
         });
 }
 
+/// Renders a styled container holding a label and a `u32` DragValue input.
 pub fn ui_input_box_u32(ui: &mut egui::Ui, label: &str, value: &mut u32, unit: &str) {
     egui::Frame::none()
         .fill(egui::Color32::from_gray(250))
@@ -109,7 +121,10 @@ pub fn ui_input_box_u32(ui: &mut egui::Ui, label: &str, value: &mut u32, unit: &
         });
 }
 
-// Wide helper for settings with long labels (like filters)
+/// Renders a wide, right-aligned setting row typically used in the Filters tab.
+///
+/// Features a left-aligned label and a right-aligned input box to keep long parameter
+/// lists visually neat.
 pub fn ui_setting_row(ui: &mut egui::Ui, label: &str, value: &mut f32, unit: &str) {
     egui::Frame::none()
         .fill(egui::Color32::from_gray(250))

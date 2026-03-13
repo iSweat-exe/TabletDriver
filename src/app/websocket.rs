@@ -1,3 +1,9 @@
+//! # WebSocket Server
+//!
+//! This module provides an embedded WebSocket server that broadcasts real-time
+//! tablet data (position, pressure, status) to external clients. This is primarily
+//! designed for streamer overlays, custom UI integrations, or third-party plugins.
+
 use std::collections::HashMap;
 use std::net::TcpListener;
 use std::sync::Arc;
@@ -10,6 +16,10 @@ use tungstenite::{accept, Message};
 
 use crate::engine::state::SharedState;
 
+/// The JSON payload broadcasted to all connected WebSocket clients.
+///
+/// Fields are dynamically omitted (via `skip_serializing_if = "Option::is_none"`)
+/// depending on the user's privacy/performance settings in the Settings tab.
 #[derive(Serialize)]
 struct WsPayload {
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -24,6 +34,18 @@ struct WsPayload {
     is_connected: Option<bool>,
 }
 
+/// Runs the embedded WebSocket server in a dedicated background thread.
+///
+/// # Behavior
+/// 1. Reads the current configuration (`WebSocketConfig`) from `SharedState`.
+/// 2. Manages the lifecycle of a `TcpListener` based on the user-configured port.
+/// 3. Accepts incoming WebSocket handshakes and stores active connections.
+/// 4. Reads the most recent `TabletData` and broadcasts it to all connected clients
+///    at the user-defined polling rate (Hz).
+///
+/// # Networking
+/// - Binds to `127.0.0.1` (localhost only) for security.
+/// - Uses non-blocking sockets to allow for graceful client disconnection and reconnects.
 pub fn websocket_loop(shared: Arc<SharedState>) {
     let mut current_port = 0;
     let mut listener: Option<TcpListener> = None;
@@ -32,7 +54,7 @@ pub fn websocket_loop(shared: Arc<SharedState>) {
 
     loop {
         // 1. Read current config
-        let (enabled, port, hz, send_coords, send_pressure, send_tilt, send_status) = {
+        let (enabled, port, hz, send_coords, send_pressure, _send_tilt, send_status) = {
             let config = shared.config.read().unwrap();
             let ws = &config.websocket;
             (

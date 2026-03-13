@@ -1,14 +1,27 @@
+//! # Tablet Configuration Serialization
+//!
+//! This module defines the Serde structures used to parse the standard `.json`
+//! configuration files (compatible with OpenTabletDriver format). These files contain
+//! the physical specifications, USB identifiers, and initialization sequences for
+//! hundreds of known tablet models.
+
 use serde::Deserialize;
 
+/// The root structure representing a parsed tablet configuration file.
 #[derive(Debug, Deserialize, Clone)]
 #[serde(rename_all = "PascalCase")]
 pub struct TabletConfiguration {
+    /// The human-readable name of the tablet (e.g., "Wacom CTL-472").
     pub name: String,
+    /// Physical dimensions and hardware limits.
     pub specifications: Specifications,
+    /// USB/Bluetooth matching criteria and initialization payloads.
     pub digitizer_identifiers: Vec<DigitizerIdentifier>,
+    /// Optional overrides for specific operating systems/backends.
     pub attributes: Option<Attributes>,
 }
 
+/// Groups the hardware capabilities of the tablet body and the stylus.
 #[derive(Debug, Deserialize, Clone)]
 #[serde(rename_all = "PascalCase")]
 pub struct Specifications {
@@ -16,33 +29,48 @@ pub struct Specifications {
     pub pen: PenSpecs,
 }
 
+/// Details the mapping area size and maximum raw values the HID descriptor can emit.
 #[derive(Debug, Deserialize, Clone)]
 #[serde(rename_all = "PascalCase")]
 pub struct DigitizerSpecs {
+    /// Physical width in millimeters.
     pub width: f32,
+    /// Physical height in millimeters.
     pub height: f32,
+    /// Maximum `X` value emitted by the hardware sensor.
     pub max_x: f32,
+    /// Maximum `Y` value emitted by the hardware sensor.
     pub max_y: f32,
 }
 
+/// Details the capabilities of the specific stylus included with the tablet.
 #[derive(Debug, Deserialize, Clone)]
 #[serde(rename_all = "PascalCase")]
 pub struct PenSpecs {
+    /// The maximum pressure level (e.g., 2047, 4095, 8191).
     pub max_pressure: u16,
+    /// Number of physical buttons on the pen barrel.
     pub button_count: Option<u8>,
 }
 
+/// Connects specific USB Hardware IDs to the data parser required to understand them.
 #[derive(Debug, Deserialize, Clone)]
 #[serde(rename_all = "PascalCase")]
 pub struct DigitizerIdentifier {
+    /// USB Vendor ID (e.g., 0x056A for Wacom).
     #[serde(rename = "VendorID")]
     pub vendor_id: u16,
+    /// USB Product ID (e.g., 0x0374).
     #[serde(rename = "ProductID")]
     pub product_id: u16,
+    /// Expected byte length of incoming HID packets.
     pub input_report_length: Option<usize>,
     pub output_report_length: Option<usize>,
+    /// The fully qualified C# class name from OpenTabletDriver format mapping to our Rust parsers.
     pub report_parser: String,
+    /// Base64 encoded byte array(s) to send via `Device::write` to wake up the tablet.
     pub output_init_report: Option<Vec<String>>,
+    /// Base64 encoded byte array(s) to send via `Device::send_feature_report` to put the tablet in Absolute/Pro mode.
     pub feature_init_report: Option<Vec<String>>,
 }
 

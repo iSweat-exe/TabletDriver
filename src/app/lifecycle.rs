@@ -1,3 +1,9 @@
+//! # Application Lifecycle
+//!
+//! This module handles the initialization, startup routines, and background thread
+//! management for the `TabletMapperApp`. It is responsible for loading configurations
+//! and bootstrapping the various concurrent systems (engine, websocket, updater).
+
 use display_info::DisplayInfo;
 use std::sync::atomic::AtomicU32;
 use std::sync::Arc;
@@ -14,6 +20,22 @@ use crate::engine::tablet_manager::run_manager;
 use crate::settings::load_last_session;
 
 impl TabletMapperApp {
+    /// Creates a new instance of the application and initializes all background services.
+    ///
+    /// # Arguments
+    /// * `_ctx` - The `eframe::egui::Context` provided by the window manager.
+    ///
+    /// # Initialization Flow
+    /// 1. **Displays**: Gathers information about connected monitors.
+    /// 2. **Configuration**: Attempts to load the last session's settings from disk.
+    ///    If no configuration is found, applies fallback defaults.
+    /// 3. **Shared State**: Allocates the `SharedState` structure wrapped in an `Arc`.
+    /// 4. **Input Engine Thread**: Spawns a background thread to run the `tablet_manager`,
+    ///    which continuously polls USB/HID devices.
+    /// 5. **WebSocket Thread**: Spawns a background thread to manage WebSocket connections
+    ///    for external integrations (e.g., streaming overlays).
+    /// 6. **Auto-Updater Thread**: Spawns a background thread to check GitHub releases
+    ///    for newer versions of the software.
     pub fn new(_ctx: eframe::egui::Context) -> Self {
         let displays = DisplayInfo::all().unwrap_or_default();
 
