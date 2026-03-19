@@ -19,8 +19,8 @@ pub fn render_filters_panel(
             egui::Layout::top_down_justified(egui::Align::LEFT),
             |ui| {
                 egui::Frame::none()
-                    .fill(egui::Color32::from_gray(245))
-                    .stroke(egui::Stroke::new(1.0, egui::Color32::from_gray(220)))
+                    .fill(crate::ui::theme::panel_bg(ui.visuals()))
+                    .stroke(egui::Stroke::new(1.0, crate::ui::theme::panel_border(ui.visuals())))
                     .inner_margin(4.0)
                     .show(ui, |ui| {
                         ui.set_min_height(sidebar_height);

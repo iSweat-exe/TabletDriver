@@ -15,7 +15,8 @@ pub fn render_display_section(
     ui_section_header(ui, "Display");
 
     egui::Frame::canvas(ui.style())
-        .stroke(egui::Stroke::new(1.0, egui::Color32::from_gray(200)))
+        .fill(crate::ui::theme::panel_bg(ui.visuals()))
+        .stroke(egui::Stroke::new(1.0, crate::ui::theme::panel_border(ui.visuals())))
         .show(ui, |ui| {
             let available_w = ui.available_width();
             let viz_h = 200.0;
@@ -44,14 +45,14 @@ pub fn render_display_section(
                     ui.painter().rect_stroke(
                         s_rect,
                         0.0,
-                        egui::Stroke::new(1.0, egui::Color32::GRAY),
+                        egui::Stroke::new(1.0, crate::ui::theme::panel_border(ui.visuals())),
                     );
                     ui.painter().text(
                         s_rect.center(),
                         egui::Align2::CENTER_CENTER,
                         format!("{}px", d.width),
                         egui::FontId::proportional(10.0),
-                        egui::Color32::BLACK,
+                        ui.visuals().text_color(),
                     );
                 }
 
@@ -62,19 +63,21 @@ pub fn render_display_section(
                     ),
                     egui::vec2(config.target_area.w * scale, config.target_area.h * scale),
                 );
+                let stroke_color = if ui.visuals().dark_mode { egui::Color32::WHITE } else { egui::Color32::BLACK };
+
                 ui.painter().rect_filled(
                     t_rect,
                     0.0,
-                    egui::Color32::from_rgba_unmultiplied(137, 196, 244, 255),
+                    crate::ui::theme::accent_bg(ui.visuals()),
                 );
                 ui.painter()
-                    .rect_stroke(t_rect, 0.0, egui::Stroke::new(1.0, egui::Color32::BLACK));
+                    .rect_stroke(t_rect, 0.0, egui::Stroke::new(1.0, stroke_color));
 
                 ui.painter()
-                    .circle_filled(t_rect.center(), 1.5, egui::Color32::BLACK);
+                    .circle_filled(t_rect.center(), 1.5, stroke_color);
 
                 let font_id = egui::FontId::proportional(12.0);
-                let color = egui::Color32::BLACK;
+                let color = if ui.visuals().dark_mode { egui::Color32::from_gray(20) } else { egui::Color32::BLACK };
 
                 ui.painter().text(
                     t_rect.center_top() + egui::vec2(0.0, 5.0),

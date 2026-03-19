@@ -12,8 +12,8 @@ pub fn render_settings_panel(
     ui_section_header(ui, "General Settings");
 
     let frame = egui::Frame::group(ui.style())
-        .fill(egui::Color32::from_gray(250))
-        .stroke(egui::Stroke::new(1.0, egui::Color32::from_gray(220)))
+        .fill(crate::ui::theme::panel_bg(ui.visuals()))
+        .stroke(egui::Stroke::new(1.0, crate::ui::theme::panel_border(ui.visuals())))
         .inner_margin(10.0);
 
     frame.show(ui, |ui| {
@@ -36,8 +36,8 @@ pub fn render_settings_panel(
     ui.add_space(10.0);
     ui_section_header(ui, "WebSocket Server");
     let ws_frame = egui::Frame::group(ui.style())
-        .fill(egui::Color32::from_gray(250))
-        .stroke(egui::Stroke::new(1.0, egui::Color32::from_gray(220)))
+        .fill(crate::ui::theme::panel_bg(ui.visuals()))
+        .stroke(egui::Stroke::new(1.0, crate::ui::theme::panel_border(ui.visuals())))
         .inner_margin(10.0);
 
     ws_frame.show(ui, |ui| {
