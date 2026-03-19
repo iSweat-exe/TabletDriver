@@ -11,4 +11,4 @@ updates:
       - dependency-type: "all"
     ignore:
       - dependency-name: "*"
-        update-types: ["version-update:semver-patch", "version-update:semver-minor", "version-update:semver-major"]
+        update-types: ["version-update:semver-major"]
