@@ -11,6 +11,18 @@ struct ReleaseEntry {
 
 const RELEASES: &[ReleaseEntry] = &[
     ReleaseEntry {
+        version: "1.26.1903.03",
+        date: "19/03/2026",
+        additions: &[],
+        removals: &[
+            "Remove: Powershell files, Payload.json",
+        ],
+        fixes: &[],
+        improvements: &[
+            "Next Tablet Driver now has a GitHub organization, the project has also been cleaned up for a better presentation in the future.",
+        ],
+    },
+    ReleaseEntry {
         version: "1.26.1303.03",
         date: "13/03/2026",
         additions: &[],
