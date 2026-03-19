@@ -1,4 +1,4 @@
-# NextTabletDriver ⚡
+# NextTabletDriver (NextTD)
 
 > A high-performance user-mode drawing tablet driver written in Rust, designed to minimize input lag. A modern alternative to OpenTabletDriver.
 
@@ -12,14 +12,14 @@
 
 ## ✨ Features
 
-- ⚡ **Ultra-low input lag** — optimized at the driver level for maximum responsiveness
-- 🎨 **Drawing & osu! ready** — designed for digital artists and osu! players
-- 🖥️ **User-mode driver** — no need to install kernel-level drivers
-- 🔌 **HID support** — communicates directly with tablets via HID protocol
-- 🌐 **WebSocket support** — real-time communication via `tungstenite`
-- 🖱️ **Area mapping** — configure tablet area, screen mapping and more
-- 💾 **Persistent settings** — configuration saved locally via `serde_json`
-- 🪟 **Windows support** — native Windows integration via `windows-sys`
+- ⚡ **Ultra-low input lag** : optimized at the driver level for maximum responsiveness
+- 🎨 **Drawing & osu! ready** : designed for digital artists and osu! players
+- 🖥️ **User-mode driver** : no need to install kernel-level drivers
+- 🔌 **HID support** : communicates directly with tablets via HID protocol
+- 🌐 **WebSocket support** : real-time communication via `tungstenite`
+- 🖱️ **Area mapping** : configure tablet area, screen mapping and more
+- 💾 **Persistent settings** : configuration saved locally via `serde_json`
+- 🪟 **Windows support** : native Windows integration via `windows-sys`
 
 ---
 
@@ -49,7 +49,7 @@ cd NextTabletDriver
 cargo build --release
 ```
 
-The compiled binary will be available in `target/release/`.
+The compiled binary will be available in `./target/release/`.
 
 ---
 
@@ -71,7 +71,7 @@ NextTabletDriver/
 
 ## 🎮 Supported Use Cases
 
-- **osu!** — minimal latency for competitive play
+- **Osu!** — minimal latency for competitive play
 - **Digital drawing** — precise and smooth pen input
 - **General tablet use** — area mapping, pressure curve, etc.
 
@@ -79,7 +79,7 @@ NextTabletDriver/
 
 ## 🤝 Contributing
 
-Contributions are welcome! This project is tagged `help-wanted` — feel free to open an issue or submit a pull request.
+Contributions are welcome! This project is tagged `help-wanted` feel free to open an issue or submit a pull request.
 
 1. Fork the repository
 2. Create your feature branch (`git checkout -b feature/my-feature`)
