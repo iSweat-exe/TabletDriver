@@ -47,8 +47,15 @@ impl UpdateStatus {
     }
 }
 
-const GITHUB_API_URL: &str =
-    "https://api.github.com/repos/isweat-exe/NextTabletDriver/releases/latest";
+const OWNER: &str = "Next-Tablet-Driver";
+const REPO: &str = "NextTabletDriver";
+
+fn github_api_url() -> String {
+    format!(
+        "https://api.github.com/repos/{}/{}/releases/latest",
+        OWNER, REPO
+    )
+}
 
 /// Queries the GitHub API to check if a newer version is available.
 ///
@@ -61,16 +68,32 @@ pub fn check_for_updates() -> Result<Option<Release>, Box<dyn std::error::Error>
         .user_agent("NextTabletDriver-AutoUpdate")
         .build()?;
 
-    let release: Release = client.get(GITHUB_API_URL).send()?.json()?;
+    let url = github_api_url();
+    let response = client.get(&url).send()?;
+
+    if !response.status().is_success() {
+        return Err(format!("GitHub API error: {}", response.status()).into());
+    }
+
+    let release: Release = response.json()?;
 
     let remote_version = release.tag_name.trim_start_matches('v');
     let local_version = crate::VERSION;
 
     if remote_version != local_version {
-        log::info!(target: "Update", "New version available: {} (local version: {})", remote_version, local_version);
+        log::info!(
+            target: "Update",
+            "New version available: {} (local version: {})",
+            remote_version,
+            local_version
+        );
         Ok(Some(release))
     } else {
-        log::info!(target: "Update", "No new updates found. You are on the latest version ({})", local_version);
+        log::info!(
+            target: "Update",
+            "No new updates found. You are on the latest version ({})",
+            local_version
+        );
         Ok(None)
     }
 }
@@ -90,6 +113,7 @@ pub fn download_and_install(release: Release) -> Result<(), Box<dyn std::error::
         .find(|a| a.name.ends_with(".exe"))
         .or_else(|| release.assets.first())
         .ok_or("No suitable installer asset found in release")?;
+
     let download_url = &asset.browser_download_url;
 
     log::info!(target: "Update", "Downloading update from {}", download_url);
@@ -97,18 +121,27 @@ pub fn download_and_install(release: Release) -> Result<(), Box<dyn std::error::
     let client = reqwest::blocking::Client::builder()
         .user_agent("NextTabletDriver-AutoUpdate")
         .build()?;
+
     let mut response = client.get(download_url).send()?;
+
+    if !response.status().is_success() {
+        return Err(format!("Download failed: {}", response.status()).into());
+    }
+
     let mut temp_path = env::temp_dir();
     temp_path.push("Next_Tablet_Driver_Setup.exe");
 
     {
         let mut file = fs::File::create(&temp_path)?;
         response.copy_to(&mut file)?;
-    } // File handle is closed here
+    }
 
-    log::info!(target: "Update", "Download complete settings setup at {:?}", temp_path);
+    log::info!(
+        target: "Update",
+        "Download complete, setup at {:?}",
+        temp_path
+    );
 
-    // Launch installer
     let status = Command::new(&temp_path).spawn();
 
     match status {
