@@ -4,11 +4,12 @@
 //! the application from GitHub. It operates in a background thread to prevent pausing
 //! the main UI or input processing.
 
-use serde::Deserialize;
 use std::env;
 use std::fs;
 use std::path::PathBuf;
 use std::process::Command;
+
+use serde::Deserialize;
 
 /// Represents a GitHub Release object returned from the API.
 #[derive(Deserialize, Clone)]
@@ -116,7 +117,11 @@ pub fn download_and_install(release: Release) -> Result<(), Box<dyn std::error::
 
     let download_url = &asset.browser_download_url;
 
-    log::info!(target: "Update", "Downloading update from {}", download_url);
+    log::info!(
+        target: "Update",
+        "Downloading update from {}",
+        download_url
+    );
 
     let client = reqwest::blocking::Client::builder()
         .user_agent("NextTabletDriver-AutoUpdate")
