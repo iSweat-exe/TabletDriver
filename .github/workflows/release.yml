@@ -13,17 +13,11 @@ jobs:
       contents: write
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@stable
 
-      - name: Rust Cache
-        uses: swatinem/rust-cache@v2
-
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
+      - uses: swatinem/rust-cache@v2
 
       - name: Build Rust Project
         run: cargo build --release
