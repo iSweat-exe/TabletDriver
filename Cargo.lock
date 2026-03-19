@@ -2450,7 +2450,7 @@ dependencies = [
  "serde",
  "serde_json",
  "tungstenite",
- "windows-sys 0.52.0",
+ "windows-sys 0.61.2",
  "winres",
 ]
 
