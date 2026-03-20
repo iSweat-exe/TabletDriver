@@ -62,6 +62,7 @@ impl ReportParser for IntuosParser {
                         hover_distance: report.hover_distance,
                         raw_data: raw,
                         is_connected: true,
+                        ..Default::default()
                     })
                 } else {
                     None

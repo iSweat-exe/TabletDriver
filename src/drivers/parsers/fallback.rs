@@ -58,6 +58,7 @@ impl ReportParser for FallbackParser {
             hover_distance: 0,
             raw_data: raw,
             is_connected,
+            ..Default::default()
         })
     }
 }

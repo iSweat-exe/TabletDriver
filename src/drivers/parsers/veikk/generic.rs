@@ -51,6 +51,7 @@ impl ReportParser for VeikkParser {
             hover_distance: 0,
             raw_data: raw,
             is_connected: true,
+            ..Default::default()
         })
     }
 }

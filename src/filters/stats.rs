@@ -110,11 +110,11 @@ impl Filter for SpeedStatsFilter {
 
     fn process(&mut self, u: f32, v: f32, config: &MappingConfig) -> (f32, f32) {
         let conf = &config.speed_stats;
-        if !conf.enabled {
-            return (u, v);
-        }
 
-        self.ensure_server_running(&conf.ip, conf.port);
+        // We always update the local server if enabled
+        if conf.enabled {
+            self.ensure_server_running(&conf.ip, conf.port);
+        }
 
         let now = Instant::now();
         let dt = now.duration_since(self.last_time).as_secs_f32();

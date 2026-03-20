@@ -74,6 +74,7 @@ impl ReportParser for BambooParser {
                     hover_distance: 0,
                     raw_data: raw,
                     is_connected: true,
+                    ..Default::default()
                 })
             }
             _ => None,

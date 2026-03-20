@@ -62,6 +62,7 @@ impl ReportParser for InspiroyParser {
             hover_distance: 0,
             raw_data: raw,
             is_connected: true,
+            ..Default::default()
         })
     }
 }

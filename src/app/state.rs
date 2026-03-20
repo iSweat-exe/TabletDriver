@@ -70,10 +70,17 @@ pub struct TabletMapperApp {
     // Debugger UI State
     /// Whether the advanced polling rate / jitter debugger overlay is visible.
     pub show_debugger: bool,
+    /// Whether the complex input lag and performance statistics overlay is visible.
+    pub show_latency_stats: bool,
     /// The calculated and displayed polling rate (Hz).
     pub displayed_hz: f32,
     /// Timestamp of the last polling rate calculation.
     pub last_hz_update: Instant,
     /// The number of packets processed at the last polling rate calculation interval.
     pub last_packet_count: u32,
+    /// Real-time perceived latency between driver thread and UI thread (ms).
+    pub ui_latency_ms: f32,
+    pub min_ui_latency_ms: f32,
+    pub max_ui_latency_ms: f32,
+    pub avg_ui_latency_ms: f32,
 }
