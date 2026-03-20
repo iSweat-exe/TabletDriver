@@ -30,7 +30,6 @@ pub fn render_settings_panel(
         {
             if let Err(e) = crate::startup::set_run_at_startup(config.run_at_startup) {
                 log::error!(target: "App", "Failed to update startup setting: {}", e);
-                // Revert if it failed
                 config.run_at_startup = old_run_at_startup;
             }
         }

@@ -11,17 +11,28 @@ struct ReleaseEntry {
 
 const RELEASES: &[ReleaseEntry] = &[
     ReleaseEntry {
+        version: "1.26.2103.01",
+        date: "21/03/2026",
+        additions: &[
+            "Add: Added 4 Catppuccin themes (Latte, Frappe, Macchiato, Mocha)",
+            "Add: Added Osu! Playfield preview in the mapping area",
+        ],
+        removals: &[],
+        fixes: &[
+            "Fix: Cleaned up and modernized the default egui UI design (borders, rounding, and hover effects)",
+        ],
+        improvements: &[
+            "Improve: Improved theme-awareness for custom UI components",
+        ],
+    },
+    ReleaseEntry {
         version: "1.26.2003.01",
         date: "20/03/2026",
         additions: &[
             "Add: 'Theme' settings in 'Settings' tab",
         ],
-        removals: &[
-            "Nothing"
-        ],
-        fixes: &[
-            "Nothing"
-        ],
+        removals: &[],
+        fixes: &[],
         improvements: &[
             "Improve: 'Theme' settings to allow changing the theme of the application"
         ],
@@ -120,7 +131,6 @@ const RELEASES: &[ReleaseEntry] = &[
             "Event-driven architecture for reduced CPU usage"
         ],
     },
-    // Add future versions here
 ];
 
 pub fn render_release_panel(_app: &crate::app::state::TabletMapperApp, ui: &mut egui::Ui) {
