@@ -36,12 +36,26 @@ pub fn apply_theme(ctx: &egui::Context, theme: ThemePreference) {
 
     let mut style = (*ctx.style()).clone();
 
-    // Spacing
+    // --- Premium Spacing & Rounding ---
     style.spacing.item_spacing = egui::vec2(8.0, 8.0);
+    style.spacing.button_padding = egui::vec2(8.0, 4.0);
+    style.spacing.interact_size.y = 20.0;
+    
+    let rounding = egui::Rounding::same(4.0);
+    style.visuals.widgets.noninteractive.rounding = rounding;
+    style.visuals.widgets.inactive.rounding = rounding;
+    style.visuals.widgets.hovered.rounding = rounding;
+    style.visuals.widgets.active.rounding = rounding;
+    style.visuals.widgets.open.rounding = rounding;
+    style.visuals.window_rounding = 8.0.into();
 
-    // Only apply hardcoded accent overrides if NOT in Catppuccin (which handles its own widgets)
-    // Or if we want to ensure consistency, we apply it anyway but with the catppuccin accent color.
+    style.visuals.widgets.noninteractive.bg_stroke = egui::Stroke::new(0.5, style.visuals.widgets.noninteractive.bg_stroke.color.gamma_multiply(0.5));
+    style.visuals.widgets.inactive.bg_stroke = egui::Stroke::NONE;
+    style.visuals.widgets.hovered.bg_stroke = egui::Stroke::new(1.0, accent_color.gamma_multiply(0.5));
     style.visuals.widgets.active.bg_stroke = egui::Stroke::new(1.0, accent_color);
+    
+    style.visuals.widgets.hovered.bg_fill = style.visuals.widgets.hovered.bg_fill.gamma_multiply(0.8);
+    
     style.visuals.selection.bg_fill = accent_color;
     style.visuals.selection.stroke = egui::Stroke::new(1.0, egui::Color32::WHITE);
 
