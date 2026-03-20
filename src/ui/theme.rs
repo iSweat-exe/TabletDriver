@@ -18,7 +18,9 @@ pub fn apply_theme(ctx: &egui::Context, theme: ThemePreference) {
         ThemePreference::Dark => ctx.set_visuals(egui::Visuals::dark()),
         ThemePreference::System => ctx.set_visuals(egui::Visuals::default()),
         ThemePreference::CatppuccinLatte => catppuccin_egui::set_theme(ctx, catppuccin_egui::LATTE),
-        ThemePreference::CatppuccinFrappe => catppuccin_egui::set_theme(ctx, catppuccin_egui::FRAPPE),
+        ThemePreference::CatppuccinFrappe => {
+            catppuccin_egui::set_theme(ctx, catppuccin_egui::FRAPPE)
+        }
         ThemePreference::CatppuccinMacchiato => {
             catppuccin_egui::set_theme(ctx, catppuccin_egui::MACCHIATO)
         }
@@ -40,7 +42,7 @@ pub fn apply_theme(ctx: &egui::Context, theme: ThemePreference) {
     style.spacing.item_spacing = egui::vec2(8.0, 8.0);
     style.spacing.button_padding = egui::vec2(8.0, 4.0);
     style.spacing.interact_size.y = 20.0;
-    
+
     let rounding = egui::Rounding::same(4.0);
     style.visuals.widgets.noninteractive.rounding = rounding;
     style.visuals.widgets.inactive.rounding = rounding;
@@ -49,13 +51,24 @@ pub fn apply_theme(ctx: &egui::Context, theme: ThemePreference) {
     style.visuals.widgets.open.rounding = rounding;
     style.visuals.window_rounding = 8.0.into();
 
-    style.visuals.widgets.noninteractive.bg_stroke = egui::Stroke::new(0.5, style.visuals.widgets.noninteractive.bg_stroke.color.gamma_multiply(0.5));
+    style.visuals.widgets.noninteractive.bg_stroke = egui::Stroke::new(
+        0.5,
+        style
+            .visuals
+            .widgets
+            .noninteractive
+            .bg_stroke
+            .color
+            .gamma_multiply(0.5),
+    );
     style.visuals.widgets.inactive.bg_stroke = egui::Stroke::NONE;
-    style.visuals.widgets.hovered.bg_stroke = egui::Stroke::new(1.0, accent_color.gamma_multiply(0.5));
+    style.visuals.widgets.hovered.bg_stroke =
+        egui::Stroke::new(1.0, accent_color.gamma_multiply(0.5));
     style.visuals.widgets.active.bg_stroke = egui::Stroke::new(1.0, accent_color);
-    
-    style.visuals.widgets.hovered.bg_fill = style.visuals.widgets.hovered.bg_fill.gamma_multiply(0.8);
-    
+
+    style.visuals.widgets.hovered.bg_fill =
+        style.visuals.widgets.hovered.bg_fill.gamma_multiply(0.8);
+
     style.visuals.selection.bg_fill = accent_color;
     style.visuals.selection.stroke = egui::Stroke::new(1.0, egui::Color32::WHITE);
 
