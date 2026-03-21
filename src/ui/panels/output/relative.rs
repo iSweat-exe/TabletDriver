@@ -19,7 +19,7 @@ pub fn render_relative_mode_ui(ui: &mut egui::Ui, config: &mut MappingConfig) {
             &mut config.relative_config.y_sensitivity,
             "px/mm",
         );
-        ui_input_box(ui, "Rotation", &mut config.relative_config.rotation, "Â°");
+        ui_input_box(ui, "Rotation", &mut config.relative_config.rotation, "°");
         ui_input_box_u32(
             ui,
             "Reset Time",

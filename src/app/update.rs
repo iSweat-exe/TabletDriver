@@ -40,6 +40,13 @@ impl eframe::App for TabletMapperApp {
             last_data = Some(data);
         }
         if let Some(data) = last_data {
+            if let Some(receive_time) = data.receive_time {
+                let latency = receive_time.elapsed().as_secs_f32() * 1000.0;
+                self.ui_latency_ms = latency;
+                self.min_ui_latency_ms = self.min_ui_latency_ms.min(latency);
+                self.max_ui_latency_ms = self.max_ui_latency_ms.max(latency);
+                self.avg_ui_latency_ms += (latency - self.avg_ui_latency_ms) * 0.1;
+            }
             let mut shared_data = self.shared.tablet_data.write().unwrap();
             *shared_data = data;
         }
@@ -121,6 +128,9 @@ impl eframe::App for TabletMapperApp {
 
         // Push config only if actually changed by UI inputs
         if config != initial_config {
+            if config.theme != initial_config.theme {
+                crate::ui::theme::apply_theme(ctx, config.theme);
+            }
             {
                 let mut shared_config = self.shared.config.write().unwrap();
                 *shared_config = config.clone();
@@ -181,7 +191,63 @@ impl eframe::App for TabletMapperApp {
             }
         }
 
-        // Ensure we keep polling occasionally for UI status (battery, connection, etc)
+        if self.show_latency_stats {
+            let viewport_id = egui::ViewportId::from_hash_of("performance_viewport");
+            let mut close_requested = false;
+
+            ctx.show_viewport_immediate(
+                viewport_id,
+                egui::ViewportBuilder::default()
+                    .with_title("Input Lag & Performance Analysis")
+                    .with_inner_size([500.0, 600.0])
+                    .with_resizable(true),
+                |ctx, _class| {
+                    if ctx.input(|i| i.viewport().close_requested()) {
+                        close_requested = true;
+                    }
+
+                    egui::CentralPanel::default().show(ctx, |ui| {
+                        let current_packets = self.shared.packet_count.load(Ordering::Relaxed);
+                        let elapsed_hz = self.last_hz_update.elapsed();
+                        if elapsed_hz >= std::time::Duration::from_millis(200) {
+                            let delta = current_packets.saturating_sub(self.last_packet_count);
+                            let hz = delta as f32 / elapsed_hz.as_secs_f32();
+                            self.displayed_hz += (hz - self.displayed_hz) * 0.3;
+                            self.last_packet_count = current_packets;
+                            self.last_hz_update = std::time::Instant::now();
+                        }
+
+                        ui.vertical_centered(|ui| {
+                            ui.add_space(5.0);
+                            ui.heading(
+                                egui::RichText::new("Driver Performance Monitor")
+                                    .strong()
+                                    .extra_letter_spacing(1.0),
+                            );
+                        });
+
+                        if crate::ui::panels::performance::render_performance_panel(
+                            self.shared.clone(),
+                            self.displayed_hz,
+                            self.ui_latency_ms,
+                            self.min_ui_latency_ms,
+                            self.max_ui_latency_ms,
+                            self.avg_ui_latency_ms,
+                            ui,
+                        ) {
+                            self.min_ui_latency_ms = f32::MAX;
+                            self.max_ui_latency_ms = 0.0;
+                            self.avg_ui_latency_ms = 0.0;
+                        }
+                    });
+                },
+            );
+
+            if close_requested {
+                self.show_latency_stats = false;
+            }
+        }
+
         ctx.request_repaint_after(std::time::Duration::from_millis(1000));
     }
 }

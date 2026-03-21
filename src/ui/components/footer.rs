@@ -14,7 +14,7 @@ pub fn render_footer(
             egui::Frame::none()
                 .fill(ctx.style().visuals.panel_fill)
                 .inner_margin(egui::Margin::symmetric(10.0, 5.0))
-                .stroke(egui::Stroke::new(1.0, egui::Color32::from_gray(220))),
+                .stroke(ctx.style().visuals.widgets.noninteractive.bg_stroke),
         )
         .show(ctx, |ui| {
             ui.horizontal(|ui| {

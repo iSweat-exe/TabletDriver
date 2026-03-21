@@ -1,15 +1,12 @@
 [Setup]
-; --- IDENTIFICATION ---
 AppName=Next Tablet Driver
-AppVersion=1.26.1903.03
+AppVersion=1.26.2103.01
 AppPublisher=iSweat
 OutputBaseFilename=Next_Tablet_Driver_Setup_x64
 
-; --- ARCHITECTURE ---
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 
-; --- INSTALLATION ---
 DefaultDirName={commonpf}\NextTabletDriver
 DefaultGroupName=Next Tablet Driver
 UninstallDisplayIcon={app}\next_tablet_driver.exe
@@ -17,11 +14,9 @@ Compression=lzma2
 SolidCompression=yes
 OutputDir=user_mode_dist
 
-; --- DROITS ET SÉCURITÉ ---
 PrivilegesRequired=admin
 PrivilegesRequiredOverridesAllowed=dialog
 
-; --- LOGIQUE D'AUTO-UPDATE ---
 AppMutex=NextTabletDriverMutex
 CloseApplications=yes
 DirExistsWarning=no

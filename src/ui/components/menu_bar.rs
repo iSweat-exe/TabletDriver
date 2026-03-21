@@ -134,6 +134,10 @@ pub fn render_menu_bar(app: &mut TabletMapperApp, ctx: &egui::Context) {
                         ui.close_menu();
                         app.show_debugger = true;
                     }
+                    if ui.button("Input Lag Analysis").clicked() {
+                        ui.close_menu();
+                        app.show_latency_stats = true;
+                    }
                 });
                 ui.menu_button("Help", |_| {});
             });

@@ -9,7 +9,6 @@
 use eframe::egui;
 use next_tablet_driver::app::TabletMapperApp;
 use next_tablet_driver::logger;
-use next_tablet_driver::ui::theme::apply_theme;
 
 use windows_sys::Win32::Foundation::{GetLastError, ERROR_ALREADY_EXISTS, HANDLE};
 use windows_sys::Win32::System::Threading::CreateMutexW;
@@ -57,9 +56,6 @@ fn main() -> eframe::Result {
     eframe::run_native(
         &format!("NextTabletDriver v{}", next_tablet_driver::VERSION),
         options,
-        Box::new(|cc| {
-            apply_theme(&cc.egui_ctx);
-            Ok(Box::new(TabletMapperApp::new(cc.egui_ctx.clone())))
-        }),
+        Box::new(|cc| Ok(Box::new(TabletMapperApp::new(cc.egui_ctx.clone())))),
     )
 }

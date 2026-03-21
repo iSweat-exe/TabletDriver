@@ -24,6 +24,7 @@ crossbeam-channel = "0.5.15"
 include_dir = "0.7"
 tungstenite = { version = "0.26.1" }
 reqwest = { version = "0.12", features = ["blocking", "json"] }
+catppuccin-egui = { version = "5.7.0", default-features = false, features = ["egui29"] }
 
 # Windows
 [target.'cfg(windows)'.dependencies]
@@ -31,3 +32,10 @@ windows-sys = { version = "0.52", features = ["Win32_Foundation", "Win32_System_
 
 [target.'cfg(windows)'.build-dependencies]
 winres = "0.1"
+
+[profile.release]
+opt-level = "z"
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true

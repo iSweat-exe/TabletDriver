@@ -44,15 +44,49 @@ pub struct TabletData {
     pub raw_data: String,
     /// Tracks whether the USB device is currently actively communicating.
     pub is_connected: bool,
+    /// Indicates when this packet was first seen by the driver thread.
+    pub receive_time: Option<Instant>,
+    /// How long the vendor-specific parser took to decode this packet.
+    pub parser_time: Duration,
 }
 
 /// Diagnostic statistics collected for the current session.
-#[derive(Clone, Copy, Debug, Default)]
+#[derive(Clone, Copy, Debug)]
 pub struct DriverStats {
     /// The current calculated physical hand speed (useful for analyzing drawing habits).
     pub handspeed: f32,
     /// Total aggregate distance the pen has traveled while active.
     pub total_distance_mm: f32,
+    /// Real-time HID read latency (ms).
+    pub hid_read_ms: f32,
+    pub min_hid_read_ms: f32,
+    pub max_hid_read_ms: f32,
+    pub avg_hid_read_ms: f32,
+    /// Real-time Parser latency (ms).
+    pub parser_ms: f32,
+    pub min_parser_ms: f32,
+    pub max_parser_ms: f32,
+    pub avg_parser_ms: f32,
+    /// Total aggregate packets processed this session.
+    pub total_packets: u64,
+}
+
+impl Default for DriverStats {
+    fn default() -> Self {
+        Self {
+            handspeed: 0.0,
+            total_distance_mm: 0.0,
+            hid_read_ms: 0.0,
+            min_hid_read_ms: f32::MAX,
+            max_hid_read_ms: 0.0,
+            avg_hid_read_ms: 0.0,
+            parser_ms: 0.0,
+            min_parser_ms: f32::MAX,
+            max_parser_ms: 0.0,
+            avg_parser_ms: 0.0,
+            total_packets: 0,
+        }
+    }
 }
 
 /// The common interface that the input Engine uses to query device capabilities

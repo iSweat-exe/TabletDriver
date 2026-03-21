@@ -10,8 +10,11 @@ pub fn render_pen_settings_panel(
     ui.add_space(10.0);
 
     let frame = egui::Frame::group(ui.style())
-        .fill(egui::Color32::from_gray(250))
-        .stroke(egui::Stroke::new(1.0, egui::Color32::from_gray(220)))
+        .fill(crate::ui::theme::panel_bg(ui.visuals()))
+        .stroke(egui::Stroke::new(
+            1.0,
+            crate::ui::theme::panel_border(ui.visuals()),
+        ))
         .inner_margin(10.0);
 
     ui.horizontal(|ui| {
@@ -28,7 +31,7 @@ pub fn render_pen_settings_panel(
                         ui.horizontal(|ui| {
                             ui.add(egui::Label::new(
                                 egui::RichText::new(&config.tip_binding)
-                                    .background_color(egui::Color32::from_gray(230)),
+                                    .background_color(crate::ui::theme::panel_border(ui.visuals())),
                             ));
                             if ui.button("...").clicked() {}
                         });
@@ -62,7 +65,7 @@ pub fn render_pen_settings_panel(
                         ui.horizontal(|ui| {
                             ui.add(egui::Label::new(
                                 egui::RichText::new(&config.eraser_binding)
-                                    .background_color(egui::Color32::from_gray(230)),
+                                    .background_color(crate::ui::theme::panel_border(ui.visuals())),
                             ));
                             if ui.button("...").clicked() {}
                         });
@@ -99,7 +102,7 @@ pub fn render_pen_settings_panel(
                     ui.horizontal(|ui| {
                         ui.add(egui::Label::new(
                             egui::RichText::new(&config.pen_button_bindings[i])
-                                .background_color(egui::Color32::from_gray(230)),
+                                .background_color(crate::ui::theme::panel_border(ui.visuals())),
                         ));
                         if ui.button("...").clicked() {}
                     });

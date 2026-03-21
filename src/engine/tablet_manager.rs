@@ -82,10 +82,34 @@ pub fn run_manager(
 
             let mut buf = [0u8; 64];
             loop {
+                let hid_read_start = Instant::now();
                 match device.read_timeout(&mut buf, 1000) {
                     Ok(len) if len > 0 => {
-                        if let Some(data) = driver.parse(&buf[..len]) {
+                        let hid_read_duration = hid_read_start.elapsed();
+                        let parse_start = Instant::now();
+                        if let Some(mut data) = driver.parse(&buf[..len]) {
+                            let parse_duration = parse_start.elapsed();
+                            data.receive_time = Some(hid_read_start);
+                            data.parser_time = parse_duration;
+
                             shared.packet_count.fetch_add(1, Ordering::Relaxed);
+
+                            if let Ok(mut stats) = shared.stats.write() {
+                                stats.total_packets =
+                                    shared.packet_count.load(Ordering::Relaxed) as u64;
+
+                                let hr_ms = hid_read_duration.as_secs_f32() * 1000.0;
+                                stats.hid_read_ms = hr_ms;
+                                stats.min_hid_read_ms = stats.min_hid_read_ms.min(hr_ms);
+                                stats.max_hid_read_ms = stats.max_hid_read_ms.max(hr_ms);
+                                stats.avg_hid_read_ms += (hr_ms - stats.avg_hid_read_ms) * 0.05;
+
+                                let p_ms = parse_duration.as_secs_f32() * 1000.0;
+                                stats.parser_ms = p_ms;
+                                stats.min_parser_ms = stats.min_parser_ms.min(p_ms);
+                                stats.max_parser_ms = stats.max_parser_ms.max(p_ms);
+                                stats.avg_parser_ms += (p_ms - stats.avg_parser_ms) * 0.05;
+                            }
 
                             let now = Instant::now();
                             if now.duration_since(last_config_check) > Duration::from_millis(50) {

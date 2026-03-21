@@ -61,6 +61,7 @@ impl ReportParser for XpPenStarG640Parser {
             hover_distance: 0, // Not provided in this report
             raw_data: raw,
             is_connected,
+            ..Default::default()
         })
     }
 }

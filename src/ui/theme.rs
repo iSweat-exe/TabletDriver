@@ -5,33 +5,118 @@
 //! It also provides reusable helper functions for consistent layout paradigms
 //! (like section headers and standardized input boxes) across panels.
 
+use crate::core::config::models::ThemePreference;
+
 use eframe::egui;
 
 /// Injects custom spacing, colors, and strokes into the `egui::Context`.
 /// Called once at application startup.
-pub fn apply_theme(ctx: &egui::Context) {
-    // LIGHT THEME
-    ctx.set_visuals(egui::Visuals::light());
+/// Injects custom spacing, colors, and strokes into the `egui::Context`.
+pub fn apply_theme(ctx: &egui::Context, theme: ThemePreference) {
+    match theme {
+        ThemePreference::Light => ctx.set_visuals(egui::Visuals::light()),
+        ThemePreference::Dark => ctx.set_visuals(egui::Visuals::dark()),
+        ThemePreference::System => ctx.set_visuals(egui::Visuals::default()),
+        ThemePreference::CatppuccinLatte => catppuccin_egui::set_theme(ctx, catppuccin_egui::LATTE),
+        ThemePreference::CatppuccinFrappe => {
+            catppuccin_egui::set_theme(ctx, catppuccin_egui::FRAPPE)
+        }
+        ThemePreference::CatppuccinMacchiato => {
+            catppuccin_egui::set_theme(ctx, catppuccin_egui::MACCHIATO)
+        }
+        ThemePreference::CatppuccinMocha => catppuccin_egui::set_theme(ctx, catppuccin_egui::MOCHA),
+    }
 
-    // Custom style tweaks to match OTD closer
+    // Determine the accent color based on theme
+    let accent_color = match theme {
+        ThemePreference::CatppuccinLatte => catppuccin_egui::LATTE.blue,
+        ThemePreference::CatppuccinFrappe => catppuccin_egui::FRAPPE.blue,
+        ThemePreference::CatppuccinMacchiato => catppuccin_egui::MACCHIATO.blue,
+        ThemePreference::CatppuccinMocha => catppuccin_egui::MOCHA.blue,
+        _ => egui::Color32::from_rgb(0, 120, 215),
+    };
+
     let mut style = (*ctx.style()).clone();
+
+    // --- Premium Spacing & Rounding ---
     style.spacing.item_spacing = egui::vec2(8.0, 8.0);
-    style.visuals.widgets.active.bg_stroke =
-        egui::Stroke::new(1.0, egui::Color32::from_rgb(0, 120, 215));
-    style.visuals.selection.bg_fill = egui::Color32::from_rgb(0, 120, 215);
+    style.spacing.button_padding = egui::vec2(8.0, 4.0);
+    style.spacing.interact_size.y = 20.0;
+
+    let rounding = egui::Rounding::same(4.0);
+    style.visuals.widgets.noninteractive.rounding = rounding;
+    style.visuals.widgets.inactive.rounding = rounding;
+    style.visuals.widgets.hovered.rounding = rounding;
+    style.visuals.widgets.active.rounding = rounding;
+    style.visuals.widgets.open.rounding = rounding;
+    style.visuals.window_rounding = 8.0.into();
+
+    style.visuals.widgets.noninteractive.bg_stroke = egui::Stroke::new(
+        0.5,
+        style
+            .visuals
+            .widgets
+            .noninteractive
+            .bg_stroke
+            .color
+            .gamma_multiply(0.5),
+    );
+    style.visuals.widgets.inactive.bg_stroke = egui::Stroke::NONE;
+    style.visuals.widgets.hovered.bg_stroke =
+        egui::Stroke::new(1.0, accent_color.gamma_multiply(0.5));
+    style.visuals.widgets.active.bg_stroke = egui::Stroke::new(1.0, accent_color);
+
+    style.visuals.widgets.hovered.bg_fill =
+        style.visuals.widgets.hovered.bg_fill.gamma_multiply(0.8);
+
+    style.visuals.selection.bg_fill = accent_color;
     style.visuals.selection.stroke = egui::Stroke::new(1.0, egui::Color32::WHITE);
+
     ctx.set_style(style);
+}
+
+/// Returns a color for panel backgrounds that adapts to dark/light mode.
+pub fn panel_bg(visuals: &egui::Visuals) -> egui::Color32 {
+    if visuals.window_fill == egui::Visuals::dark().window_fill {
+        egui::Color32::from_gray(45)
+    } else if visuals.window_fill == egui::Visuals::light().window_fill {
+        egui::Color32::from_gray(250)
+    } else {
+        visuals.panel_fill // Use the theme's own panel color (e.g., Mantle for Catppuccin)
+    }
+}
+
+/// Returns a color for panel borders that adapts to dark/light mode.
+pub fn panel_border(visuals: &egui::Visuals) -> egui::Color32 {
+    if visuals.window_fill == egui::Visuals::dark().window_fill {
+        egui::Color32::from_gray(60)
+    } else if visuals.window_fill == egui::Visuals::light().window_fill {
+        egui::Color32::from_gray(235)
+    } else {
+        visuals.widgets.noninteractive.bg_stroke.color
+    }
+}
+
+/// Returns a subtle text color for labels.
+pub fn label_color(visuals: &egui::Visuals) -> egui::Color32 {
+    visuals.text_color().gamma_multiply(0.7)
+}
+
+/// Returns the accent background color (blue area) that adapts to theme.
+pub fn accent_bg(visuals: &egui::Visuals) -> egui::Color32 {
+    if visuals.dark_mode {
+        egui::Color32::from_rgba_unmultiplied(60, 120, 180, 255) // Darker blue
+    } else {
+        egui::Color32::from_rgba_unmultiplied(137, 196, 244, 255) // Original light blue
+    }
 }
 
 /// Renders a standardized section header with a title and a horizontal separator line.
 pub fn ui_section_header(ui: &mut egui::Ui, title: &str) {
+    let text_color = ui.visuals().strong_text_color();
     ui.horizontal(|ui| {
         ui.add_space(2.0);
-        ui.label(
-            egui::RichText::new(title)
-                .size(16.0)
-                .color(egui::Color32::from_gray(60)),
-        );
+        ui.label(egui::RichText::new(title).size(16.0).color(text_color));
     });
     ui.add_space(2.0);
     ui.add(egui::Separator::default().spacing(8.0).grow(2.0));
@@ -42,10 +127,15 @@ pub fn ui_section_header(ui: &mut egui::Ui, title: &str) {
 ///
 /// This creates the "pill" style input boxes heavily used in the Output tab.
 pub fn ui_input_box(ui: &mut egui::Ui, label: &str, value: &mut f32, unit: &str) {
+    let visuals = ui.visuals();
+    let bg_fill = panel_bg(visuals);
+    let border_color = panel_border(visuals);
+    let label_clr = label_color(visuals);
+
     egui::Frame::none()
-        .fill(egui::Color32::from_gray(250))
+        .fill(bg_fill)
         .rounding(4.0)
-        .stroke(egui::Stroke::new(1.0, egui::Color32::from_gray(235)))
+        .stroke(egui::Stroke::new(1.0, border_color))
         .inner_margin(egui::Margin::symmetric(10.0, 6.0))
         .show(ui, |ui| {
             ui.set_min_width(115.0); // Enforce consistent box width
@@ -59,7 +149,7 @@ pub fn ui_input_box(ui: &mut egui::Ui, label: &str, value: &mut f32, unit: &str)
                     egui::Align2::LEFT_CENTER,
                     label,
                     egui::FontId::proportional(11.0),
-                    egui::Color32::from_gray(120),
+                    label_clr,
                 );
 
                 ui.add_space(4.0);
@@ -84,10 +174,15 @@ pub fn ui_input_box(ui: &mut egui::Ui, label: &str, value: &mut f32, unit: &str)
 
 /// Renders a styled container holding a label and a `u32` DragValue input.
 pub fn ui_input_box_u32(ui: &mut egui::Ui, label: &str, value: &mut u32, unit: &str) {
+    let visuals = ui.visuals();
+    let bg_fill = panel_bg(visuals);
+    let border_color = panel_border(visuals);
+    let label_clr = label_color(visuals);
+
     egui::Frame::none()
-        .fill(egui::Color32::from_gray(250))
+        .fill(bg_fill)
         .rounding(4.0)
-        .stroke(egui::Stroke::new(1.0, egui::Color32::from_gray(235)))
+        .stroke(egui::Stroke::new(1.0, border_color))
         .inner_margin(egui::Margin::symmetric(10.0, 6.0))
         .show(ui, |ui| {
             ui.set_min_width(115.0);
@@ -100,7 +195,7 @@ pub fn ui_input_box_u32(ui: &mut egui::Ui, label: &str, value: &mut u32, unit: &
                     egui::Align2::LEFT_CENTER,
                     label,
                     egui::FontId::proportional(11.0),
-                    egui::Color32::from_gray(120),
+                    label_clr,
                 );
 
                 ui.add_space(4.0);
@@ -126,19 +221,20 @@ pub fn ui_input_box_u32(ui: &mut egui::Ui, label: &str, value: &mut u32, unit: &
 /// Features a left-aligned label and a right-aligned input box to keep long parameter
 /// lists visually neat.
 pub fn ui_setting_row(ui: &mut egui::Ui, label: &str, value: &mut f32, unit: &str) {
+    let visuals = ui.visuals();
+    let bg_fill = panel_bg(visuals);
+    let border_color = panel_border(visuals);
+    let label_clr = label_color(visuals);
+
     egui::Frame::none()
-        .fill(egui::Color32::from_gray(250))
+        .fill(bg_fill)
         .rounding(4.0)
-        .stroke(egui::Stroke::new(1.0, egui::Color32::from_gray(235)))
+        .stroke(egui::Stroke::new(1.0, border_color))
         .inner_margin(egui::Margin::symmetric(10.0, 6.0))
         .show(ui, |ui| {
             ui.set_min_width(350.0);
             ui.horizontal(|ui| {
-                ui.label(
-                    egui::RichText::new(label)
-                        .size(11.0)
-                        .color(egui::Color32::from_gray(120)),
-                );
+                ui.label(egui::RichText::new(label).size(11.0).color(label_clr));
 
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                     if !unit.is_empty() {

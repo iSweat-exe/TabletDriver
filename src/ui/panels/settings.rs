@@ -12,8 +12,11 @@ pub fn render_settings_panel(
     ui_section_header(ui, "General Settings");
 
     let frame = egui::Frame::group(ui.style())
-        .fill(egui::Color32::from_gray(250))
-        .stroke(egui::Stroke::new(1.0, egui::Color32::from_gray(220)))
+        .fill(crate::ui::theme::panel_bg(ui.visuals()))
+        .stroke(egui::Stroke::new(
+            1.0,
+            crate::ui::theme::panel_border(ui.visuals()),
+        ))
         .inner_margin(10.0);
 
     frame.show(ui, |ui| {
@@ -27,17 +30,64 @@ pub fn render_settings_panel(
         {
             if let Err(e) = crate::startup::set_run_at_startup(config.run_at_startup) {
                 log::error!(target: "App", "Failed to update startup setting: {}", e);
-                // Revert if it failed
                 config.run_at_startup = old_run_at_startup;
             }
         }
+
+        ui.add_space(8.0);
+        ui.horizontal(|ui| {
+            ui.label("Application Theme:");
+            egui::ComboBox::from_id_salt("theme_selector")
+                .selected_text(format!("{:?}", config.theme))
+                .show_ui(ui, |ui| {
+                    ui.selectable_value(
+                        &mut config.theme,
+                        crate::core::config::models::ThemePreference::System,
+                        "System",
+                    );
+                    ui.selectable_value(
+                        &mut config.theme,
+                        crate::core::config::models::ThemePreference::Light,
+                        "Light",
+                    );
+                    ui.selectable_value(
+                        &mut config.theme,
+                        crate::core::config::models::ThemePreference::Dark,
+                        "Dark",
+                    );
+                    ui.separator();
+                    ui.selectable_value(
+                        &mut config.theme,
+                        crate::core::config::models::ThemePreference::CatppuccinLatte,
+                        "Catppuccin Latte",
+                    );
+                    ui.selectable_value(
+                        &mut config.theme,
+                        crate::core::config::models::ThemePreference::CatppuccinFrappe,
+                        "Catppuccin Frappe",
+                    );
+                    ui.selectable_value(
+                        &mut config.theme,
+                        crate::core::config::models::ThemePreference::CatppuccinMacchiato,
+                        "Catppuccin Macchiato",
+                    );
+                    ui.selectable_value(
+                        &mut config.theme,
+                        crate::core::config::models::ThemePreference::CatppuccinMocha,
+                        "Catppuccin Mocha",
+                    );
+                });
+        });
     });
 
     ui.add_space(10.0);
     ui_section_header(ui, "WebSocket Server");
     let ws_frame = egui::Frame::group(ui.style())
-        .fill(egui::Color32::from_gray(250))
-        .stroke(egui::Stroke::new(1.0, egui::Color32::from_gray(220)))
+        .fill(crate::ui::theme::panel_bg(ui.visuals()))
+        .stroke(egui::Stroke::new(
+            1.0,
+            crate::ui::theme::panel_border(ui.visuals()),
+        ))
         .inner_margin(10.0);
 
     ws_frame.show(ui, |ui| {

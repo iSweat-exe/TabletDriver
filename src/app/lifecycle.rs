@@ -74,8 +74,14 @@ impl TabletMapperApp {
                 websocket: WebSocketConfig::default(),
                 antichatter: crate::core::config::models::AntichatterConfig::default(),
                 speed_stats: crate::core::config::models::SpeedStatsConfig::default(),
+                theme: crate::core::config::models::ThemePreference::System,
+                lock_aspect_ratio: false,
+                show_osu_playfield: false,
             }
         };
+
+        // Apply theme before shared state move
+        crate::ui::theme::apply_theme(&_ctx, config.theme);
 
         let shared = Arc::new(SharedState {
             config: RwLock::new(config),
@@ -128,9 +134,14 @@ impl TabletMapperApp {
             update_status: UpdateStatus::Idle,
             selected_filter: "Devocub Antichatter".to_string(),
             show_debugger: false,
+            show_latency_stats: false,
             displayed_hz: 0.0,
             last_hz_update: Instant::now(),
             last_packet_count: 0,
+            ui_latency_ms: 0.0,
+            min_ui_latency_ms: f32::MAX,
+            max_ui_latency_ms: 0.0,
+            avg_ui_latency_ms: 0.0,
         }
     }
 }
