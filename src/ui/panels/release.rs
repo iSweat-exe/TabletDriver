@@ -11,6 +11,19 @@ struct ReleaseEntry {
 
 const RELEASES: &[ReleaseEntry] = &[
     ReleaseEntry {
+        version: "1.26.2103.02",
+        date: "21/03/2026",
+        additions: &[],
+        removals: &[],
+        fixes: &[
+            "Updated to Rust 2024 edition",
+            "Updated all dependencies to their latest versions",
+            "Fixed a security vulnerability detected in dependencies",
+            "Adapted codebase to new APIs introduced by dependency updates",
+        ],
+        improvements: &[],
+    },
+    ReleaseEntry {
         version: "1.26.2103.01",
         date: "21/03/2026",
         additions: &[
@@ -124,7 +137,7 @@ pub fn render_release_panel(_app: &crate::app::state::TabletMapperApp, ui: &mut 
 fn render_release_entry(ui: &mut egui::Ui, entry: &ReleaseEntry) {
     egui::Frame::group(ui.style())
         .fill(ui.visuals().faint_bg_color)
-        .rounding(8.0)
+        .corner_radius(8.0)
         .inner_margin(12.0)
         .show(ui, |ui| {
             ui.set_width(ui.available_width());

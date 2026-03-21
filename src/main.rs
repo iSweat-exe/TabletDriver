@@ -29,7 +29,7 @@ fn main() -> eframe::Result {
     // This allows Inno Setup to know if the app is running and allows us to release it before update.
     let mutex_name: Vec<u16> = "NextTabletDriverMutex\0".encode_utf16().collect();
     let handle: HANDLE = unsafe { CreateMutexW(std::ptr::null(), 1, mutex_name.as_ptr()) };
-    if handle == 0 {
+    if handle.is_null() {
         return Ok(());
     }
     if unsafe { GetLastError() } == ERROR_ALREADY_EXISTS {

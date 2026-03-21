@@ -11,20 +11,21 @@ pub fn render_filters_panel(
     config: &mut MappingConfig,
 ) {
     ui.horizontal(|ui| {
-        let sidebar_width = 160.0;
+        let sidebar_width = 175.0;
         let sidebar_height = ui.available_height();
 
         ui.allocate_ui_with_layout(
             egui::vec2(sidebar_width, sidebar_height),
             egui::Layout::top_down_justified(egui::Align::LEFT),
             |ui| {
-                egui::Frame::none()
+                egui::Frame::new()
                     .fill(crate::ui::theme::panel_bg(ui.visuals()))
                     .stroke(egui::Stroke::new(
                         1.0,
                         crate::ui::theme::panel_border(ui.visuals()),
                     ))
                     .inner_margin(4.0)
+                    .corner_radius(8.0)
                     .show(ui, |ui| {
                         ui.set_min_height(sidebar_height);
 

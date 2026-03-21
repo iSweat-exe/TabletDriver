@@ -5,7 +5,7 @@ pub fn render_console_panel(_app: &TabletMapperApp, ui: &mut egui::Ui) {
     ui.add_space(5.0);
     let logs = crate::logger::LOG_BUFFER.read().unwrap();
 
-    egui::Frame::none()
+    egui::Frame::new()
         .fill(ui.visuals().window_fill)
         .inner_margin(0.0)
         .show(ui, |ui| {
@@ -72,7 +72,7 @@ pub fn render_console_panel(_app: &TabletMapperApp, ui: &mut egui::Ui) {
                     .map(|l| format!("[{}] {} [{}] {}", l.time, l.level, l.group, l.message))
                     .collect::<Vec<_>>()
                     .join("\n");
-                ui.output_mut(|o| o.copied_text = full_log);
+                ui.output_mut(|o| o.commands.push(egui::OutputCommand::CopyText(full_log)));
             }
         });
     });

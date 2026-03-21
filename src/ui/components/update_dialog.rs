@@ -6,7 +6,7 @@ pub fn render_update_dialog(app: &mut TabletMapperApp, ctx: &egui::Context) {
 
     if let crate::app::autoupdate::UpdateStatus::Available(release) = &app.update_status {
         // --- 1. Fullscreen Dark Overlay ---
-        let screen_rect = ctx.screen_rect();
+        let screen_rect = ctx.content_rect();
         egui::Area::new(egui::Id::new("update_overlay"))
             .interactable(true)
             .fixed_pos(screen_rect.min)
@@ -37,20 +37,20 @@ pub fn render_update_dialog(app: &mut TabletMapperApp, ctx: &egui::Context) {
             .frame(
                 egui::Frame::window(&ctx.style())
                     .fill(egui::Color32::from_rgb(20, 22, 25)) // Dark modern background
-                    .rounding(4.0)
+                    .corner_radius(4.0)
                     .inner_margin(0.0)
                     .stroke(egui::Stroke::new(1.0, egui::Color32::from_gray(60))),
             )
             .show(ctx, |ui| {
                 ui.vertical(|ui| {
                     // Header Area
-                    egui::Frame::none()
+                    egui::Frame::new()
                         .fill(egui::Color32::from_rgb(30, 34, 40))
-                        .rounding(egui::Rounding {
-                            nw: 12.0,
-                            ne: 12.0,
-                            sw: 0.0,
-                            se: 0.0,
+                        .corner_radius(egui::CornerRadius {
+                            nw: 12,
+                            ne: 12,
+                            sw: 0,
+                            se: 0,
                         })
                         .inner_margin(20.0)
                         .show(ui, |ui| {
@@ -74,8 +74,8 @@ pub fn render_update_dialog(app: &mut TabletMapperApp, ctx: &egui::Context) {
                     ui.add_space(15.0);
 
                     // Body Area (Changelog)
-                    egui::Frame::none()
-                        .inner_margin(egui::Margin::symmetric(20.0, 0.0))
+                    egui::Frame::new()
+                        .inner_margin(egui::Margin::symmetric(20, 0))
                         .show(ui, |ui| {
                             ui.label(
                                 egui::RichText::new("What's new:")
@@ -101,8 +101,8 @@ pub fn render_update_dialog(app: &mut TabletMapperApp, ctx: &egui::Context) {
                     ui.add_space(30.0);
 
                     // Actions Area
-                    egui::Frame::none()
-                        .inner_margin(egui::Margin::symmetric(20.0, 10.0))
+                    egui::Frame::new()
+                        .inner_margin(egui::Margin::symmetric(20, 10))
                         .show(ui, |ui| {
                             ui.horizontal(|ui| {
                                 let later_btn = egui::Button::new(
@@ -128,7 +128,7 @@ pub fn render_update_dialog(app: &mut TabletMapperApp, ctx: &egui::Context) {
                                                 .color(egui::Color32::BLACK),
                                         )
                                         .fill(egui::Color32::from_rgb(0, 120, 215)) // #0078d7
-                                        .rounding(6.0)
+                                        .corner_radius(6.0)
                                         .min_size(egui::vec2(160.0, 36.0));
 
                                         if ui.add(update_btn).clicked() {

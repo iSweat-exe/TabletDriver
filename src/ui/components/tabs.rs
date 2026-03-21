@@ -4,15 +4,15 @@ use eframe::egui;
 pub fn render_tabs(app: &mut TabletMapperApp, ctx: &egui::Context) {
     egui::TopBottomPanel::top("tabs")
         .frame(
-            egui::Frame::none()
+            egui::Frame::new()
                 .fill(ctx.style().visuals.panel_fill)
                 .inner_margin(egui::Margin {
-                    left: 5.0,
-                    right: 5.0,
-                    top: 5.0,
-                    bottom: 5.0,
+                    left: 5,
+                    right: 5,
+                    top: 5,
+                    bottom: 5,
                 })
-                .stroke(egui::Stroke::new(1.0, egui::Color32::from_gray(220))),
+                .stroke(egui::Stroke::NONE),
         )
         .show(ctx, |ui| {
             ui.horizontal(|ui| {

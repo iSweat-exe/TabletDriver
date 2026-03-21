@@ -9,27 +9,27 @@ rust-version = "1.93.1"
 [dependencies]
 # Windows & Linux
 hidapi = "2.6.3"
-eframe = "0.29.1"
+eframe = "0.33.3"
 display-info = "0.5.0"
 enigo = "0.6.1"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-base64 = "0.21.7"
-directories = "5.0"
-rfd = "0.14"
+base64 = "0.22.1"
+directories = "6.0.0"
+rfd = "0.17.2"
 log = "0.4"
 chrono = "0.4"
 lazy_static = "1.4"
-egui_extras = "0.29.1"
+egui_extras = "0.33.3"
 crossbeam-channel = "0.5.15"
 include_dir = "0.7"
-tungstenite = { version = "0.26.1" }
-reqwest = { version = "0.12", features = ["blocking", "json"] }
-catppuccin-egui = { version = "5.7.0", default-features = false, features = ["egui29"] }
+tungstenite = { version = "0.29.0" }
+reqwest = { version = "0.13.2", features = ["blocking", "json"] }
+catppuccin-egui = { version = "5.7.0", default-features = false, features = ["egui33"] }
 
 # Windows
 [target.'cfg(windows)'.dependencies]
-windows-sys = { version = "0.52", features = ["Win32_Foundation", "Win32_System_Threading", "Win32_Security"] }
+windows-sys = { version = "0.61.2", features = ["Win32_Foundation", "Win32_System_Threading", "Win32_Security"] }
 
 [target.'cfg(windows)'.build-dependencies]
 winres = "0.1"

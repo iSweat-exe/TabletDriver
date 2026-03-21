@@ -43,13 +43,13 @@ pub fn apply_theme(ctx: &egui::Context, theme: ThemePreference) {
     style.spacing.button_padding = egui::vec2(8.0, 4.0);
     style.spacing.interact_size.y = 20.0;
 
-    let rounding = egui::Rounding::same(4.0);
-    style.visuals.widgets.noninteractive.rounding = rounding;
-    style.visuals.widgets.inactive.rounding = rounding;
-    style.visuals.widgets.hovered.rounding = rounding;
-    style.visuals.widgets.active.rounding = rounding;
-    style.visuals.widgets.open.rounding = rounding;
-    style.visuals.window_rounding = 8.0.into();
+    let corner_radius = egui::CornerRadius::same(4);
+    style.visuals.widgets.noninteractive.corner_radius = corner_radius;
+    style.visuals.widgets.inactive.corner_radius = corner_radius;
+    style.visuals.widgets.hovered.corner_radius = corner_radius;
+    style.visuals.widgets.active.corner_radius = corner_radius;
+    style.visuals.widgets.open.corner_radius = corner_radius;
+    style.visuals.window_corner_radius = corner_radius;
 
     style.visuals.widgets.noninteractive.bg_stroke = egui::Stroke::new(
         0.5,
@@ -118,9 +118,7 @@ pub fn ui_section_header(ui: &mut egui::Ui, title: &str) {
         ui.add_space(2.0);
         ui.label(egui::RichText::new(title).size(16.0).color(text_color));
     });
-    ui.add_space(2.0);
-    ui.add(egui::Separator::default().spacing(8.0).grow(2.0));
-    ui.add_space(4.0);
+    ui.add(egui::Separator::default().spacing(4.0).grow(2.0));
 }
 
 /// Renders a styled container holding a label and an `f32` DragValue input.
@@ -132,11 +130,11 @@ pub fn ui_input_box(ui: &mut egui::Ui, label: &str, value: &mut f32, unit: &str)
     let border_color = panel_border(visuals);
     let label_clr = label_color(visuals);
 
-    egui::Frame::none()
+    egui::Frame::new()
         .fill(bg_fill)
-        .rounding(4.0)
+        .corner_radius(4.0)
         .stroke(egui::Stroke::new(1.0, border_color))
-        .inner_margin(egui::Margin::symmetric(10.0, 6.0))
+        .inner_margin(egui::Margin::symmetric(10, 6))
         .show(ui, |ui| {
             ui.set_min_width(115.0); // Enforce consistent box width
             ui.horizontal(|ui| {
@@ -179,11 +177,11 @@ pub fn ui_input_box_u32(ui: &mut egui::Ui, label: &str, value: &mut u32, unit: &
     let border_color = panel_border(visuals);
     let label_clr = label_color(visuals);
 
-    egui::Frame::none()
+    egui::Frame::new()
         .fill(bg_fill)
-        .rounding(4.0)
+        .corner_radius(4.0)
         .stroke(egui::Stroke::new(1.0, border_color))
-        .inner_margin(egui::Margin::symmetric(10.0, 6.0))
+        .inner_margin(egui::Margin::symmetric(10, 6))
         .show(ui, |ui| {
             ui.set_min_width(115.0);
             ui.horizontal(|ui| {
@@ -226,11 +224,11 @@ pub fn ui_setting_row(ui: &mut egui::Ui, label: &str, value: &mut f32, unit: &st
     let border_color = panel_border(visuals);
     let label_clr = label_color(visuals);
 
-    egui::Frame::none()
+    egui::Frame::new()
         .fill(bg_fill)
-        .rounding(4.0)
+        .corner_radius(4.0)
         .stroke(egui::Stroke::new(1.0, border_color))
-        .inner_margin(egui::Margin::symmetric(10.0, 6.0))
+        .inner_margin(egui::Margin::symmetric(10, 6))
         .show(ui, |ui| {
             ui.set_min_width(350.0);
             ui.horizontal(|ui| {

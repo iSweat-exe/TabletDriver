@@ -49,6 +49,7 @@ pub fn render_display_section(
                         s_rect,
                         0.0,
                         egui::Stroke::new(1.0, crate::ui::theme::panel_border(ui.visuals())),
+                        egui::StrokeKind::Middle,
                     );
                     ui.painter().text(
                         s_rect.center(),
@@ -74,8 +75,12 @@ pub fn render_display_section(
 
                 ui.painter()
                     .rect_filled(t_rect, 0.0, crate::ui::theme::accent_bg(ui.visuals()));
-                ui.painter()
-                    .rect_stroke(t_rect, 0.0, egui::Stroke::new(1.0, stroke_color));
+                ui.painter().rect_stroke(
+                    t_rect,
+                    0.0,
+                    egui::Stroke::new(1.0, stroke_color),
+                    egui::StrokeKind::Middle,
+                );
 
                 ui.painter()
                     .circle_filled(t_rect.center(), 1.5, stroke_color);
@@ -96,7 +101,7 @@ pub fn render_display_section(
                 );
 
                 let left_mid = t_rect.left_center();
-                let galley = ui.fonts(|f| {
+                let galley = ui.fonts_mut(|f| {
                     f.layout_no_wrap(
                         format!("{}px", config.target_area.h as i32),
                         font_id.clone(),

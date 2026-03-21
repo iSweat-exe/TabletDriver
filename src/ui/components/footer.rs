@@ -11,9 +11,9 @@ pub fn render_footer(
 
     egui::TopBottomPanel::bottom("footer")
         .frame(
-            egui::Frame::none()
+            egui::Frame::new()
                 .fill(ctx.style().visuals.panel_fill)
-                .inner_margin(egui::Margin::symmetric(10.0, 5.0))
+                .inner_margin(egui::Margin::symmetric(10, 5))
                 .stroke(ctx.style().visuals.widgets.noninteractive.bg_stroke),
         )
         .show(ctx, |ui| {

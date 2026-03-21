@@ -197,9 +197,9 @@ pub fn render_performance_panel(
         ui.label(egui::RichText::new("Live Packet Capture (Real-Time)").strong());
         ui.add_space(8.0);
 
-        egui::Frame::none()
+        egui::Frame::new()
             .fill(egui::Color32::from_gray(20))
-            .rounding(4.0)
+            .corner_radius(4.0)
             .inner_margin(8.0)
             .show(ui, |ui| {
                 ui.horizontal(|ui| {

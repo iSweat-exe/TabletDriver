@@ -37,6 +37,7 @@ pub fn render_tablet_section(app: &TabletMapperApp, ui: &mut egui::Ui, config: &
                 full_rect,
                 0.0,
                 egui::Stroke::new(1.0, crate::ui::theme::panel_border(ui.visuals())),
+                egui::StrokeKind::Middle,
             );
 
             let aa_center_x = offset_x + config.active_area.x * scale;
@@ -125,7 +126,7 @@ pub fn render_tablet_section(app: &TabletMapperApp, ui: &mut egui::Ui, config: &
                 (points[0].x + points[3].x) / 2.0,
                 (points[0].y + points[3].y) / 2.0,
             );
-            let galley = ui.fonts(|f| {
+            let galley = ui.fonts_mut(|f| {
                 f.layout_no_wrap(
                     format!("{:.2}mm", config.active_area.h).replace(".", ","),
                     font_id.clone(),

@@ -7,7 +7,7 @@ use std::sync::atomic::Ordering;
 pub fn render_menu_bar(app: &mut TabletMapperApp, ctx: &egui::Context) {
     egui::TopBottomPanel::top("menu_bar")
         .frame(
-            egui::Frame::none()
+            egui::Frame::new()
                 .fill(ctx.style().visuals.panel_fill)
                 .inner_margin(5.0),
         )
@@ -15,7 +15,7 @@ pub fn render_menu_bar(app: &mut TabletMapperApp, ctx: &egui::Context) {
             ui.horizontal(|ui| {
                 ui.menu_button("File", |ui| {
                     if ui.button("Load Settings...").clicked() {
-                        ui.close_menu();
+                        ui.close();
                         if let Some(path) = rfd::FileDialog::new()
                             .set_directory(crate::settings::get_settings_dir())
                             .add_filter("JSON", &["json"])
@@ -39,7 +39,7 @@ pub fn render_menu_bar(app: &mut TabletMapperApp, ctx: &egui::Context) {
                         }
                     }
                     if ui.button("Save Settings").clicked() {
-                        ui.close_menu();
+                        ui.close();
                         let config = app.shared.config.read().unwrap().clone();
                         let profile = if !app.profile_name.is_empty() {
                             app.profile_name.clone()
@@ -54,7 +54,7 @@ pub fn render_menu_bar(app: &mut TabletMapperApp, ctx: &egui::Context) {
                         }
                     }
                     if ui.button("Save Settings As...").clicked() {
-                        ui.close_menu();
+                        ui.close();
                         if let Some(path) = rfd::FileDialog::new()
                             .set_directory(crate::settings::get_settings_dir())
                             .add_filter("JSON", &["json"])
@@ -74,7 +74,7 @@ pub fn render_menu_bar(app: &mut TabletMapperApp, ctx: &egui::Context) {
                     }
 
                     if ui.button("Reset to default").clicked() {
-                        ui.close_menu();
+                        ui.close();
                         let default_target = crate::core::config::models::TargetArea {
                             x: 0.0,
                             y: 0.0,
@@ -96,7 +96,7 @@ pub fn render_menu_bar(app: &mut TabletMapperApp, ctx: &egui::Context) {
                     ui.separator();
 
                     if ui.button("Apply Settings").clicked() {
-                        ui.close_menu();
+                        ui.close();
                         let config = app.shared.config.read().unwrap().clone();
                         let _ = save_last_session(&config);
                     }
@@ -104,7 +104,7 @@ pub fn render_menu_bar(app: &mut TabletMapperApp, ctx: &egui::Context) {
                     ui.separator();
 
                     if ui.button("Export .Json").clicked() {
-                        ui.close_menu();
+                        ui.close();
                         if let Some(path) = rfd::FileDialog::new()
                             .set_file_name("settings_export.json")
                             .add_filter("JSON", &["json"])
@@ -117,7 +117,7 @@ pub fn render_menu_bar(app: &mut TabletMapperApp, ctx: &egui::Context) {
                         }
                     }
                     if ui.button("Import .Json").clicked() {
-                        ui.close_menu();
+                        ui.close();
                         if let Some(path) = rfd::FileDialog::new()
                             .add_filter("JSON", &["json"])
                             .pick_file()
@@ -130,11 +130,11 @@ pub fn render_menu_bar(app: &mut TabletMapperApp, ctx: &egui::Context) {
                 });
                 ui.menu_button("Tablet", |ui| {
                     if ui.button("Open Debugger").clicked() {
-                        ui.close_menu();
+                        ui.close();
                         app.show_debugger = true;
                     }
                     if ui.button("Input Lag Analysis").clicked() {
-                        ui.close_menu();
+                        ui.close();
                         app.show_latency_stats = true;
                     }
                 });
