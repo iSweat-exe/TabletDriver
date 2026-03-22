@@ -36,7 +36,10 @@ pub fn run_manager(
     ctx: egui::Context,
     tablet_sender: Sender<crate::drivers::TabletData>,
 ) {
+    log::info!(target: "TabletManager", "Starting device manager thread");
+    let hid_init_start = Instant::now();
     let hid_api = hidapi::HidApi::new().unwrap();
+    log::info!(target: "TabletManager", "HID API initialized in {:.2?}", hid_init_start.elapsed());
     let mut injector = Injector::new();
     let mut pipeline = Pipeline::new();
 
@@ -58,6 +61,7 @@ pub fn run_manager(
             {
                 let mut name = shared.tablet_name.write().unwrap();
                 *name = driver.get_name().to_string();
+                log::info!(target: "TabletManager", "Tablet detected: {} ({:04x}:{:04x})", *name, vid, pid);
                 *shared.tablet_vid.write().unwrap() = vid;
                 *shared.tablet_pid.write().unwrap() = pid;
 
@@ -116,6 +120,7 @@ pub fn run_manager(
                                 let cv = shared.config_version.load(Ordering::Relaxed);
                                 if cv != local_config_version {
                                     local_config = shared.config.read().unwrap().clone();
+                                    log::info!(target: "TabletManager", "Configuration updated (version {})", cv);
                                     local_config_version = cv;
                                     filters.update_config(&local_config);
                                 }
@@ -144,7 +149,10 @@ pub fn run_manager(
                             filters.update_config(&local_config);
                         }
                     }
-                    Err(_) => break, // Disconnected
+                    Err(_) => {
+                        log::warn!(target: "TabletManager", "Tablet disconnected");
+                        break;
+                    } // Disconnected
                 }
             }
         }

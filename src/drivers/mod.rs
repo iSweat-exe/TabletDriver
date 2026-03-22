@@ -112,15 +112,38 @@ lazy_static::lazy_static! {
 }
 
 fn load_configurations() -> Vec<TabletConfiguration> {
+    let global_start = Instant::now();
     let mut configs = Vec::new();
     let mut loaded_names = HashSet::new();
 
     let local_dir = Path::new("tablets");
     if local_dir.exists() {
+        let disk_start = Instant::now();
         load_from_disk_recursive(local_dir, &mut configs, &mut loaded_names);
+        log::debug!(
+            target: "Driver",
+            "Loaded {} configs from disk in {:.2?}",
+            configs.len(),
+            disk_start.elapsed()
+        );
     }
 
+    let embedded_start = Instant::now();
+    let prev_len = configs.len();
     load_embedded_recursive(&TABLET_CONFIGS_DIR, &mut configs, &mut loaded_names);
+    log::debug!(
+        target: "Driver",
+        "Loaded {} configs from embedded in {:.2?}",
+        configs.len() - prev_len,
+        embedded_start.elapsed()
+    );
+
+    log::info!(
+        target: "Driver",
+        "Total {} tablet configurations loaded in {:.2?}",
+        configs.len(),
+        global_start.elapsed()
+    );
     configs
 }
 
@@ -178,6 +201,12 @@ pub fn detect_tablet(api: &HidApi) -> Option<(HidDevice, Box<dyn NextTabletDrive
         log::warn!(target: "Detect", "HID Enumeration SLOW: {:.2?}", enum_duration);
     }
 
+    log::debug!(
+        target: "Detect",
+        "Starting scan of {} HID devices...",
+        devices.len()
+    );
+
     let configs = &*LOADED_CONFIGS;
 
     for config in configs {
@@ -227,9 +256,14 @@ pub fn detect_tablet(api: &HidApi) -> Option<(HidDevice, Box<dyn NextTabletDrive
                                 continue;
                             }
 
-                            log::info!(target: "Detect",
-                                "{} | Enum: {:.2?} | Open: {:.2?} | Init: {:.2?} | Total: {:.2?}",
-                                config.name, enum_duration, open_duration, init_start.elapsed(), global_start.elapsed()
+                            log::info!(
+                                target: "Detect",
+                                "{} | HID Enum: {:.2?} | Open: {:.2?} | Init Reports: {:.2?} | Total: {:.2?}",
+                                config.name,
+                                enum_duration,
+                                open_duration,
+                                init_start.elapsed(),
+                                global_start.elapsed()
                             );
 
                             return Some((

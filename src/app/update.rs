@@ -128,6 +128,7 @@ impl eframe::App for TabletMapperApp {
 
         // Push config only if actually changed by UI inputs
         if config != initial_config {
+            log::info!(target: "Config", "Configuration changed via UI");
             if config.theme != initial_config.theme {
                 crate::ui::theme::apply_theme(ctx, config.theme);
             }

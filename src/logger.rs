@@ -36,9 +36,12 @@ impl Log for GlobalLogger {
                 "Config",
                 "Driver",
                 "NextTabletDriver",
-                "WS",
+                "WebSocket",
                 "Update",
                 "Telemetry",
+                "TabletManager",
+                "Startup",
+                "Settings",
             ];
             let is_allowed =
                 allowed_targets.contains(&target) || target.starts_with("NextTabletDriver");
