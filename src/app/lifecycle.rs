@@ -102,17 +102,20 @@ impl TabletMapperApp {
         // Spawn Input Thread
         let thread_shared = Arc::clone(&shared);
         let thread_ctx = _ctx.clone();
+        log::info!(target: "App", "Spawning Input Engine thread");
         thread::spawn(move || {
             run_manager(thread_shared, thread_ctx, tablet_sender);
         });
 
         // Spawn WebSocket Setup Thread
         let ws_shared = Arc::clone(&shared);
+        log::info!(target: "App", "Spawning WebSocket thread");
         thread::spawn(move || {
             crate::app::websocket::websocket_loop(ws_shared);
         });
 
         let (update_sender, update_receiver) = crossbeam_channel::bounded(1);
+        log::info!(target: "App", "Spawning Auto-Updater thread");
         thread::spawn(move || match autoupdate::check_for_updates() {
             Ok(Some(release)) => {
                 let _ = update_sender.send(UpdateStatus::Available(release));
