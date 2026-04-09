@@ -12,6 +12,10 @@ pub struct Injector {
     /// Tracks the previous state of the primary pen button (tip) to avoid spamming
     /// unnecessary "Button Down" events every frame while dragging.
     last_pressure_down: bool,
+
+    // Relative movement accumulators to handle sub-pixel movement
+    remainder_x: f32,
+    remainder_y: f32,
 }
 
 impl Default for Injector {
@@ -26,6 +30,8 @@ impl Injector {
         Self {
             enigo: Enigo::new(&Settings::default()).unwrap(),
             last_pressure_down: false,
+            remainder_x: 0.0,
+            remainder_y: 0.0,
         }
     }
 
@@ -35,16 +41,47 @@ impl Injector {
     /// # Arguments
     /// * `x` - Target X coordinate in OS pixels.
     /// * `y` - Target Y coordinate in OS pixels.
-    pub fn move_absolute(&mut self, x: f32, y: f32) {
-        // <-- Ligne rétablie
-        let _ = self.enigo.move_mouse(x as i32, y as i32, Coordinate::Abs);
+    pub fn move_absolute(&mut self, target_x: f32, target_y: f32, _u: f32, _v: f32) {
+        #[cfg(windows)]
+        {
+            use windows_sys::Win32::Foundation::POINT;
+            use windows_sys::Win32::UI::WindowsAndMessaging::GetCursorPos;
+            unsafe {
+                let mut current_pos = POINT { x: 0, y: 0 };
+                if GetCursorPos(&mut current_pos) != 0 {
+                    // Calculate the required "leap" to reach the target pixel
+                    let dx = target_x - current_pos.x as f32;
+                    let dy = target_y - current_pos.y as f32;
+
+                    // Inject via our relative method which handles sub-pixel accumulation
+                    self.move_relative(dx, dy);
+                }
+            }
+        }
+
+        #[cfg(not(windows))]
+        {
+            let _ = self
+                .enigo
+                .move_mouse(target_x as i32, target_y as i32, Coordinate::Abs);
+        }
     }
 
     pub fn move_relative(&mut self, dx: f32, dy: f32) {
-        // Enigo's relative move functions take integers. To prevent drift from
-        // tossing out sub-1.0 pixel remainders, we check if there's *any* notable movement.
-        if dx.abs() > 0.01 || dy.abs() > 0.01 {
-            let _ = self.enigo.move_mouse(dx as i32, dy as i32, Coordinate::Rel);
+        // Add current drift to new deltas
+        let total_dx = dx + self.remainder_x;
+        let total_dy = dy + self.remainder_y;
+
+        // Extract integer pixels
+        let ix = total_dx.trunc() as i32;
+        let iy = total_dy.trunc() as i32;
+
+        // Store leftovers for next frame
+        self.remainder_x = total_dx.fract();
+        self.remainder_y = total_dy.fract();
+
+        if ix != 0 || iy != 0 {
+            let _ = self.enigo.move_mouse(ix, iy, Coordinate::Rel);
         }
     }
 

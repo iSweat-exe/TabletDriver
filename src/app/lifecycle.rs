@@ -37,6 +37,18 @@ impl TabletMapperApp {
     /// 6. **Auto-Updater Thread**: Spawns a background thread to check GitHub releases
     ///    for newer versions of the software.
     pub fn new(_ctx: eframe::egui::Context) -> Self {
+        #[cfg(windows)]
+        unsafe {
+            use windows_sys::Win32::Media::timeBeginPeriod;
+            use windows_sys::Win32::System::Threading::{
+                GetCurrentProcess, HIGH_PRIORITY_CLASS, SetPriorityClass,
+            };
+            // Set 1ms timer resolution for high-frequency polling
+            timeBeginPeriod(1);
+            // Give the driver process high priority to avoid context switch delays
+            SetPriorityClass(GetCurrentProcess(), HIGH_PRIORITY_CLASS);
+        }
+
         let displays = DisplayInfo::all().unwrap_or_default();
 
         let loaded_config = load_last_session();
@@ -148,17 +160,16 @@ impl TabletMapperApp {
             while let Ok(event) = receiver.recv() {
                 log::info!(target: "Tray", "Received Tray Event: {:?}", event);
 
-                let matches = match event {
+                let matches = matches!(
+                    event,
                     tray_icon::TrayIconEvent::Click {
                         button: tray_icon::MouseButton::Left,
                         ..
-                    } => true,
-                    tray_icon::TrayIconEvent::DoubleClick {
+                    } | tray_icon::TrayIconEvent::DoubleClick {
                         button: tray_icon::MouseButton::Left,
                         ..
-                    } => true,
-                    _ => false,
-                };
+                    }
+                );
 
                 if matches {
                     log::info!(target: "Tray", "Restoring eframe UI...");

@@ -111,7 +111,7 @@ impl Pipeline {
                 if (screen_x - self.last_screen_x).abs() > 0.1
                     || (screen_y - self.last_screen_y).abs() > 0.1
                 {
-                    injector.move_absolute(screen_x, screen_y);
+                    injector.move_absolute(screen_x, screen_y, u, v);
                     self.last_screen_x = screen_x;
                     self.last_screen_y = screen_y;
                 }

@@ -83,7 +83,7 @@ pub struct TabletMapperApp {
     pub min_ui_latency_ms: f32,
     pub max_ui_latency_ms: f32,
     pub avg_ui_latency_ms: f32,
-    
+
     pub was_minimized: bool,
 
     // System Tray

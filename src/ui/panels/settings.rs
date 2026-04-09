@@ -34,8 +34,11 @@ pub fn render_settings_panel(
         }
 
         ui.add_space(4.0);
-        ui.checkbox(&mut config.system_tray_on_minimize, "System Tray when Minimize")
-            .on_hover_text("Hide the application to the system tray when minimized.");
+        ui.checkbox(
+            &mut config.system_tray_on_minimize,
+            "System Tray when Minimize",
+        )
+        .on_hover_text("Hide the application to the system tray when minimized.");
 
         ui.add_space(8.0);
         ui.horizontal(|ui| {
