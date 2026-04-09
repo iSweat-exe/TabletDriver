@@ -77,6 +77,7 @@ impl TabletMapperApp {
                 theme: crate::core::config::models::ThemePreference::System,
                 lock_aspect_ratio: false,
                 show_osu_playfield: false,
+                system_tray_on_minimize: false,
             }
         };
 
@@ -126,6 +127,77 @@ impl TabletMapperApp {
             }
         });
 
+        // --- System Tray Initialization ---
+        let icon_bytes = include_bytes!("../../resources/icon.png");
+        let image = image::load_from_memory(icon_bytes)
+            .expect("Failed to load icon")
+            .into_rgba8();
+        let (width, height) = image.dimensions();
+        let icon = tray_icon::Icon::from_rgba(image.into_raw(), width, height).unwrap();
+
+        let tray_icon = tray_icon::TrayIconBuilder::new()
+            .with_icon(icon)
+            .with_tooltip("NextTabletDriver")
+            .build()
+            .ok();
+
+        let tray_ctx = _ctx.clone();
+        thread::spawn(move || {
+            let receiver = tray_icon::TrayIconEvent::receiver();
+            log::info!(target: "Tray", "System Tray listener background thread started");
+            while let Ok(event) = receiver.recv() {
+                log::info!(target: "Tray", "Received Tray Event: {:?}", event);
+
+                let matches = match event {
+                    tray_icon::TrayIconEvent::Click {
+                        button: tray_icon::MouseButton::Left,
+                        ..
+                    } => true,
+                    tray_icon::TrayIconEvent::DoubleClick {
+                        button: tray_icon::MouseButton::Left,
+                        ..
+                    } => true,
+                    _ => false,
+                };
+
+                if matches {
+                    log::info!(target: "Tray", "Restoring eframe UI...");
+
+                    #[cfg(windows)]
+                    {
+                        #[link(name = "user32")]
+                        unsafe extern "system" {
+                            fn FindWindowA(
+                                lpClassName: *const std::ffi::c_char,
+                                lpWindowName: *const std::ffi::c_char,
+                            ) -> isize;
+                            fn ShowWindow(hWnd: isize, nCmdShow: i32) -> i32;
+                            fn SetForegroundWindow(hWnd: isize) -> i32;
+                        }
+                        unsafe {
+                            let title = format!("NextTabletDriver v{}\0", crate::VERSION);
+                            // Find our window specifically
+                            let hwnd = FindWindowA(std::ptr::null(), title.as_ptr() as *const _);
+                            if hwnd != 0 {
+                                log::info!(target: "Tray", "Native window found (HWND: {}), restoring...", hwnd);
+                                ShowWindow(hwnd, 9); // SW_RESTORE
+                                SetForegroundWindow(hwnd);
+                            } else {
+                                log::warn!(target: "Tray", "FindWindowA could not find target window title: {:?}", title);
+                            }
+                        }
+                    }
+
+                    // Send the commands to sync the eframe context state
+                    tray_ctx.send_viewport_cmd(eframe::egui::ViewportCommand::Minimized(false));
+                    tray_ctx.send_viewport_cmd(eframe::egui::ViewportCommand::Visible(true));
+                    tray_ctx.send_viewport_cmd(eframe::egui::ViewportCommand::Focus);
+                    tray_ctx.request_repaint();
+                }
+            }
+            log::error!(target: "Tray", "System Tray listener thread died!");
+        });
+
         Self {
             shared,
             displays,
@@ -145,6 +217,8 @@ impl TabletMapperApp {
             min_ui_latency_ms: f32::MAX,
             max_ui_latency_ms: 0.0,
             avg_ui_latency_ms: 0.0,
+            was_minimized: false,
+            tray_icon,
         }
     }
 }

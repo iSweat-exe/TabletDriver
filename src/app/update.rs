@@ -66,6 +66,19 @@ impl eframe::App for TabletMapperApp {
         let mut config = self.shared.config.read().unwrap().clone();
         let initial_config = config.clone();
 
+        // --- System Tray Handle ---
+        if config.system_tray_on_minimize {
+            let is_minimized = ctx.input(|i| i.viewport().minimized).unwrap_or(false);
+
+            // Only hide the window once when it transitions to minimized
+            if is_minimized && !self.was_minimized {
+                log::info!(target: "Tray", "Window minimized, hiding to system tray...");
+                ctx.send_viewport_cmd(egui::ViewportCommand::Visible(false));
+            }
+
+            self.was_minimized = is_minimized;
+        }
+
         // Calc Screen Bounds - Required for both Viz and Inputs
         let mut min_x = 0.0;
         let mut min_y = 0.0;

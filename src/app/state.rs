@@ -83,4 +83,10 @@ pub struct TabletMapperApp {
     pub min_ui_latency_ms: f32,
     pub max_ui_latency_ms: f32,
     pub avg_ui_latency_ms: f32,
+    
+    pub was_minimized: bool,
+
+    // System Tray
+    /// Optional tray icon instance to keep it alive.
+    pub tray_icon: Option<tray_icon::TrayIcon>,
 }
