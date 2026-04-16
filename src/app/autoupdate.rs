@@ -99,21 +99,19 @@ pub fn check_for_updates() -> Result<Option<Release>, Box<dyn std::error::Error>
     }
 }
 
-/// Downloads the specified release installer to the system's temporary directory
-/// and launches it.
+/// Downloads the specified release installer and launches it.
 ///
 /// # Process
-/// 1. Finds an asset ending in `.exe` (or falls back to the first asset).
-/// 2. Downloads the binary directly to `%TEMP%\Next_Tablet_Driver_Setup.exe`.
-/// 3. Spawns the installer process.
+/// 1. Finds a suitable asset for the current platform.
+/// 2. Downloads the binary to a temporary location.
+/// 3. Spawns the installer/updater process.
 /// 4. Exits the current application instance so the installer can overwrite files.
+///
+/// # Platform Specifics
+/// - **Windows**: Looks for `.exe` assets, saves to `%TEMP%\Next_Tablet_Driver_Setup.exe`.
+/// - **Linux**: Looks for `.AppImage` or `.tar.gz` assets, saves to `/tmp/`.
 pub fn download_and_install(release: Release) -> Result<(), Box<dyn std::error::Error>> {
-    let asset = release
-        .assets
-        .iter()
-        .find(|a| a.name.ends_with(".exe"))
-        .or_else(|| release.assets.first())
-        .ok_or("No suitable installer asset found in release")?;
+    let asset = find_platform_asset(&release)?;
 
     let download_url = &asset.browser_download_url;
 
@@ -134,7 +132,7 @@ pub fn download_and_install(release: Release) -> Result<(), Box<dyn std::error::
     }
 
     let mut temp_path = env::temp_dir();
-    temp_path.push("Next_Tablet_Driver_Setup.exe");
+    temp_path.push(&asset.name);
 
     {
         let mut file = fs::File::create(&temp_path)?;
@@ -143,9 +141,16 @@ pub fn download_and_install(release: Release) -> Result<(), Box<dyn std::error::
 
     log::info!(
         target: "Update",
-        "Download complete, setup at {:?}",
+        "Download complete, saved to {:?}",
         temp_path
     );
+
+    // Make the file executable on Linux
+    #[cfg(target_os = "linux")]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let _ = fs::set_permissions(&temp_path, fs::Permissions::from_mode(0o755));
+    }
 
     let status = Command::new(&temp_path).spawn();
 
@@ -158,5 +163,37 @@ pub fn download_and_install(release: Release) -> Result<(), Box<dyn std::error::
             log::error!(target: "Update", "Failed to launch installer: {}", e);
             Err(e.into())
         }
+    }
+}
+
+/// Finds the appropriate release asset for the current platform.
+fn find_platform_asset(release: &Release) -> Result<&Asset, Box<dyn std::error::Error>> {
+    #[cfg(windows)]
+    {
+        release
+            .assets
+            .iter()
+            .find(|a| a.name.ends_with(".exe"))
+            .or_else(|| release.assets.first())
+            .ok_or_else(|| "No suitable installer asset found in release".into())
+    }
+
+    #[cfg(target_os = "linux")]
+    {
+        release
+            .assets
+            .iter()
+            .find(|a| a.name.ends_with(".AppImage"))
+            .or_else(|| release.assets.iter().find(|a| a.name.ends_with(".tar.gz")))
+            .or_else(|| release.assets.first())
+            .ok_or_else(|| "No suitable Linux asset found in release".into())
+    }
+
+    #[cfg(not(any(windows, target_os = "linux")))]
+    {
+        release
+            .assets
+            .first()
+            .ok_or_else(|| "No assets found in release".into())
     }
 }

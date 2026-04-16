@@ -25,7 +25,7 @@ pub fn render_settings_panel(
         let old_run_at_startup = config.run_at_startup;
         if ui
             .checkbox(&mut config.run_at_startup, "Run at startup")
-            .on_hover_text("Automatically launch the application when Windows starts.")
+            .on_hover_text("Automatically launch the application when your session starts.")
             .changed()
             && let Err(e) = crate::startup::set_run_at_startup(config.run_at_startup)
         {

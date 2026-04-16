@@ -52,6 +52,16 @@ pub fn run_manager(
         SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_TIME_CRITICAL);
     }
 
+    #[cfg(target_os = "linux")]
+    {
+        // Attempt to lower nice value for higher scheduling priority.
+        // This may silently fail without CAP_SYS_NICE — that's acceptable,
+        // the driver will still work at normal priority.
+        unsafe {
+            libc::nice(-11);
+        }
+    }
+
     let mut local_config = shared.config.read().unwrap().clone();
     let mut local_config_version = shared.config_version.load(Ordering::Relaxed);
     let mut last_config_check = Instant::now();

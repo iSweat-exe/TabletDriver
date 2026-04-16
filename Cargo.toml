@@ -36,6 +36,12 @@ windows-sys = { version = "0.61.2", features = ["Win32_Foundation", "Win32_Syste
 [target.'cfg(windows)'.build-dependencies]
 winres = "0.1"
 
+# Linux
+[target.'cfg(target_os = "linux")'.dependencies]
+evdev = "0.13"
+nix = { version = "0.29", features = ["sched", "fs"] }
+libc = "0.2"
+
 [profile.release]
 opt-level = "z"
 lto = true
