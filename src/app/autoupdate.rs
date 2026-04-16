@@ -65,18 +65,16 @@ fn github_api_url() -> String {
 /// - `Ok(None)` if the current version matches the latest remote version.
 /// - `Err` if the network request or parsing fails.
 pub fn check_for_updates() -> Result<Option<Release>, Box<dyn std::error::Error>> {
-    let client = reqwest::blocking::Client::builder()
-        .user_agent("NextTabletDriver-AutoUpdate")
-        .build()?;
-
     let url = github_api_url();
-    let response = client.get(&url).send()?;
+    let response = ureq::get(&url)
+        .set("User-Agent", "NextTabletDriver-AutoUpdate")
+        .call()?;
 
-    if !response.status().is_success() {
+    if response.status() != 200 {
         return Err(format!("GitHub API error: {}", response.status()).into());
     }
 
-    let release: Release = response.json()?;
+    let release: Release = response.into_json()?;
 
     let remote_version = release.tag_name.trim_start_matches('v');
     let local_version = crate::VERSION;
@@ -121,13 +119,11 @@ pub fn download_and_install(release: Release) -> Result<(), Box<dyn std::error::
         download_url
     );
 
-    let client = reqwest::blocking::Client::builder()
-        .user_agent("NextTabletDriver-AutoUpdate")
-        .build()?;
+    let response = ureq::get(download_url)
+        .set("User-Agent", "NextTabletDriver-AutoUpdate")
+        .call()?;
 
-    let mut response = client.get(download_url).send()?;
-
-    if !response.status().is_success() {
+    if response.status() != 200 {
         return Err(format!("Download failed: {}", response.status()).into());
     }
 
@@ -136,7 +132,7 @@ pub fn download_and_install(release: Release) -> Result<(), Box<dyn std::error::
 
     {
         let mut file = fs::File::create(&temp_path)?;
-        response.copy_to(&mut file)?;
+        std::io::copy(&mut response.into_reader(), &mut file)?;
     }
 
     log::info!(

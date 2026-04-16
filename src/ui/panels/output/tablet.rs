@@ -268,6 +268,13 @@ pub fn render_tablet_section(app: &TabletMapperApp, ui: &mut egui::Ui, config: &
                     ui_input_box(ui, "X", &mut config.active_area.x, "mm");
                     ui_input_box(ui, "Y", &mut config.active_area.y, "mm");
                     ui_input_box(ui, "Rotation", &mut config.active_area.rotation, "°");
+
+                    // Normalize rotation to [0, 360)
+                    config.active_area.rotation %= 360.0;
+                    if config.active_area.rotation < 0.0 {
+                        config.active_area.rotation += 360.0;
+                    }
+
                     ui.end_row();
 
                     config.active_area.w = config.active_area.w.clamp(1.0, phys_w);

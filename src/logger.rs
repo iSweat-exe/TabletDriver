@@ -1,7 +1,6 @@
 use chrono::Local;
-use lazy_static::lazy_static;
 use log::{LevelFilter, Log, Metadata, Record};
-use std::sync::{Arc, RwLock};
+use std::sync::{Arc, LazyLock, RwLock};
 
 #[derive(Debug, Clone)]
 pub struct LogEntry {
@@ -15,9 +14,8 @@ pub struct GlobalLogger {
     pub entries: Arc<RwLock<Vec<LogEntry>>>,
 }
 
-lazy_static! {
-    pub static ref LOG_BUFFER: Arc<RwLock<Vec<LogEntry>>> = Arc::new(RwLock::new(Vec::new()));
-}
+pub static LOG_BUFFER: LazyLock<Arc<RwLock<Vec<LogEntry>>>> =
+    LazyLock::new(|| Arc::new(RwLock::new(Vec::new())));
 
 impl Log for GlobalLogger {
     fn enabled(&self, _metadata: &Metadata) -> bool {

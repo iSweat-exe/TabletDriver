@@ -116,9 +116,8 @@ pub trait NextTabletDriver {
 
 static TABLET_CONFIGS_DIR: Dir = include_dir!("$CARGO_MANIFEST_DIR/tablets");
 
-lazy_static::lazy_static! {
-    static ref LOADED_CONFIGS: Vec<TabletConfiguration> = load_configurations();
-}
+static LOADED_CONFIGS: std::sync::LazyLock<Vec<TabletConfiguration>> =
+    std::sync::LazyLock::new(load_configurations);
 
 fn load_configurations() -> Vec<TabletConfiguration> {
     let global_start = Instant::now();
