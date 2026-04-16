@@ -130,54 +130,47 @@ pub fn ui_input_box(ui: &mut egui::Ui, label: &str, value: &mut f32, unit: &str)
     let border_color = panel_border(visuals);
     let label_clr = label_color(visuals);
 
-    egui::Frame::new()
-        .fill(bg_fill)
-        .corner_radius(4.0)
-        .stroke(egui::Stroke::new(1.0, border_color))
-        .inner_margin(egui::Margin::symmetric(10, 6))
-        .show(ui, |ui| {
-            ui.set_min_width(115.0); // Enforce consistent box width
-            ui.horizontal(|ui| {
-                // Fixed width label for alignment
-                let label_w = 45.0;
-                let (rect, _) =
-                    ui.allocate_at_least(egui::vec2(label_w, 14.0), egui::Sense::hover());
-                ui.painter().text(
-                    rect.left_center(),
-                    egui::Align2::LEFT_CENTER,
-                    label,
-                    egui::FontId::proportional(11.0),
-                    label_clr,
-                );
+    ui.scope(|ui| {
+        // Softer styling for the DragValue within the pill
+        ui.style_mut().visuals.widgets.inactive.bg_fill = egui::Color32::from_white_alpha(8);
+        ui.style_mut().visuals.widgets.hovered.bg_fill = egui::Color32::from_white_alpha(15);
+        ui.style_mut().visuals.widgets.active.bg_fill = egui::Color32::from_white_alpha(20);
+        ui.style_mut().spacing.button_padding = egui::vec2(6.0, 2.0);
 
-                ui.add_space(4.0);
+        egui::Frame::new()
+            .fill(bg_fill)
+            .corner_radius(4.0)
+            .stroke(egui::Stroke::new(1.0, border_color.gamma_multiply(0.6)))
+            .inner_margin(egui::Margin::symmetric(12, 6))
+            .show(ui, |ui| {
+                ui.set_min_width(130.0);
+                ui.horizontal(|ui| {
+                    ui.label(egui::RichText::new(label).size(11.0).color(label_clr).strong());
 
-                // DragValue
-                ui.spacing_mut().item_spacing.x = 4.0;
-                let response = ui.add(
-                    egui::DragValue::new(value)
-                        .speed(0.1)
-                        .max_decimals(2)
-                        .custom_formatter(|val, _| {
-                            format!("{:.2}", val)
-                                .trim_end_matches('0')
-                                .trim_end_matches('.')
-                                .replace(".", ",")
-                        }),
-                );
-                if response.hovered() {
-                    ui.output_mut(|o| o.cursor_icon = egui::CursorIcon::ResizeHorizontal);
-                }
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                        if !unit.is_empty() {
+                            ui.label(egui::RichText::new(unit).size(10.0).color(label_clr.gamma_multiply(0.5)));
+                            ui.add_space(2.0);
+                        }
 
-                if !unit.is_empty() {
-                    ui.label(
-                        egui::RichText::new(unit)
-                            .size(10.0)
-                            .color(egui::Color32::from_gray(180)),
-                    );
-                }
+                        let response = ui.add(
+                            egui::DragValue::new(value)
+                                .speed(0.1)
+                                .max_decimals(2)
+                                .custom_formatter(|val, _| {
+                                    format!("{:.2}", val)
+                                        .trim_end_matches('0')
+                                        .trim_end_matches('.')
+                                        .replace(".", ",")
+                                }),
+                        );
+                        if response.hovered() {
+                            ui.output_mut(|o| o.cursor_icon = egui::CursorIcon::ResizeHorizontal);
+                        }
+                    });
+                });
             });
-        });
+    });
 }
 
 /// Renders a styled container holding a label and a `u32` DragValue input.
@@ -187,41 +180,35 @@ pub fn ui_input_box_u32(ui: &mut egui::Ui, label: &str, value: &mut u32, unit: &
     let border_color = panel_border(visuals);
     let label_clr = label_color(visuals);
 
-    egui::Frame::new()
-        .fill(bg_fill)
-        .corner_radius(4.0)
-        .stroke(egui::Stroke::new(1.0, border_color))
-        .inner_margin(egui::Margin::symmetric(10, 6))
-        .show(ui, |ui| {
-            ui.set_min_width(115.0);
-            ui.horizontal(|ui| {
-                let label_w = 45.0;
-                let (rect, _) =
-                    ui.allocate_at_least(egui::vec2(label_w, 14.0), egui::Sense::hover());
-                ui.painter().text(
-                    rect.left_center(),
-                    egui::Align2::LEFT_CENTER,
-                    label,
-                    egui::FontId::proportional(11.0),
-                    label_clr,
-                );
+    ui.scope(|ui| {
+        ui.style_mut().visuals.widgets.inactive.bg_fill = egui::Color32::from_white_alpha(8);
+        ui.style_mut().visuals.widgets.hovered.bg_fill = egui::Color32::from_white_alpha(15);
+        ui.style_mut().spacing.button_padding = egui::vec2(6.0, 2.0);
 
-                ui.add_space(4.0);
-                ui.spacing_mut().item_spacing.x = 4.0;
-                let response = ui.add(egui::DragValue::new(value).speed(1.0));
-                if response.hovered() {
-                    ui.output_mut(|o| o.cursor_icon = egui::CursorIcon::ResizeHorizontal);
-                }
+        egui::Frame::new()
+            .fill(bg_fill)
+            .corner_radius(8.0)
+            .stroke(egui::Stroke::new(1.0, border_color.gamma_multiply(0.6)))
+            .inner_margin(egui::Margin::symmetric(12, 6))
+            .show(ui, |ui| {
+                ui.set_min_width(130.0);
+                ui.horizontal(|ui| {
+                    ui.label(egui::RichText::new(label).size(11.0).color(label_clr).strong());
 
-                if !unit.is_empty() {
-                    ui.label(
-                        egui::RichText::new(unit)
-                            .size(10.0)
-                            .color(egui::Color32::from_gray(180)),
-                    );
-                }
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                        if !unit.is_empty() {
+                            ui.label(egui::RichText::new(unit).size(10.0).color(label_clr.gamma_multiply(0.5)));
+                            ui.add_space(2.0);
+                        }
+
+                        let response = ui.add(egui::DragValue::new(value).speed(1.0));
+                        if response.hovered() {
+                            ui.output_mut(|o| o.cursor_icon = egui::CursorIcon::ResizeHorizontal);
+                        }
+                    });
+                });
             });
-        });
+    });
 }
 
 /// Renders a wide, right-aligned setting row typically used in the Filters tab.
@@ -234,43 +221,44 @@ pub fn ui_setting_row(ui: &mut egui::Ui, label: &str, value: &mut f32, unit: &st
     let border_color = panel_border(visuals);
     let label_clr = label_color(visuals);
 
-    egui::Frame::new()
-        .fill(bg_fill)
-        .corner_radius(4.0)
-        .stroke(egui::Stroke::new(1.0, border_color))
-        .inner_margin(egui::Margin::symmetric(10, 6))
-        .show(ui, |ui| {
-            ui.set_min_width(350.0);
-            ui.horizontal(|ui| {
-                ui.label(egui::RichText::new(label).size(11.0).color(label_clr));
+    ui.scope(|ui| {
+        ui.style_mut().visuals.widgets.inactive.bg_fill = egui::Color32::from_white_alpha(8);
+        ui.style_mut().visuals.widgets.hovered.bg_fill = egui::Color32::from_white_alpha(15);
+        ui.style_mut().spacing.button_padding = egui::vec2(8.0, 3.0);
 
-                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    if !unit.is_empty() {
-                        ui.label(
-                            egui::RichText::new(unit)
-                                .size(10.0)
-                                .color(egui::Color32::from_gray(180)),
+        egui::Frame::new()
+            .fill(bg_fill)
+            .corner_radius(8.0)
+            .stroke(egui::Stroke::new(1.0, border_color.gamma_multiply(0.6)))
+            .inner_margin(egui::Margin::symmetric(14, 8))
+            .show(ui, |ui| {
+                ui.set_min_width(350.0);
+                ui.horizontal(|ui| {
+                    ui.label(egui::RichText::new(label).size(11.5).color(label_clr).strong());
+
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                        if !unit.is_empty() {
+                            ui.label(egui::RichText::new(unit).size(10.5).color(label_clr.gamma_multiply(0.5)));
+                            ui.add_space(4.0);
+                        }
+
+                        let response = ui.add(
+                            egui::DragValue::new(value)
+                                .speed(0.1)
+                                .max_decimals(2)
+                                .custom_formatter(|val, _| {
+                                    format!("{:.2}", val)
+                                        .trim_end_matches('0')
+                                        .trim_end_matches('.')
+                                        .replace(".", ",")
+                                })
+                                .clamp_existing_to_range(false),
                         );
-                        ui.add_space(4.0);
-                    }
-
-                    ui.spacing_mut().item_spacing.x = 4.0;
-                    let response = ui.add(
-                        egui::DragValue::new(value)
-                            .speed(0.1)
-                            .max_decimals(2)
-                            .custom_formatter(|val, _| {
-                                format!("{:.2}", val)
-                                    .trim_end_matches('0')
-                                    .trim_end_matches('.')
-                                    .replace(".", ",")
-                            })
-                            .clamp_existing_to_range(false),
-                    );
-                    if response.hovered() {
-                        ui.output_mut(|o| o.cursor_icon = egui::CursorIcon::ResizeHorizontal);
-                    }
+                        if response.hovered() {
+                            ui.output_mut(|o| o.cursor_icon = egui::CursorIcon::ResizeHorizontal);
+                        }
+                    });
                 });
             });
-        });
+    });
 }

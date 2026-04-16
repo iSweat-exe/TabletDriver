@@ -29,8 +29,6 @@ pub enum AppTab {
     Console,
     /// General application settings (startup, updater, etc).
     Settings,
-    /// Links to Discord, GitHub, and documentation.
-    Support,
     /// Changelog and update installation dialog.
     Release,
 }

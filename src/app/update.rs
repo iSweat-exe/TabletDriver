@@ -12,7 +12,6 @@ use crate::ui::panels::output::render_output_panel;
 use crate::ui::panels::pen_settings::render_pen_settings_panel;
 use crate::ui::panels::release::render_release_panel;
 use crate::ui::panels::settings::render_settings_panel;
-use crate::ui::panels::support::render_support_panel;
 use eframe::egui;
 use std::sync::atomic::Ordering;
 
@@ -137,11 +136,6 @@ impl eframe::App for TabletMapperApp {
             AppTab::Settings => {
                 egui::ScrollArea::vertical().show(ui, |ui| {
                     render_settings_panel(self, ui, &mut config);
-                });
-            }
-            AppTab::Support => {
-                egui::ScrollArea::vertical().show(ui, |ui| {
-                    render_support_panel(self, ui);
                 });
             }
             AppTab::Release => {
