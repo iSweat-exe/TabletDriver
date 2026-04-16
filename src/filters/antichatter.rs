@@ -111,7 +111,7 @@ mod tests {
     fn test_antichatter_disabled_passthrough() {
         let mut filter = DevocubAntichatter::new();
         let config = create_test_config(false, 10.0);
-        
+
         let (x, y) = filter.process(0.5, 0.5, &config);
         assert_eq!(x, 0.5);
         assert_eq!(y, 0.5);
@@ -125,7 +125,7 @@ mod tests {
 
         filter.process(0.0, 0.0, &config);
         let (x, y) = filter.process(1.0, 1.0, &config);
-        
+
         // Average of (0,0) and (1,1) should be (0.5, 0.5)
         assert_eq!(x, 0.5);
         assert_eq!(y, 0.5);

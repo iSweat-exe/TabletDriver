@@ -266,7 +266,7 @@ impl eframe::App for TabletMapperApp {
 
         // --- GUI Performance Capping ---
         // We limit the UI to approximately 60 FPS (1000ms / 60 ≈ 16ms).
-        // This prevents the GUI from consuming 100% of a CPU/GPU core while 
+        // This prevents the GUI from consuming 100% of a CPU/GPU core while
         // receiving high-frequency tablet data (e.g., 1000Hz).
         ctx.request_repaint_after(std::time::Duration::from_secs(1));
     }

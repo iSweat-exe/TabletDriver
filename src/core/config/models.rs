@@ -25,7 +25,7 @@ pub struct ActiveArea {
 
 /// Represents the target mapping area on the user's monitors.
 ///
-/// All coordinates in this struct are in absolute virtual **pixels** 
+/// All coordinates in this struct are in absolute virtual **pixels**
 /// spanning across all connected displays.
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
 pub struct TargetArea {
@@ -308,7 +308,13 @@ mod tests {
 
     #[test]
     fn test_active_area_logic() {
-        let area = ActiveArea { x: 10.0, y: 10.0, w: 20.0, h: 20.0, rotation: 0.0 };
+        let area = ActiveArea {
+            x: 10.0,
+            y: 10.0,
+            w: 20.0,
+            h: 20.0,
+            rotation: 0.0,
+        };
         assert_eq!(area.w, 20.0);
     }
 }

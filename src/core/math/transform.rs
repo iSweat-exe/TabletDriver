@@ -51,7 +51,7 @@ pub fn rotate_point(
 
 /// Normalizes physical tablet coordinates (millimeters) into [0.0, 1.0] UV space.
 ///
-/// This function maps the raw pen position from the tablet surface into a 
+/// This function maps the raw pen position from the tablet surface into a
 /// unit-square representation relative to the user's defined active area.
 ///
 /// # Arguments
@@ -95,7 +95,7 @@ pub fn physical_to_normalized(
 
 /// Projects normalized UV coordinates `[0.0, 1.0]` onto screen pixels.
 ///
-/// Inputs are clamped to the `[0.0, 1.0]` range to ensure the cursor stays 
+/// Inputs are clamped to the `[0.0, 1.0]` range to ensure the cursor stays
 /// within the bounds of the target screen area.
 ///
 /// # Arguments
@@ -132,7 +132,7 @@ pub fn normalized_to_screen(
 
 /// Computes the pixel delta for relative (mouse-like) movement.
 ///
-/// This mode is typically used for general desktop navigation where 
+/// This mode is typically used for general desktop navigation where
 /// the pen acts like a high-precision touchpad.
 ///
 /// # Arguments

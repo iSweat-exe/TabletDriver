@@ -5,6 +5,7 @@
 //! configures the window properties, and launches the `eframe` (egui) graphical interface.
 
 #![windows_subsystem = "windows"]
+#![warn(clippy::all, clippy::pedantic, clippy::nursery)]
 
 use eframe::egui;
 use next_tablet_driver::app::TabletMapperApp;

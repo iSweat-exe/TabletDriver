@@ -114,8 +114,8 @@ mod platform {
 #[cfg(target_os = "linux")]
 mod platform {
     use evdev::{
-        uinput::VirtualDeviceBuilder, AbsInfo, AbsoluteAxisCode, AttributeSet, BusType, InputEvent,
-        InputId, KeyCode, RelativeAxisCode, UinputAbsSetup,
+        AbsInfo, AbsoluteAxisCode, AttributeSet, BusType, InputEvent, InputId, KeyCode,
+        RelativeAxisCode, UinputAbsSetup, uinput::VirtualDeviceBuilder,
     };
 
     /// Maximum value for absolute axes (standard high-resolution range).

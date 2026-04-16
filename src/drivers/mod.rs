@@ -5,7 +5,7 @@
 //! 2.  **Initialization**: Sending vendor-specific "magic" packets to enable digitizer mode.
 //! 3.  **Parsing**: Converting raw byte arrays from various protocols into a unified format.
 //!
-//! The system is designed to be extensible; adding support for a new tablet involves 
+//! The system is designed to be extensible; adding support for a new tablet involves
 //! adding a JSON configuration file to the `tablets/` directory.
 
 use hidapi::{HidApi, HidDevice};
@@ -34,7 +34,7 @@ pub struct TabletData {
     pub x: u16,
     /// Raw Y coordinate from the tablet sensor. Range depends on hardware resolution.
     pub y: u16,
-    /// Absolute pressure applied to the nib. Normalized by the driver to a 
+    /// Absolute pressure applied to the nib. Normalized by the driver to a
     /// standard range (often 0 to 8191).
     pub pressure: u16,
     /// Horizontal pen tilt in degrees (if supported by hardware).
@@ -98,7 +98,7 @@ impl Default for DriverStats {
 
 /// The trait that all tablet-specific driver implementations must satisfy.
 ///
-/// It provides the interface for the Engine to query hardware limits and 
+/// It provides the interface for the Engine to query hardware limits and
 /// decode incoming USB data.
 pub trait NextTabletDriver {
     /// Returns the marketing name of the tablet.
