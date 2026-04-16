@@ -40,6 +40,7 @@ impl Log for GlobalLogger {
                 "TabletManager",
                 "Startup",
                 "Settings",
+                "Timer",
             ];
             let is_allowed =
                 allowed_targets.contains(&target) || target.starts_with("NextTabletDriver");

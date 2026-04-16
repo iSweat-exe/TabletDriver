@@ -121,10 +121,8 @@ pub fn ui_section_header(ui: &mut egui::Ui, title: &str) {
     ui.add(egui::Separator::default().spacing(4.0).grow(2.0));
 }
 
-/// Renders a styled container holding a label and an `f32` DragValue input.
-///
-/// This creates the "pill" style input boxes heavily used in the Output tab.
-pub fn ui_input_box(ui: &mut egui::Ui, label: &str, value: &mut f32, unit: &str) {
+/// Renders a styled container holding a label and an `f32` DragValue input with an optional range.
+pub fn ui_input_box_range(ui: &mut egui::Ui, label: &str, value: &mut f32, unit: &str, range: std::ops::RangeInclusive<f32>) {
     let visuals = ui.visuals();
     let bg_fill = panel_bg(visuals);
     let border_color = panel_border(visuals);
@@ -156,6 +154,7 @@ pub fn ui_input_box(ui: &mut egui::Ui, label: &str, value: &mut f32, unit: &str)
                             egui::DragValue::new(value)
                                 .speed(0.1)
                                 .max_decimals(2)
+                                .range(range)
                                 .custom_formatter(|val, _| {
                                     format!("{:.2}", val)
                                         .trim_end_matches('0')
@@ -170,6 +169,10 @@ pub fn ui_input_box(ui: &mut egui::Ui, label: &str, value: &mut f32, unit: &str)
                 });
             });
     });
+}
+
+pub fn ui_input_box(ui: &mut egui::Ui, label: &str, value: &mut f32, unit: &str) {
+    ui_input_box_range(ui, label, value, unit, f32::MIN..=f32::MAX);
 }
 
 /// Renders a styled container holding a label and a `u32` DragValue input with an optional range.
@@ -277,7 +280,7 @@ pub fn ui_setting_row(ui: &mut egui::Ui, label: &str, value: &mut f32, unit: &st
             .stroke(egui::Stroke::new(1.0, border_color.gamma_multiply(0.6)))
             .inner_margin(egui::Margin::symmetric(14, 8))
             .show(ui, |ui| {
-                ui.set_min_width(350.0);
+                ui.set_min_width(220.0);
                 ui.horizontal(|ui| {
                     ui.label(egui::RichText::new(label).size(11.5).color(label_clr).strong());
 
