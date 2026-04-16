@@ -31,13 +31,15 @@ fn main() -> eframe::Result {
         use windows_sys::Win32::Foundation::{ERROR_ALREADY_EXISTS, GetLastError, HANDLE};
         use windows_sys::Win32::System::Threading::CreateMutexW;
 
+        log::debug!(target: "Startup", "Checking for single instance (Windows Mutex)...");
         let mutex_name: Vec<u16> = "NextTabletDriverMutex\0".encode_utf16().collect();
         let handle: HANDLE = unsafe { CreateMutexW(std::ptr::null(), 1, mutex_name.as_ptr()) };
         if handle.is_null() {
+            log::error!(target: "Startup", "Failed to create mutex handle");
             return Ok(());
         }
         if unsafe { GetLastError() } == ERROR_ALREADY_EXISTS {
-            log::error!("Another instance of NextTabletDriver is already running.");
+            log::error!(target: "Startup", "Another instance of NextTabletDriver is already running.");
             return Ok(());
         }
     }
@@ -47,6 +49,7 @@ fn main() -> eframe::Result {
         use std::fs;
         use std::io::Write;
 
+        log::debug!(target: "Startup", "Checking for single instance (Linux flock)...");
         // Determine the lock file path: prefer $XDG_RUNTIME_DIR, fallback to /tmp
         let runtime_dir = std::env::var("XDG_RUNTIME_DIR").unwrap_or_else(|_| "/tmp".to_string());
         let lock_path = std::path::PathBuf::from(runtime_dir).join("nexttabletdriver.lock");
@@ -66,7 +69,7 @@ fn main() -> eframe::Result {
                 let fd = f.as_raw_fd();
                 let ret = unsafe { libc::flock(fd, libc::LOCK_EX | libc::LOCK_NB) };
                 if ret != 0 {
-                    eprintln!("Another instance of NextTabletDriver is already running.");
+                    log::error!(target: "Startup", "Another instance of NextTabletDriver is already running (PID locked).");
                     std::process::exit(1);
                 }
 
@@ -74,14 +77,21 @@ fn main() -> eframe::Result {
                 let _ = write!(f, "{}", std::process::id());
                 Some(f) // Keep the file handle alive to hold the lock
             }
-            Err(_) => None, // If we can't create the lock file, proceed anyway
+            Err(e) => {
+                log::warn!(target: "Startup", "Could not create lock file at {:?}: {}", lock_path, e);
+                None
+            }
         }
     };
 
     // Start logger
     logger::init();
 
-    log::info!(target: "Detect", "Application starting...");
+    log::info!(target: "Startup", "NextTabletDriver v{} starting on {} ({})", 
+        next_tablet_driver::VERSION,
+        std::env::consts::OS,
+        std::env::consts::ARCH
+    );
 
     let icon_data =
         eframe::icon_data::from_png_bytes(include_bytes!("../resources/icon.png")).unwrap();
@@ -90,6 +100,8 @@ fn main() -> eframe::Result {
         viewport: egui::ViewportBuilder::default()
             .with_icon(icon_data)
             .with_inner_size([1000.0, 850.0])
+            // .with_decorations(false)
+            // .with_transparent(true)
             .with_title(format!("NextTabletDriver v{}", next_tablet_driver::VERSION)),
         ..Default::default()
     };

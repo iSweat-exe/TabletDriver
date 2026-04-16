@@ -166,12 +166,24 @@ fn load_embedded_recursive(
                 load_embedded_recursive(sub_dir, configs, names);
             }
             DirEntry::File(file) => {
-                if file.path().extension().and_then(|s| s.to_str()) == Some("json")
-                    && let Some(content_str) = file.contents_utf8()
-                    && let Ok(config) = serde_json::from_str::<TabletConfiguration>(content_str)
-                    && !names.contains(&config.name)
-                {
-                    configs.push(config);
+                if file.path().extension().and_then(|s| s.to_str()) == Some("json") {
+                    match file.contents_utf8() {
+                        Some(content_str) => {
+                            match serde_json::from_str::<TabletConfiguration>(content_str) {
+                                Ok(config) => {
+                                    if !names.contains(&config.name) {
+                                        configs.push(config);
+                                    }
+                                }
+                                Err(e) => {
+                                    log::error!(target: "Driver", "Failed to parse embedded config {:?}: {}", file.path(), e);
+                                }
+                            }
+                        }
+                        None => {
+                            log::warn!(target: "Driver", "Embedded config file {:?} is not valid UTF-8", file.path());
+                        }
+                    }
                 }
             }
         }
@@ -188,12 +200,25 @@ fn load_from_disk_recursive(
             let p = entry.path();
             if p.is_dir() {
                 load_from_disk_recursive(&p, configs, names);
-            } else if p.extension().and_then(|s| s.to_str()) == Some("json")
-                && let Ok(content) = fs::read_to_string(&p)
-                && let Ok(config) = serde_json::from_str::<TabletConfiguration>(&content)
-            {
-                names.insert(config.name.clone());
-                configs.push(config);
+            } else if p.extension().and_then(|s| s.to_str()) == Some("json") {
+                match fs::read_to_string(&p) {
+                    Ok(content) => {
+                        match serde_json::from_str::<TabletConfiguration>(&content) {
+                            Ok(config) => {
+                                if !names.contains(&config.name) {
+                                    names.insert(config.name.clone());
+                                    configs.push(config);
+                                }
+                            }
+                            Err(e) => {
+                                log::error!(target: "Driver", "Failed to parse disk config {:?}: {}", p, e);
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        log::error!(target: "Driver", "Failed to read disk config {:?}: {}", p, e);
+                    }
+                }
             }
         }
     }
@@ -224,9 +249,21 @@ pub fn detect_tablet(api: &HidApi) -> Option<(HidDevice, Box<dyn NextTabletDrive
                     && device_info.product_id() == digitizer.product_id
                 {
                     let interface = device_info.interface_number();
+                    let path = device_info.path();
+                    
+                    log::debug!(
+                        target: "Detect", 
+                        "Found candidate for {}: {:04x}:{:04x} (Interface {}, Path: {:?})", 
+                        config.name, 
+                        digitizer.vendor_id, 
+                        digitizer.product_id,
+                        interface,
+                        path
+                    );
+
                     let open_start = Instant::now();
 
-                    match api.open_path(device_info.path()) {
+                    match api.open_path(path) {
                         Ok(device) => {
                             let open_duration = open_start.elapsed();
                             let mut init_success = true;
@@ -237,12 +274,20 @@ pub fn detect_tablet(api: &HidApi) -> Option<(HidDevice, Box<dyn NextTabletDrive
                             // Feature Reports
                             if let Some(reports) = &digitizer.feature_init_report {
                                 for report_str in reports {
-                                    if let Ok(data) = general_purpose::STANDARD.decode(report_str)
-                                        && let Err(e) = device.send_feature_report(&data)
-                                    {
-                                        log::error!(target: "Detect", "Init Error (Feature): {}", e);
-                                        init_success = false;
-                                        break;
+                                    match general_purpose::STANDARD.decode(report_str) {
+                                        Ok(data) => {
+                                            log::trace!(target: "Detect", "Sending Feature Report: {:02x?}", data);
+                                            if let Err(e) = device.send_feature_report(&data) {
+                                                log::error!(target: "Detect", "{} | Init Error (Feature Report): {}", config.name, e);
+                                                init_success = false;
+                                                break;
+                                            }
+                                        }
+                                        Err(e) => {
+                                            log::error!(target: "Detect", "{} | Base64 Decode Error (Feature): {}", config.name, e);
+                                            init_success = false;
+                                            break;
+                                        }
                                     }
                                 }
                             }
@@ -250,27 +295,44 @@ pub fn detect_tablet(api: &HidApi) -> Option<(HidDevice, Box<dyn NextTabletDrive
                             // Output Reports
                             if init_success && let Some(reports) = &digitizer.output_init_report {
                                 for report_str in reports {
-                                    if let Ok(data) = general_purpose::STANDARD.decode(report_str)
-                                        && let Err(e) = device.write(&data)
-                                    {
-                                        log::error!(target: "Detect", "Init Error (Output): {}", e);
-                                        init_success = false;
-                                        break;
+                                    match general_purpose::STANDARD.decode(report_str) {
+                                        Ok(data) => {
+                                            log::trace!(target: "Detect", "Sending Output Report: {:02x?}", data);
+                                            if let Err(e) = device.write(&data) {
+                                                log::error!(target: "Detect", "{} | Init Error (Output Report): {}", config.name, e);
+                                                init_success = false;
+                                                break;
+                                            }
+                                        }
+                                        Err(e) => {
+                                            log::error!(target: "Detect", "{} | Base64 Decode Error (Output): {}", config.name, e);
+                                            init_success = false;
+                                            break;
+                                        }
                                     }
                                 }
                             }
 
                             if !init_success {
+                                log::warn!(target: "Detect", "Initialization failed for {}, skipping device", config.name);
                                 continue;
                             }
 
                             log::info!(
                                 target: "Detect",
-                                "{} | HID Enum: {:.2?} | Open: {:.2?} | Init Reports: {:.2?} | Total: {:.2?}",
+                                "Connected: {} ({:04x}:{:04x}) | Interface: {} | Init: {:.2?}",
                                 config.name,
+                                digitizer.vendor_id,
+                                digitizer.product_id,
+                                interface,
+                                init_start.elapsed(),
+                            );
+                            
+                            log::debug!(
+                                target: "Detect",
+                                "Timings -> Enum: {:.2?} | Open: {:.2?} | Total: {:.2?}",
                                 enum_duration,
                                 open_duration,
-                                init_start.elapsed(),
                                 global_start.elapsed()
                             );
 
@@ -286,7 +348,7 @@ pub fn detect_tablet(api: &HidApi) -> Option<(HidDevice, Box<dyn NextTabletDrive
                             ));
                         }
                         Err(e) => {
-                            log::trace!(target: "Detect", "Interface {} busy: {}", interface, e);
+                            log::debug!(target: "Detect", "Could not open {} interface {}: {}", config.name, interface, e);
                         }
                     }
                 }

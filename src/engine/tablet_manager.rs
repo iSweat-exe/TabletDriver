@@ -49,7 +49,11 @@ pub fn run_manager(
             GetCurrentThread, SetThreadPriority, THREAD_PRIORITY_TIME_CRITICAL,
         };
         // Set engine thread to Time Critical for minimum scheduling jitter
-        SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_TIME_CRITICAL);
+        if SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_TIME_CRITICAL) != 0 {
+            log::info!(target: "TabletManager", "Thread priority set to TIME_CRITICAL");
+        } else {
+            log::warn!(target: "TabletManager", "Failed to set thread priority to TIME_CRITICAL");
+        }
     }
 
     #[cfg(target_os = "linux")]
@@ -58,7 +62,12 @@ pub fn run_manager(
         // This may silently fail without CAP_SYS_NICE — that's acceptable,
         // the driver will still work at normal priority.
         unsafe {
-            libc::nice(-11);
+            let ret = libc::nice(-11);
+            if ret == -1 {
+                log::info!(target: "TabletManager", "Running at normal priority (CAP_SYS_NICE not available)");
+            } else {
+                log::info!(target: "TabletManager", "Thread priority increased (nice -11)");
+            }
         }
     }
 
@@ -67,6 +76,7 @@ pub fn run_manager(
     let mut last_config_check = Instant::now();
 
     let mut filters = crate::filters::FilterPipeline::new();
+    log::debug!(target: "TabletManager", "Initializing filters...");
     filters.add(Box::new(
         crate::filters::antichatter::DevocubAntichatter::new(),
     ));
@@ -74,6 +84,7 @@ pub fn run_manager(
         Arc::clone(&shared),
     )));
     filters.update_config(&local_config);
+    log::info!(target: "TabletManager", "Filter pipeline ready");
 
     loop {
         if let Some((device, driver, vid, pid)) = detect_tablet(&hid_api) {
@@ -172,8 +183,9 @@ pub fn run_manager(
                             filters.update_config(&local_config);
                         }
                     }
-                    Err(_) => {
-                        log::warn!(target: "TabletManager", "Tablet disconnected");
+                    Err(e) => {
+                        log::error!(target: "TabletManager", "HID Read Error: {}", e);
+                        log::warn!(target: "TabletManager", "Tablet disconnected or bus reset");
                         break;
                     } // Disconnected
                 }
