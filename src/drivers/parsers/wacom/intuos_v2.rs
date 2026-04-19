@@ -21,25 +21,40 @@ impl IntuosV2Parser {
 
     fn parse_tablet(&self, data: &[u8], raw: String, offset: bool) -> Option<TabletData> {
         let min_len = if offset { 13 } else { 17 };
-        if data.len() < min_len { return None; }
+        if data.len() < min_len {
+            return None;
+        }
 
-        let (x_low, x_high, y_low, y_high, p_low, p_high, tx, ty, btn_byte, eraser_bit) = if offset {
-             (data[3], data[5], data[6], data[8], data[9], data[10], data[11], data[12], data[2], 4)
+        let (x_low, x_high, y_low, y_high, p_low, p_high, tx, ty, btn_byte, eraser_bit) = if offset
+        {
+            (
+                data[3], data[5], data[6], data[8], data[9], data[10], data[11], data[12], data[2],
+                4,
+            )
         } else {
-             (data[2], data[4], data[5], data[7], data[8], data[9], data[10], data[11], data[1], 4)
+            (
+                data[2], data[4], data[5], data[7], data[8], data[9], data[10], data[11], data[1],
+                4,
+            )
         };
 
         let x = (x_low as u32) | ((x_high as u32) << 16);
         let y = (y_low as u32) | ((y_high as u32) << 16);
         let pressure = (p_low as u16) | ((p_high as u16) << 8);
-        
+
         let tilt_x = tx as i8;
         let tilt_y = ty as i8;
 
         let mut buttons: u8 = 0;
-        if (btn_byte & 0x02) != 0 { buttons |= 1 << 0; }
-        if (btn_byte & 0x04) != 0 { buttons |= 1 << 1; }
-        if offset && (btn_byte & 0x08) != 0 { buttons |= 1 << 2; }
+        if (btn_byte & 0x02) != 0 {
+            buttons |= 1 << 0;
+        }
+        if (btn_byte & 0x04) != 0 {
+            buttons |= 1 << 1;
+        }
+        if offset && (btn_byte & 0x08) != 0 {
+            buttons |= 1 << 2;
+        }
 
         let eraser = (btn_byte & (1 << eraser_bit)) != 0;
         let status = if pressure > 0 { "Contact" } else { "Hover" };
@@ -62,7 +77,9 @@ impl IntuosV2Parser {
     }
 
     fn parse_aux(&self, data: &[u8], raw: String) -> Option<TabletData> {
-        if data.len() < 2 { return None; }
+        if data.len() < 2 {
+            return None;
+        }
         let buttons = data[1];
         Some(TabletData {
             status: "Aux".to_string(),
@@ -76,8 +93,14 @@ impl IntuosV2Parser {
 
 impl ReportParser for IntuosV2Parser {
     fn parse(&self, data: &[u8]) -> Option<TabletData> {
-        if data.is_empty() { return None; }
-        let raw = data.iter().map(|b| format!("{:02X}", b)).collect::<Vec<_>>().join(" ");
+        if data.is_empty() {
+            return None;
+        }
+        let raw = data
+            .iter()
+            .map(|b| format!("{:02X}", b))
+            .collect::<Vec<_>>()
+            .join(" ");
         self.parse_internal(data, raw)
     }
 }
@@ -88,14 +111,22 @@ pub struct WacomDriverIntuosV2Parser {
 
 impl WacomDriverIntuosV2Parser {
     pub fn new() -> Self {
-        Self { inner: IntuosV2Parser::new() }
+        Self {
+            inner: IntuosV2Parser::new(),
+        }
     }
 }
 
 impl ReportParser for WacomDriverIntuosV2Parser {
     fn parse(&self, data: &[u8]) -> Option<TabletData> {
-        if data.len() < 2 { return None; }
-        let raw = data.iter().map(|b| format!("{:02X}", b)).collect::<Vec<_>>().join(" ");
+        if data.len() < 2 {
+            return None;
+        }
+        let raw = data
+            .iter()
+            .map(|b| format!("{:02X}", b))
+            .collect::<Vec<_>>()
+            .join(" ");
         self.inner.parse_internal(&data[1..], raw)
     }
 }

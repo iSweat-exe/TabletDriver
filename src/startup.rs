@@ -24,14 +24,7 @@ mod platform {
     use super::*;
     use std::process::Command;
 
-    /// Locates the Windows Startup folder for the current user.
-    ///
-    /// # Internal Logic
-    /// It constructs the path: `C:\Users\<User>\AppData\Roaming\Microsoft\Windows\Start Menu\Programs\Startup`
-    ///
-    /// # Returns
-    /// * `Some(PathBuf)` containing the absolute path to the startup folder.
-    /// * `None` if the home directory cannot be determined via OS APIs.
+    /// Returns the Windows Startup folder path for the current user.
     fn get_startup_folder() -> Option<PathBuf> {
         UserDirs::new().map(|dirs| {
             let mut path = dirs.home_dir().to_path_buf();
@@ -71,7 +64,7 @@ mod platform {
             let exe_path_str = exe_path.to_str().ok_or("Invalid executable path")?;
             let shortcut_path_str = shortcut_path.to_str().ok_or("Invalid shortcut path")?;
 
-            // Create a temporary VBScript to create the shortcut
+            // VBScript + WScript.Shell COM: avoids encoding .lnk binary format directly
             let vbs_content = format!(
                 r#"Set oWS = WScript.CreateObject("WScript.Shell")
             Set oLink = oWS.CreateShortcut("{}")
@@ -93,7 +86,6 @@ mod platform {
 
             let status = Command::new("wscript").arg(&temp_vbs).status()?;
 
-            // Clean up the temporary script regardless of the outcome
             let _ = fs::remove_file(temp_vbs);
 
             if !status.success() {
@@ -124,7 +116,6 @@ mod platform {
 
     /// Returns the path to the autostart directory: `~/.config/autostart/`.
     fn get_autostart_dir() -> Option<PathBuf> {
-        // Prefer $XDG_CONFIG_HOME, fall back to ~/.config
         let config_dir = std::env::var("XDG_CONFIG_HOME")
             .map(PathBuf::from)
             .unwrap_or_else(|_| {
@@ -151,7 +142,6 @@ mod platform {
             get_desktop_path().ok_or("Could not determine autostart directory path")?;
 
         if enabled {
-            // Ensure the autostart directory exists
             if let Some(parent) = desktop_path.parent() {
                 fs::create_dir_all(parent)?;
             }

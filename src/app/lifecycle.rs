@@ -8,6 +8,8 @@ use display_info::DisplayInfo;
 use std::sync::Arc;
 use std::sync::RwLock;
 use std::sync::atomic::AtomicU32;
+#[cfg(debug_assertions)]
+use std::sync::atomic::AtomicU64;
 use std::thread;
 use std::time::Instant;
 
@@ -43,9 +45,7 @@ impl TabletMapperApp {
             use windows_sys::Win32::System::Threading::{
                 GetCurrentProcess, HIGH_PRIORITY_CLASS, SetPriorityClass,
             };
-            // Set 1ms timer resolution for high-frequency polling
             timeBeginPeriod(1);
-            // Give the driver process high priority to avoid context switch delays
             SetPriorityClass(GetCurrentProcess(), HIGH_PRIORITY_CLASS);
         }
 
@@ -93,23 +93,22 @@ impl TabletMapperApp {
             }
         };
 
-        // Apply theme before shared state move
         crate::ui::theme::apply_theme(&_ctx, config.theme);
-        
-        // Initialize Fonts & Icons
+
         let mut fonts = eframe::egui::FontDefinitions::default();
 
-        // Add Phosphor icons
         egui_phosphor::add_to_fonts(&mut fonts, egui_phosphor::Variant::Regular);
 
-        // Add Helvetica
         fonts.font_data.insert(
             "Helvetica".to_owned(),
-            std::sync::Arc::new(eframe::egui::FontData::from_static(include_bytes!("../../resources/fonts/Helvetica.ttf"))),
+            std::sync::Arc::new(eframe::egui::FontData::from_static(include_bytes!(
+                "../../resources/fonts/Helvetica.ttf"
+            ))),
         );
 
-        // Set Helvetica as the primary proportional font
-        fonts.families.entry(eframe::egui::FontFamily::Proportional)
+        fonts
+            .families
+            .entry(eframe::egui::FontFamily::Proportional)
             .or_default()
             .insert(0, "Helvetica".to_owned());
 
@@ -127,11 +126,27 @@ impl TabletMapperApp {
             is_first_run: RwLock::new(is_first_run),
             packet_count: AtomicU32::new(0),
             stats: RwLock::new(crate::drivers::DriverStats::default()),
+
+            #[cfg(debug_assertions)]
+            debug_pipeline_stage: RwLock::new("Idle".to_string()),
+            #[cfg(debug_assertions)]
+            debug_last_uv: RwLock::new((0.0, 0.0)),
+            #[cfg(debug_assertions)]
+            debug_last_filtered_uv: RwLock::new((0.0, 0.0)),
+            #[cfg(debug_assertions)]
+            debug_last_screen: RwLock::new((0.0, 0.0)),
+            #[cfg(debug_assertions)]
+            debug_inject_count: AtomicU32::new(0),
+            #[cfg(debug_assertions)]
+            debug_filter_time_ns: AtomicU64::new(0),
+            #[cfg(debug_assertions)]
+            debug_transform_time_ns: AtomicU64::new(0),
+            #[cfg(debug_assertions)]
+            debug_pipeline_time_ns: AtomicU64::new(0),
         });
 
         let (tablet_sender, tablet_receiver) = crossbeam_channel::unbounded();
 
-        // Spawn Input Thread
         let thread_shared = Arc::clone(&shared);
         let thread_ctx = _ctx.clone();
         log::info!(target: "App", "Spawning Input Engine thread");
@@ -139,7 +154,6 @@ impl TabletMapperApp {
             run_manager(thread_shared, thread_ctx, tablet_sender);
         });
 
-        // Spawn WebSocket Setup Thread
         let ws_shared = Arc::clone(&shared);
         log::info!(target: "App", "Spawning WebSocket thread");
         thread::spawn(move || {
@@ -158,7 +172,6 @@ impl TabletMapperApp {
             }
         });
 
-        // --- System Tray Initialization ---
         let icon_bytes = include_bytes!("../../resources/icon.png");
         let image = image::load_from_memory(icon_bytes)
             .expect("Failed to load icon")
@@ -206,7 +219,7 @@ impl TabletMapperApp {
                         }
                         unsafe {
                             let title = format!("NextTabletDriver v{}\0", crate::VERSION);
-                            // Find our window specifically
+                            // Find our window by title for native Win32 restore
                             let hwnd = FindWindowA(std::ptr::null(), title.as_ptr() as *const _);
                             if hwnd != 0 {
                                 log::info!(target: "Tray", "Native window found (HWND: {}), restoring...", hwnd);
@@ -218,7 +231,7 @@ impl TabletMapperApp {
                         }
                     }
 
-                    // Send the commands to sync the eframe context state
+                    // Sync eframe viewport state with the native window restore above
                     tray_ctx.send_viewport_cmd(eframe::egui::ViewportCommand::Minimized(false));
                     tray_ctx.send_viewport_cmd(eframe::egui::ViewportCommand::Visible(true));
                     tray_ctx.send_viewport_cmd(eframe::egui::ViewportCommand::Focus);
@@ -255,6 +268,17 @@ impl TabletMapperApp {
             console_show_debug: true,
             console_autoscroll: true,
             tray_icon,
+
+            #[cfg(debug_assertions)]
+            dev_pause_pipeline: false,
+            #[cfg(debug_assertions)]
+            dev_raw_hid_history: std::collections::VecDeque::with_capacity(50),
+            #[cfg(debug_assertions)]
+            dev_pipeline_log: std::collections::VecDeque::with_capacity(30),
+            #[cfg(debug_assertions)]
+            dev_show_full_config: false,
+            #[cfg(debug_assertions)]
+            dev_filter_details_open: false,
         }
     }
 }

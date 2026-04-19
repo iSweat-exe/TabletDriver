@@ -47,4 +47,4 @@ pub mod startup;
 pub mod ui;
 
 /// The current semantic version of the application.
-pub const VERSION: &str = "1.26.1604.02";
+pub const VERSION: &str = "1.26.1904.06";

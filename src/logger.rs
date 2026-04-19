@@ -26,7 +26,7 @@ impl Log for GlobalLogger {
         if self.enabled(record.metadata()) {
             let target = record.target();
 
-            // Define relevant targets for the in-app console
+            // Whitelist: only these named targets appear in the in-app console
             let allowed_targets = [
                 "App",
                 "Detect",
@@ -52,7 +52,6 @@ impl Log for GlobalLogger {
                 message: format!("{}", record.args()),
             };
 
-            // Print to stdout for debugging (will show if console window is visible)
             if cfg!(debug_assertions) {
                 let log_line = format!(
                     "[{}] {} [{}] {}",
@@ -60,7 +59,6 @@ impl Log for GlobalLogger {
                 );
                 println!("{}", log_line);
 
-                // Write to debug.log file (always write all logs to file)
                 if let Ok(mut file) = std::fs::OpenOptions::new()
                     .create(true)
                     .append(true)
@@ -71,11 +69,10 @@ impl Log for GlobalLogger {
                 }
             }
 
-            // Only buffer allowed targets for the in-app UI to keep it clean and fast
             if is_allowed && let Ok(mut entries) = self.entries.write() {
                 entries.push(entry);
 
-                // Cap the buffer at 500 entries to prevent memory issues
+                // Ring buffer: evict oldest when full
                 if entries.len() > 500 {
                     entries.remove(0);
                 }

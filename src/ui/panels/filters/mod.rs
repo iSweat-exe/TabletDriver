@@ -23,29 +23,32 @@ pub fn render_filters_panel(
                 let visuals = ui.visuals();
                 egui::Frame::new()
                     .fill(panel_bg(visuals).gamma_multiply(0.6))
-                    .stroke(egui::Stroke::new(1.0, panel_border(visuals).gamma_multiply(0.4)))
+                    .stroke(egui::Stroke::new(
+                        1.0,
+                        panel_border(visuals).gamma_multiply(0.4),
+                    ))
                     .inner_margin(egui::Margin::symmetric(10, 10))
                     .corner_radius(4.0)
                     .show(ui, |ui| {
                         ui.set_min_height(sidebar_height);
-                        
+
                         ui.label(egui::RichText::new("AVAILABLE FILTERS").weak().size(10.0));
                         ui.add_space(8.0);
 
                         render_sidebar_item(
-                            ui, 
-                            "Antichatter", 
-                            egui_phosphor::regular::WAVE_SINE, 
-                            "Devocub Antichatter", 
-                            &mut app.selected_filter
+                            ui,
+                            "Antichatter",
+                            egui_phosphor::regular::WAVE_SINE,
+                            "Devocub Antichatter",
+                            &mut app.selected_filter,
                         );
                         ui.add_space(4.0);
                         render_sidebar_item(
-                            ui, 
-                            "HandSpeed", 
-                            egui_phosphor::regular::GAUGE, 
-                            "HandSpeed WebSocket", 
-                            &mut app.selected_filter
+                            ui,
+                            "HandSpeed",
+                            egui_phosphor::regular::GAUGE,
+                            "HandSpeed WebSocket",
+                            &mut app.selected_filter,
                         );
                     });
             },
@@ -68,10 +71,16 @@ pub fn render_filters_panel(
     });
 }
 
-fn render_sidebar_item(ui: &mut egui::Ui, name: &str, icon: &str, filter_id: &str, selected: &mut String) {
+fn render_sidebar_item(
+    ui: &mut egui::Ui,
+    name: &str,
+    icon: &str,
+    filter_id: &str,
+    selected: &mut String,
+) {
     let is_selected = selected == filter_id;
     let visuals = ui.visuals();
-    
+
     let text_color = if is_selected {
         visuals.strong_text_color()
     } else {
@@ -94,13 +103,14 @@ fn render_sidebar_item(ui: &mut egui::Ui, name: &str, icon: &str, filter_id: &st
                 ui.add_space(4.0);
                 ui.label(egui::RichText::new(name).color(text_color).strong());
             });
-        }).response;
+        })
+        .response;
 
     let response = ui.interact(response.rect, ui.id().with(filter_id), egui::Sense::click());
     if response.clicked() {
         *selected = filter_id.to_string();
     }
-    
+
     if is_selected {
         ui.painter().rect_filled(
             egui::Rect::from_min_max(

@@ -77,8 +77,8 @@ pub fn render_tablet_section(app: &TabletMapperApp, ui: &mut egui::Ui, config: &
                 .circle_filled(egui::pos2(aa_center_x, aa_center_y), 1.5, stroke_color);
 
             if config.show_osu_playfield {
-                // Dynamic Osu! playfield calculation using actual Target Area (Screen Resolution)
-                // Proportionally maps 1316x1028 (at 1080p) to the user's specific monitor
+                // Map the 1316×1028 osu! playfield (at 1080p reference) proportionally
+                // onto the user's actual active area and screen resolution
                 let target_w = config.target_area.w;
                 let target_h = config.target_area.h;
 
@@ -275,7 +275,6 @@ pub fn render_tablet_section(app: &TabletMapperApp, ui: &mut egui::Ui, config: &
                     ui_input_box(ui, "Y", &mut config.active_area.y, "mm");
                     ui_input_box(ui, "Rotation", &mut config.active_area.rotation, "°");
 
-                    // Normalize rotation to [0, 360)
                     config.active_area.rotation %= 360.0;
                     if config.active_area.rotation < 0.0 {
                         config.active_area.rotation += 360.0;

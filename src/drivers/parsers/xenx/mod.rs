@@ -21,15 +21,21 @@ impl ReportParser for XenxParser {
                 if data[1] == 0 {
                     return None; // Out of range
                 }
-                
-                if data.len() < 8 { return None; }
+
+                if data.len() < 8 {
+                    return None;
+                }
                 let x = u16::from_le_bytes([data[2], data[3]]);
                 let y = u16::from_le_bytes([data[4], data[5]]);
                 let pressure = u16::from_le_bytes([data[6], data[7]]);
 
                 let mut buttons: u8 = 0;
-                if (data[1] & 0x02) != 0 { buttons |= 1 << 0; }
-                if (data[1] & 0x04) != 0 { buttons |= 1 << 1; }
+                if (data[1] & 0x02) != 0 {
+                    buttons |= 1 << 0;
+                }
+                if (data[1] & 0x04) != 0 {
+                    buttons |= 1 << 1;
+                }
                 let eraser = (data[1] & 0x40) != 0;
 
                 let status = if pressure > 0 { "Contact" } else { "Hover" };
@@ -48,9 +54,11 @@ impl ReportParser for XenxParser {
             }
             0x02 => {
                 // Aux Report
-                if data.len() < 12 { return None; }
+                if data.len() < 12 {
+                    return None;
+                }
                 let mut buttons: u8 = 0;
-                
+
                 // data[2..11] are booleans for aux buttons
                 for i in 0..8 {
                     if data[2 + i] != 0 {

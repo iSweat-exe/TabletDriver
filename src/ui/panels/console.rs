@@ -4,7 +4,6 @@ use eframe::egui;
 pub fn render_console_panel(app: &mut TabletMapperApp, ui: &mut egui::Ui) {
     ui.add_space(5.0);
 
-    // --- CONSOLE HEADER (Filters & Search) ---
     ui.horizontal(|ui| {
         ui.label(egui_phosphor::regular::MAGNIFYING_GLASS);
         ui.add(
@@ -21,39 +20,66 @@ pub fn render_console_panel(app: &mut TabletMapperApp, ui: &mut egui::Ui) {
         ui.add_space(10.0);
 
         fn level_button(ui: &mut egui::Ui, selected: &mut bool, label: &str, color: egui::Color32) {
-            let stroke_color = if *selected { color.gamma_multiply(0.8) } else { egui::Color32::from_white_alpha(20) };
-            let fill_color = if *selected { color.gamma_multiply(0.15) } else { egui::Color32::TRANSPARENT };
-            let text_color = if *selected { color } else { ui.visuals().text_color().gamma_multiply(0.4) };
+            let stroke_color = if *selected {
+                color.gamma_multiply(0.8)
+            } else {
+                egui::Color32::from_white_alpha(20)
+            };
+            let fill_color = if *selected {
+                color.gamma_multiply(0.15)
+            } else {
+                egui::Color32::TRANSPARENT
+            };
+            let text_color = if *selected {
+                color
+            } else {
+                ui.visuals().text_color().gamma_multiply(0.4)
+            };
 
-            let button = egui::Button::new(
-                egui::RichText::new(label)
-                    .color(text_color)
-                    .strong()
-            )
-            .fill(fill_color)
-            .stroke(egui::Stroke::new(1.0, stroke_color))
-            .corner_radius(4.0);
+            let button = egui::Button::new(egui::RichText::new(label).color(text_color).strong())
+                .fill(fill_color)
+                .stroke(egui::Stroke::new(1.0, stroke_color))
+                .corner_radius(4.0);
 
             if ui.add(button).clicked() {
                 *selected = !*selected;
             }
         }
 
-        level_button(ui, &mut app.console_show_info, "Info", egui::Color32::from_rgb(137, 180, 250));
-        level_button(ui, &mut app.console_show_warn, "Warn", egui::Color32::from_rgb(249, 226, 175));
-        level_button(ui, &mut app.console_show_error, "Error", egui::Color32::from_rgb(243, 139, 168));
-        level_button(ui, &mut app.console_show_debug, "Debug", egui::Color32::from_rgb(166, 172, 205));
+        level_button(
+            ui,
+            &mut app.console_show_info,
+            "Info",
+            egui::Color32::from_rgb(137, 180, 250),
+        );
+        level_button(
+            ui,
+            &mut app.console_show_warn,
+            "Warn",
+            egui::Color32::from_rgb(249, 226, 175),
+        );
+        level_button(
+            ui,
+            &mut app.console_show_error,
+            "Error",
+            egui::Color32::from_rgb(243, 139, 168),
+        );
+        level_button(
+            ui,
+            &mut app.console_show_debug,
+            "Debug",
+            egui::Color32::from_rgb(166, 172, 205),
+        );
     });
 
     ui.add_space(8.0);
     ui.separator();
     ui.add_space(2.0);
 
-    // --- LOG BUFFER PROCESSING ---
     let (all_logs_count, filtered_logs, full_log_text) = {
         let logs = crate::logger::LOG_BUFFER.read().unwrap();
         let search_lower = app.console_search.to_lowercase();
-        
+
         let mut filtered: Vec<_> = logs
             .iter()
             .filter(|log| {
@@ -64,26 +90,30 @@ pub fn render_console_panel(app: &mut TabletMapperApp, ui: &mut egui::Ui) {
                     "Debug" => app.console_show_debug,
                     _ => true,
                 };
-                if !level_match { return false; }
-                if search_lower.is_empty() { return true; }
-                log.message.to_lowercase().contains(&search_lower) || log.group.to_lowercase().contains(&search_lower)
+                if !level_match {
+                    return false;
+                }
+                if search_lower.is_empty() {
+                    return true;
+                }
+                log.message.to_lowercase().contains(&search_lower)
+                    || log.group.to_lowercase().contains(&search_lower)
             })
             .cloned()
             .collect();
-            
-        // REVERSE: Newest at top
+
         filtered.reverse();
-            
-        let text = logs.iter()
+
+        let text = logs
+            .iter()
             .map(|l| format!("[{}] {} [{}] {}", l.time, l.level, l.group, l.message))
             .collect::<Vec<_>>()
             .join("\n");
-            
+
         (logs.len(), filtered, text)
     };
 
-    // --- LAYOUT ENGINE ---
-    let footer_height = 45.0; 
+    let footer_height = 45.0;
     let table_height = ui.available_height() - footer_height;
 
     // 1. Table Area
@@ -107,10 +137,18 @@ pub fn render_console_panel(app: &mut TabletMapperApp, ui: &mut egui::Ui) {
                         .column(Column::initial(130.0).at_least(110.0)) // Group
                         .column(Column::remainder().at_least(250.0)) // Message
                         .header(25.0, |mut header| {
-                            header.col(|ui| { ui.strong("Time"); });
-                            header.col(|ui| { ui.strong("Level"); });
-                            header.col(|ui| { ui.strong("Group"); });
-                            header.col(|ui| { ui.strong("Message"); });
+                            header.col(|ui| {
+                                ui.strong("Time");
+                            });
+                            header.col(|ui| {
+                                ui.strong("Level");
+                            });
+                            header.col(|ui| {
+                                ui.strong("Group");
+                            });
+                            header.col(|ui| {
+                                ui.strong("Message");
+                            });
                         })
                         .body(|body| {
                             body.rows(24.0, filtered_logs.len(), |mut row| {
@@ -122,17 +160,27 @@ pub fn render_console_panel(app: &mut TabletMapperApp, ui: &mut egui::Ui) {
 
                                 row.col(|ui| {
                                     let (color, text) = match log.level.as_str() {
-                                        "Error" => (egui::Color32::from_rgb(243, 139, 168), "ERROR"),
+                                        "Error" => {
+                                            (egui::Color32::from_rgb(243, 139, 168), "ERROR")
+                                        }
                                         "Warn" => (egui::Color32::from_rgb(249, 226, 175), "WARN"),
                                         "Info" => (egui::Color32::from_rgb(137, 180, 250), "INFO"),
-                                        "Debug" => (egui::Color32::from_rgb(166, 172, 205), "DEBUG"),
+                                        "Debug" => {
+                                            (egui::Color32::from_rgb(166, 172, 205), "DEBUG")
+                                        }
                                         _ => (ui.visuals().text_color(), log.level.as_str()),
                                     };
-                                    ui.label(egui::RichText::new(text).color(color).strong().size(12.0));
+                                    ui.label(
+                                        egui::RichText::new(text).color(color).strong().size(12.0),
+                                    );
                                 });
 
                                 row.col(|ui| {
-                                    ui.label(egui::RichText::new(&log.group).color(ui.visuals().strong_text_color()).size(13.0));
+                                    ui.label(
+                                        egui::RichText::new(&log.group)
+                                            .color(ui.visuals().strong_text_color())
+                                            .size(13.0),
+                                    );
                                 });
 
                                 row.col(|ui| {
@@ -159,7 +207,10 @@ pub fn render_console_panel(app: &mut TabletMapperApp, ui: &mut egui::Ui) {
     // 2. Footer Area
     ui.horizontal(|ui| {
         if ui
-            .button(egui::RichText::new(format!("{} Clear Console", egui_phosphor::regular::TRASH)).color(egui::Color32::from_rgb(243, 139, 168)))
+            .button(
+                egui::RichText::new(format!("{} Clear Console", egui_phosphor::regular::TRASH))
+                    .color(egui::Color32::from_rgb(243, 139, 168)),
+            )
             .on_hover_text("Remove all logs from memory")
             .clicked()
         {
@@ -168,8 +219,17 @@ pub fn render_console_panel(app: &mut TabletMapperApp, ui: &mut egui::Ui) {
             }
         }
 
-        if ui.button(format!("{} Copy Unfiltered Logs", egui_phosphor::regular::COPY)).clicked() {
-            ui.output_mut(|o| o.commands.push(egui::OutputCommand::CopyText(full_log_text)));
+        if ui
+            .button(format!(
+                "{} Copy Unfiltered Logs",
+                egui_phosphor::regular::COPY
+            ))
+            .clicked()
+        {
+            ui.output_mut(|o| {
+                o.commands
+                    .push(egui::OutputCommand::CopyText(full_log_text))
+            });
         }
 
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {

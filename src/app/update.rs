@@ -7,6 +7,8 @@
 use crate::app::state::{AppTab, TabletMapperApp};
 use crate::settings::save_last_session;
 use crate::ui::panels::console::render_console_panel;
+#[cfg(debug_assertions)]
+use crate::ui::panels::developer::render_developer_panel;
 use crate::ui::panels::filters::render_filters_panel;
 use crate::ui::panels::output::render_output_panel;
 use crate::ui::panels::pen_settings::render_pen_settings_panel;
@@ -32,8 +34,7 @@ impl eframe::App for TabletMapperApp {
     /// repaints automatically when events are fired, but also enforces a minimum 1Hz
     /// refresh rate for passive status updates.
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        // --- Event Driven Data Sync ---
-        // Drain all pending tablet events to get the latest state
+        // Drain pending tablet events, keeping only the latest
         let mut last_data = None;
         while let Ok(data) = self.tablet_receiver.try_recv() {
             last_data = Some(data);
@@ -46,13 +47,21 @@ impl eframe::App for TabletMapperApp {
                 self.max_ui_latency_ms = self.max_ui_latency_ms.max(latency);
                 self.avg_ui_latency_ms += (latency - self.avg_ui_latency_ms) * 0.1;
             }
+
+            #[cfg(debug_assertions)]
+            if !self.dev_pause_pipeline {
+                self.dev_raw_hid_history.push_front(data.raw_data.clone());
+                if self.dev_raw_hid_history.len() > 50 {
+                    self.dev_raw_hid_history.pop_back();
+                }
+            }
+
             let mut shared_data = self.shared.tablet_data.write().unwrap();
             *shared_data = data;
 
             ctx.request_repaint();
         }
 
-        // Check for updates
         if let Ok(status) = self.update_receiver.try_recv() {
             if let crate::app::autoupdate::UpdateStatus::Available(release) = &status {
                 log::info!(target: "Update", "Update available: {}", release.tag_name);
@@ -62,16 +71,14 @@ impl eframe::App for TabletMapperApp {
 
         crate::ui::components::update_dialog::render_update_dialog(self, ctx);
 
-        // Get snapshot of data for UX
-        // We modify local copies of config then push to shared if changed
+        // Clone config for diffing — UI mutates this copy, then we push back if changed
         let mut config = self.shared.config.read().unwrap().clone();
         let initial_config = config.clone();
 
-        // --- System Tray Handle ---
+        // --- System Tray Minimize-to-Tray ---
         if config.system_tray_on_minimize {
             let is_minimized = ctx.input(|i| i.viewport().minimized).unwrap_or(false);
 
-            // Only hide the window once when it transitions to minimized
             if is_minimized && !self.was_minimized {
                 log::info!(target: "Tray", "Window minimized, hiding to system tray...");
                 ctx.send_viewport_cmd(egui::ViewportCommand::Visible(false));
@@ -80,7 +87,6 @@ impl eframe::App for TabletMapperApp {
             self.was_minimized = is_minimized;
         }
 
-        // Calc Screen Bounds - Required for both Viz and Inputs
         let mut min_x = 0.0;
         let mut min_y = 0.0;
         let mut max_x = 1920.0;
@@ -102,18 +108,12 @@ impl eframe::App for TabletMapperApp {
             max_y = ay as f32;
         }
 
-        // === UI PANELS (ORDER MATTERS) ===
-
-        // 1. Top Menu Bar
         crate::ui::components::menu_bar::render_menu_bar(self, ctx);
 
-        // 2. Tabs
         crate::ui::components::tabs::render_tabs(self, ctx);
 
-        // 3. Bottom Footer
         crate::ui::components::footer::render_footer(self, ctx, &mut config);
 
-        // 4. Central Content
         egui::CentralPanel::default().show(ctx, |ui| match self.active_tab {
             AppTab::Output => {
                 egui::ScrollArea::vertical().show(ui, |ui| {
@@ -143,9 +143,15 @@ impl eframe::App for TabletMapperApp {
                     render_release_panel(self, ui);
                 });
             }
+            #[cfg(debug_assertions)]
+            AppTab::Developer => {
+                egui::ScrollArea::vertical().show(ui, |ui| {
+                    render_developer_panel(self, ui, &config);
+                });
+            }
         });
 
-        // Push config only if actually changed by UI inputs
+        // Push config back to shared state only if the UI actually mutated it
         if config != initial_config {
             log::info!(target: "Config", "Configuration changed via UI");
             if config.theme != initial_config.theme {
@@ -154,14 +160,13 @@ impl eframe::App for TabletMapperApp {
             {
                 let mut shared_config = self.shared.config.write().unwrap();
                 *shared_config = config.clone();
-                // Signal change to backend thread
+
                 self.shared.config_version.fetch_add(1, Ordering::SeqCst);
             }
-            // Auto-save session
+
             let _ = save_last_session(&config);
         }
 
-        // --- Debugger Window ---
         if self.show_debugger {
             let viewport_id = egui::ViewportId::from_hash_of("debugger_viewport");
             let mut close_requested = false;
@@ -178,7 +183,7 @@ impl eframe::App for TabletMapperApp {
                     }
 
                     egui::CentralPanel::default().show(ctx, |ui| {
-                        // --- HZ CALCULATION ---
+                        // --- HZ ---
                         let current_packets = self.shared.packet_count.load(Ordering::Relaxed);
                         let elapsed_hz = self.last_hz_update.elapsed();
                         if elapsed_hz >= std::time::Duration::from_millis(200) {
@@ -268,10 +273,8 @@ impl eframe::App for TabletMapperApp {
             }
         }
 
-        // --- GUI Performance Capping ---
-        // We limit the UI to approximately 60 FPS (1000ms / 60 ≈ 16ms).
-        // This prevents the GUI from consuming 100% of a CPU/GPU core while
-        // receiving high-frequency tablet data (e.g., 1000Hz).
+        // Cap UI to ~1 FPS idle repaint to avoid burning CPU/GPU
+        // when no tablet data is flowing. Real repaints are event-driven.
         ctx.request_repaint_after(std::time::Duration::from_secs(1));
     }
 }

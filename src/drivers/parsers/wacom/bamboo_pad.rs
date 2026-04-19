@@ -9,7 +9,11 @@ impl ReportParser for BambooPadParser {
             return None;
         }
 
-        let raw = data.iter().map(|b| format!("{:02X}", b)).collect::<Vec<_>>().join(" ");
+        let raw = data
+            .iter()
+            .map(|b| format!("{:02X}", b))
+            .collect::<Vec<_>>()
+            .join(" ");
 
         if data[0] == 0x10 {
             if data[1] == 0x01 {
@@ -19,7 +23,9 @@ impl ReportParser for BambooPadParser {
                 let pressure = u16::from_le_bytes([data[7], data[8]]);
 
                 let mut buttons: u8 = 0;
-                if (data[2] & 0x02) != 0 { buttons |= 1 << 0; }
+                if (data[2] & 0x02) != 0 {
+                    buttons |= 1 << 0;
+                }
                 let eraser = (data[2] & 0x08) != 0;
 
                 let status = if pressure > 0 { "Contact" } else { "Hover" };
@@ -38,8 +44,12 @@ impl ReportParser for BambooPadParser {
             } else if data[1] == 0x06 {
                 // Aux Report
                 let mut buttons: u8 = 0;
-                if data[23] == 1 { buttons |= 1 << 0; }
-                if data[23] == 2 { buttons |= 1 << 1; }
+                if data[23] == 1 {
+                    buttons |= 1 << 0;
+                }
+                if data[23] == 2 {
+                    buttons |= 1 << 1;
+                }
 
                 Some(TabletData {
                     status: "Aux".to_string(),

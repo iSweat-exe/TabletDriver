@@ -19,7 +19,9 @@ impl ReportParser for XenceLabsParser {
 
         if (report_byte & 0xF0) == 0xF0 {
             // XP_PenAuxReport style
-            if data.len() < 3 { return None; }
+            if data.len() < 3 {
+                return None;
+            }
             Some(TabletData {
                 status: "Aux".to_string(),
                 buttons: data[2], // Default XP_PenAuxReport maps data[2] to first 8 buttons
@@ -29,16 +31,24 @@ impl ReportParser for XenceLabsParser {
             })
         } else if (report_byte & 0x20) != 0 {
             // XenceLabsTabletReport
-            if data.len() < 10 { return None; }
+            if data.len() < 10 {
+                return None;
+            }
             let x = u16::from_le_bytes([data[2], data[3]]);
             let y = u16::from_le_bytes([data[4], data[5]]);
             let pressure = u16::from_le_bytes([data[6], data[7]]);
 
             let mut buttons: u8 = 0;
-            if (report_byte & 0x02) != 0 { buttons |= 1 << 0; }
-            if (report_byte & 0x04) != 0 { buttons |= 1 << 1; }
-            if (report_byte & 0x08) != 0 { buttons |= 1 << 2; }
-            
+            if (report_byte & 0x02) != 0 {
+                buttons |= 1 << 0;
+            }
+            if (report_byte & 0x04) != 0 {
+                buttons |= 1 << 1;
+            }
+            if (report_byte & 0x08) != 0 {
+                buttons |= 1 << 2;
+            }
+
             let eraser = (report_byte & 0x40) != 0;
 
             let tilt_x = data[8] as i8;

@@ -202,19 +202,17 @@ fn load_from_disk_recursive(
                 load_from_disk_recursive(&p, configs, names);
             } else if p.extension().and_then(|s| s.to_str()) == Some("json") {
                 match fs::read_to_string(&p) {
-                    Ok(content) => {
-                        match serde_json::from_str::<TabletConfiguration>(&content) {
-                            Ok(config) => {
-                                if !names.contains(&config.name) {
-                                    names.insert(config.name.clone());
-                                    configs.push(config);
-                                }
-                            }
-                            Err(e) => {
-                                log::error!(target: "Driver", "Failed to parse disk config {:?}: {}", p, e);
+                    Ok(content) => match serde_json::from_str::<TabletConfiguration>(&content) {
+                        Ok(config) => {
+                            if !names.contains(&config.name) {
+                                names.insert(config.name.clone());
+                                configs.push(config);
                             }
                         }
-                    }
+                        Err(e) => {
+                            log::error!(target: "Driver", "Failed to parse disk config {:?}: {}", p, e);
+                        }
+                    },
                     Err(e) => {
                         log::error!(target: "Driver", "Failed to read disk config {:?}: {}", p, e);
                     }
@@ -250,12 +248,12 @@ pub fn detect_tablet(api: &HidApi) -> Option<(HidDevice, Box<dyn NextTabletDrive
                 {
                     let interface = device_info.interface_number();
                     let path = device_info.path();
-                    
+
                     log::debug!(
-                        target: "Detect", 
-                        "Found candidate for {}: {:04x}:{:04x} (Interface {}, Path: {:?})", 
-                        config.name, 
-                        digitizer.vendor_id, 
+                        target: "Detect",
+                        "Found candidate for {}: {:04x}:{:04x} (Interface {}, Path: {:?})",
+                        config.name,
+                        digitizer.vendor_id,
                         digitizer.product_id,
                         interface,
                         path
@@ -327,7 +325,7 @@ pub fn detect_tablet(api: &HidApi) -> Option<(HidDevice, Box<dyn NextTabletDrive
                                 interface,
                                 init_start.elapsed(),
                             );
-                            
+
                             log::debug!(
                                 target: "Detect",
                                 "Timings -> Enum: {:.2?} | Open: {:.2?} | Total: {:.2?}",

@@ -8,12 +8,16 @@ impl ReportParser for SkipByteParser {
         if data.is_empty() {
             return None;
         }
-        
+
         let fallback = FallbackParser;
         let mut parsed = fallback.parse(&data[1..]);
         if let Some(ref mut p) = parsed {
             // Restore raw data to include the skipped byte
-            p.raw_data = data.iter().map(|b| format!("{:02X}", b)).collect::<Vec<_>>().join(" ");
+            p.raw_data = data
+                .iter()
+                .map(|b| format!("{:02X}", b))
+                .collect::<Vec<_>>()
+                .join(" ");
         }
         parsed
     }

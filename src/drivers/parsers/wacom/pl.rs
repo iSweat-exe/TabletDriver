@@ -22,7 +22,11 @@ impl ReportParser for PLParser {
             return None;
         }
 
-        let raw = data.iter().map(|b| format!("{:02X}", b)).collect::<Vec<_>>().join(" ");
+        let raw = data
+            .iter()
+            .map(|b| format!("{:02X}", b))
+            .collect::<Vec<_>>()
+            .join(" ");
 
         if (data[1] & 0x40) == 0 {
             *self.last_report_out_of_range.lock().unwrap() = true;
@@ -53,8 +57,12 @@ impl ReportParser for PLParser {
         let pressure = pressure_part1 + pressure_part2 + pressure_part3;
 
         let mut buttons: u8 = 0;
-        if (data[4] & 0x10) != 0 { buttons |= 1 << 0; }
-        if (data[4] & 0x20) != 0 && !is_initial_eraser { buttons |= 1 << 1; }
+        if (data[4] & 0x10) != 0 {
+            buttons |= 1 << 0;
+        }
+        if (data[4] & 0x20) != 0 && !is_initial_eraser {
+            buttons |= 1 << 1;
+        }
 
         let eraser = (data[4] & 0x20) != 0 && is_initial_eraser;
         let status = if pressure > 0 { "Contact" } else { "Hover" };

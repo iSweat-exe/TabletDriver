@@ -1,6 +1,6 @@
 use crate::app::state::TabletMapperApp;
 use crate::core::config::models::MappingConfig;
-use crate::ui::theme::{ui_card, ui_input_box_u16_range, panel_border};
+use crate::ui::theme::{panel_border, ui_card, ui_input_box_u16_range};
 use eframe::egui;
 
 pub fn render_pen_settings_panel(
@@ -10,7 +10,6 @@ pub fn render_pen_settings_panel(
 ) {
     ui.add_space(15.0);
 
-    // --- PEN HARDWARE CARD ---
     ui_card(ui, "Pen Configuration", egui_phosphor::regular::PEN, |ui| {
         ui.horizontal(|ui| {
             ui.vertical(|ui| {
@@ -46,17 +45,18 @@ pub fn render_pen_settings_panel(
 
     ui.add_space(15.0);
 
-    // --- BUTTON ACTIONS CARD ---
     ui_card(ui, "Button Actions", egui_phosphor::regular::MOUSE, |ui| {
         ui.vertical(|ui| {
             for i in 0..2 {
                 render_binding_row(
-                    ui, 
-                    &format!("Pen Button {}", i + 1), 
+                    ui,
+                    &format!("Pen Button {}", i + 1),
                     &config.pen_button_bindings[i],
-                    &format!("btn_edit_{}", i)
+                    &format!("btn_edit_{}", i),
                 );
-                if i == 0 { ui.add_space(8.0); }
+                if i == 0 {
+                    ui.add_space(8.0);
+                }
             }
         });
     });
@@ -70,17 +70,22 @@ fn render_binding_row(ui: &mut egui::Ui, label: &str, binding: &str, _id: &str) 
             let visuals = ui.visuals();
             egui::Frame::new()
                 .fill(visuals.widgets.noninteractive.bg_fill)
-                .stroke(egui::Stroke::new(1.0, panel_border(visuals).gamma_multiply(0.5)))
+                .stroke(egui::Stroke::new(
+                    1.0,
+                    panel_border(visuals).gamma_multiply(0.5),
+                ))
                 .corner_radius(4.0)
                 .inner_margin(egui::Margin::symmetric(12, 6))
                 .show(ui, |ui| {
                     ui.set_min_width(200.0);
                     ui.label(egui::RichText::new(binding).monospace().size(11.0));
                 });
-            
-            if ui.button(egui_phosphor::regular::PENCIL_SIMPLE).on_hover_text("Edit Binding").clicked() {
-                // Binding editor logic would go here
-            }
+
+            if ui
+                .button(egui_phosphor::regular::PENCIL_SIMPLE)
+                .on_hover_text("Edit Binding")
+                .clicked()
+            {}
         });
     });
 }

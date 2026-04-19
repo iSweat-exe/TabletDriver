@@ -24,8 +24,12 @@ impl ReportParser for BostoParser {
         let pressure = u16::from_le_bytes([data[6], data[7]]);
 
         let mut buttons: u8 = 0;
-        if (data[1] & 0x20) != 0 { buttons |= 1 << 0; }
-        if (data[1] & 0x02) != 0 { buttons |= 1 << 1; }
+        if (data[1] & 0x20) != 0 {
+            buttons |= 1 << 0;
+        }
+        if (data[1] & 0x02) != 0 {
+            buttons |= 1 << 1;
+        }
 
         let status = if pressure > 0 { "Contact" } else { "Hover" };
 

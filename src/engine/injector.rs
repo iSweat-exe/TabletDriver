@@ -24,7 +24,7 @@ mod platform {
         /// unnecessary "Button Down" events every frame while dragging.
         last_pressure_down: bool,
 
-        // Relative movement accumulators to handle sub-pixel movement
+        /// Sub-pixel remainder accumulators for relative mode
         remainder_x: f32,
         remainder_y: f32,
     }
@@ -63,26 +63,30 @@ mod platform {
             unsafe {
                 let mut current_pos = POINT { x: 0, y: 0 };
                 if GetCursorPos(&mut current_pos) != 0 {
-                    // Calculate the required "leap" to reach the target pixel
-                    let dx = target_x - current_pos.x as f32;
-                    let dy = target_y - current_pos.y as f32;
+                    let target_px = target_x.round() as i32;
+                    let target_py = target_y.round() as i32;
 
-                    // Inject via our relative method which handles sub-pixel accumulation
-                    self.move_relative(dx, dy);
+                    let dx = target_px - current_pos.x;
+                    let dy = target_py - current_pos.y;
+
+                    if dx != 0 || dy != 0 {
+                        let _ = self.enigo.move_mouse(dx, dy, Coordinate::Rel);
+
+                        // Reset accumulators so relative mode starts clean after a mode switch
+                        self.remainder_x = 0.0;
+                        self.remainder_y = 0.0;
+                    }
                 }
             }
         }
 
         pub fn move_relative(&mut self, dx: f32, dy: f32) {
-            // Add current drift to new deltas
             let total_dx = dx + self.remainder_x;
             let total_dy = dy + self.remainder_y;
 
-            // Extract integer pixels
             let ix = total_dx.trunc() as i32;
             let iy = total_dy.trunc() as i32;
 
-            // Store leftovers for next frame
             self.remainder_x = total_dx.fract();
             self.remainder_y = total_dy.fract();
 
@@ -139,7 +143,7 @@ mod platform {
         /// Tracks the previous state of the primary pen button (tip).
         last_pressure_down: bool,
 
-        // Relative movement accumulators to handle sub-pixel movement
+        /// Sub-pixel remainder accumulators for relative mode
         remainder_x: f32,
         remainder_y: f32,
     }
@@ -163,7 +167,6 @@ mod platform {
         /// # Panics
         /// Panics if `/dev/uinput` cannot be opened (missing permissions or kernel module).
         pub fn new() -> Self {
-            // --- Build Virtual Tablet (absolute mode) ---
             let mut tablet_keys = AttributeSet::<KeyCode>::new();
             tablet_keys.insert(KeyCode::BTN_TOUCH);
             tablet_keys.insert(KeyCode::BTN_TOOL_PEN);
@@ -174,37 +177,31 @@ mod platform {
                 .expect("Failed to open /dev/uinput — is the uinput module loaded?")
                 .name("NextTabletDriver Virtual Pen")
                 .input_id(InputId::new(BusType::BUS_USB, 0x0001, 0x0001, 1))
-                // Absolute X axis (0 .. 32767)
                 .with_absolute_axis(&UinputAbsSetup::new(
                     AbsoluteAxisCode::ABS_X,
                     AbsInfo::new(0, 0, ABS_MAX, 0, 0, 100),
                 ))
                 .expect("Failed to set ABS_X")
-                // Absolute Y axis (0 .. 32767)
                 .with_absolute_axis(&UinputAbsSetup::new(
                     AbsoluteAxisCode::ABS_Y,
                     AbsInfo::new(0, 0, ABS_MAX, 0, 0, 100),
                 ))
                 .expect("Failed to set ABS_Y")
-                // Pressure axis (0 .. 8191)
                 .with_absolute_axis(&UinputAbsSetup::new(
                     AbsoluteAxisCode::ABS_PRESSURE,
                     AbsInfo::new(0, 0, PRESSURE_MAX, 0, 0, 0),
                 ))
                 .expect("Failed to set ABS_PRESSURE")
-                // Tilt X axis (-127 .. 127)
                 .with_absolute_axis(&UinputAbsSetup::new(
                     AbsoluteAxisCode::ABS_TILT_X,
                     AbsInfo::new(0, -127, 127, 0, 0, 0),
                 ))
                 .expect("Failed to set ABS_TILT_X")
-                // Tilt Y axis (-127 .. 127)
                 .with_absolute_axis(&UinputAbsSetup::new(
                     AbsoluteAxisCode::ABS_TILT_Y,
                     AbsInfo::new(0, -127, 127, 0, 0, 0),
                 ))
                 .expect("Failed to set ABS_TILT_Y")
-                // Pen buttons
                 .with_keys(&tablet_keys)
                 .expect("Failed to set tablet keys")
                 .build()
@@ -212,7 +209,6 @@ mod platform {
 
             log::info!(target: "Injector", "Virtual tablet device created: NextTabletDriver Virtual Pen");
 
-            // --- Build Virtual Mouse (relative mode) ---
             let mut mouse_keys = AttributeSet::<KeyCode>::new();
             mouse_keys.insert(KeyCode::BTN_LEFT);
             mouse_keys.insert(KeyCode::BTN_RIGHT);
@@ -273,15 +269,12 @@ mod platform {
         /// Injects relative mouse movement.
         /// Used by `Relative` driver mode.
         pub fn move_relative(&mut self, dx: f32, dy: f32) {
-            // Add current drift to new deltas
             let total_dx = dx + self.remainder_x;
             let total_dy = dy + self.remainder_y;
 
-            // Extract integer pixels
             let ix = total_dx.trunc() as i32;
             let iy = total_dy.trunc() as i32;
 
-            // Store leftovers for next frame
             self.remainder_x = total_dx.fract();
             self.remainder_y = total_dy.fract();
 
@@ -289,7 +282,6 @@ mod platform {
                 let events = [
                     InputEvent::new(evdev::EventType::RELATIVE, RelativeAxisCode::REL_X.0, ix),
                     InputEvent::new(evdev::EventType::RELATIVE, RelativeAxisCode::REL_Y.0, iy),
-                    // SYN_REPORT
                     InputEvent::new(evdev::EventType::SYNCHRONIZATION, 0, 0),
                 ];
 
@@ -311,10 +303,8 @@ mod platform {
 
             let value = if is_down { 1 } else { 0 };
 
-            // Emit on the tablet device (BTN_TOUCH for tablet semantics)
             let events = [
                 InputEvent::new(evdev::EventType::KEY, KeyCode::BTN_TOUCH.0, value),
-                // SYN_REPORT
                 InputEvent::new(evdev::EventType::SYNCHRONIZATION, 0, 0),
             ];
 
@@ -322,7 +312,7 @@ mod platform {
                 log::error!(target: "Injector", "Failed to emit button event: {}", e);
             }
 
-            // Also emit BTN_LEFT on the mouse device for compatibility
+            // BTN_LEFT on mouse device for apps that don't honor BTN_TOUCH
             let mouse_events = [
                 InputEvent::new(evdev::EventType::KEY, KeyCode::BTN_LEFT.0, value),
                 InputEvent::new(evdev::EventType::SYNCHRONIZATION, 0, 0),

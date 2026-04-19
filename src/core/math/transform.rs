@@ -79,11 +79,9 @@ pub fn physical_to_normalized(
     area_h: f32,
     rotation: f32,
 ) -> (f32, f32) {
-    // 1. Normalize relative to the center of the active area
     let mut u = (x_mm - area_x) / area_w + 0.5;
     let mut v = (y_mm - area_y) / area_h + 0.5;
 
-    // 2. Apply rotation if necessary
     if rotation != 0.0 {
         let (nu, nv) = rotate_point(u, v, 0.5, 0.5, rotation);
         u = nu;

@@ -1,6 +1,6 @@
 //! # NextTabletDriver Entry Point
 //!
-//! This is the main executable for the NextTabletDriver application.
+//! This is the main executable for the `NextTabletDriver` application.
 //! It initializes logging, checks for single-instance enforcement,
 //! configures the window properties, and launches the `eframe` (egui) graphical interface.
 
@@ -15,20 +15,20 @@ use windows_sys::Win32::System::LibraryLoader::{GetModuleHandleA, GetProcAddress
 /// Adjusts the Windows system timer resolution to minimize input latency.
 ///
 /// # Technical Details
-/// By default, Windows uses a timer interval of ~15.6ms. For a high-performance 
-/// tablet driver, this can lead to "aliasing" or "jitter" where tablet reports 
+/// By default, Windows uses a timer interval of ~15.6ms. For a high-performance
+/// tablet driver, this can lead to "aliasing" or "jitter" where tablet reports
 /// (often 1000Hz+) are processed in inconsistent batches.
-/// 
-/// This function calls the undocumented `NtSetTimerResolution` in `ntdll.dll` 
-/// to force a **0.5ms** (5000 units of 100ns) resolution, the maximum 
+///
+/// This function calls the undocumented `NtSetTimerResolution` in `ntdll.dll`
+/// to force a **0.5ms** (5000 units of 100ns) resolution, the maximum
 /// precision supported by the Windows kernel.
 ///
 /// # Arguments
 /// * `enable` - `1` to request high precision, `0` to release the request.
 ///
 /// # Safety
-/// This function performs direct FFI calls to `ntdll.dll`. The resolution 
-/// change is process-specific; Windows will automatically restore the default 
+/// This function performs direct FFI calls to `ntdll.dll`. The resolution
+/// change is process-specific; Windows will automatically restore the default
 /// timer resolution once the driver process terminates.
 #[cfg(windows)]
 fn set_fast_timer(enable: u8) {
@@ -43,25 +43,27 @@ fn set_fast_timer(enable: u8) {
         let addr_query = GetProcAddress(ntdll, b"NtQueryTimerResolution\0".as_ptr());
 
         if let (Some(addr_set), Some(addr_query)) = (addr_set, addr_query) {
-            let nt_set: extern "system" fn(u32, u8, *mut u32) -> i32 = std::mem::transmute(addr_set);
-            let nt_query: extern "system" fn(*mut u32, *mut u32, *mut u32) -> i32 = std::mem::transmute(addr_query);
+            let nt_set: extern "system" fn(u32, u8, *mut u32) -> i32 =
+                std::mem::transmute(addr_set);
+            let nt_query: extern "system" fn(*mut u32, *mut u32, *mut u32) -> i32 =
+                std::mem::transmute(addr_query);
 
             let mut min = 0;
             let mut max = 0;
             let mut cur = 0;
 
-            let _ = nt_query(&mut min, &mut max, &mut cur);
+            let _ = nt_query(&raw mut min, &raw mut max, &raw mut cur);
             log::debug!(target: "Timer", "System Timer Resolution: Min={:.1}ms, Max={:.1}ms, Current={:.1}ms", 
                 min as f32 / 10000.0, max as f32 / 10000.0, cur as f32 / 10000.0);
             windows_sys::Win32::Media::timeBeginPeriod(1);
 
             let mut new_cur = 0;
-            let status = nt_set(max, enable, &mut new_cur);
-            
+            let status = nt_set(max, enable, &raw mut new_cur);
+
             if status == 0 {
                 log::info!(target: "Timer", "Timer resolution adjusted to {:.1}ms", new_cur as f32 / 10000.0);
             } else {
-                log::warn!(target: "Timer", "Failed to adjust timer resolution (NTSTATUS: 0x{:08X})", status);
+                log::warn!(target: "Timer", "Failed to adjust timer resolution (NTSTATUS: 0x{status:08X})");
             }
         } else {
             log::warn!(target: "Timer", "Could not find timer resolution functions in ntdll.dll");
@@ -82,10 +84,7 @@ fn set_fast_timer(enable: u8) {
 /// 3. Configures the GUI window options (icon, dimensions, title).
 /// 4. Enters the `eframe::run_native` GUI event loop.
 fn main() -> eframe::Result {
-    // Start logger first so we can see what's happening
     logger::init();
-
-    // --- Single Instance Check ---
 
     #[cfg(windows)]
     {
@@ -104,7 +103,6 @@ fn main() -> eframe::Result {
             return Ok(());
         }
 
-        // Only adjust timer resolution if we are the primary instance
         set_fast_timer(1);
     }
 
@@ -114,11 +112,10 @@ fn main() -> eframe::Result {
         use std::io::Write;
 
         log::debug!(target: "Startup", "Checking for single instance (Linux flock)...");
-        // Determine the lock file path: prefer $XDG_RUNTIME_DIR, fallback to /tmp
+
         let runtime_dir = std::env::var("XDG_RUNTIME_DIR").unwrap_or_else(|_| "/tmp".to_string());
         let lock_path = std::path::PathBuf::from(runtime_dir).join("nexttabletdriver.lock");
 
-        // Try to create/open the lock file
         let file = fs::OpenOptions::new()
             .write(true)
             .create(true)
@@ -129,7 +126,6 @@ fn main() -> eframe::Result {
             Ok(mut f) => {
                 use std::os::unix::io::AsRawFd;
 
-                // Try to acquire an exclusive non-blocking lock
                 let fd = f.as_raw_fd();
                 let ret = unsafe { libc::flock(fd, libc::LOCK_EX | libc::LOCK_NB) };
                 if ret != 0 {
@@ -137,9 +133,8 @@ fn main() -> eframe::Result {
                     std::process::exit(1);
                 }
 
-                // Write our PID for debugging purposes
                 let _ = write!(f, "{}", std::process::id());
-                Some(f) // Keep the file handle alive to hold the lock
+                Some(f) // Keeps flock alive for the process lifetime
             }
             Err(e) => {
                 log::warn!(target: "Startup", "Could not create lock file at {:?}: {}", lock_path, e);
@@ -148,8 +143,7 @@ fn main() -> eframe::Result {
         }
     };
 
-
-    log::info!(target: "Startup", "NextTabletDriver v{} starting on {} ({})", 
+    log::info!(target: "Startup", "NextTabletDriver v{} starting on {} ({})",
         next_tablet_driver::VERSION,
         std::env::consts::OS,
         std::env::consts::ARCH

@@ -20,7 +20,9 @@ impl ReportParser for RobotPenParser {
         let pressure = u16::from_le_bytes([data[10], data[11]]);
 
         let mut buttons: u8 = 0;
-        if (data[11] & 0x02) != 0 { buttons |= 1 << 0; }
+        if (data[11] & 0x02) != 0 {
+            buttons |= 1 << 0;
+        }
 
         let status = if pressure > 0 { "Contact" } else { "Hover" };
 
@@ -46,7 +48,9 @@ mod tests {
     #[test]
     fn test_robotpen_tablet() {
         let parser = RobotPenParser;
-        let data: [u8; 12] = [0x00, 0x42, 0x00, 0x00, 0x00, 0x00, 0x02, 0x01, 0x04, 0x03, 0x01, 0x02];
+        let data: [u8; 12] = [
+            0x00, 0x42, 0x00, 0x00, 0x00, 0x00, 0x02, 0x01, 0x04, 0x03, 0x01, 0x02,
+        ];
         let report = parser.parse(&data).unwrap();
         assert_eq!(report.status, "Contact");
         assert_eq!(report.x, 258);

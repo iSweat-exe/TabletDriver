@@ -2,7 +2,9 @@ use crate::drivers::TabletData;
 use crate::drivers::parsers::ReportParser;
 
 fn parse_uclogic_aux(data: &[u8], raw: String) -> Option<TabletData> {
-    if data.len() < 7 { return None; }
+    if data.len() < 7 {
+        return None;
+    }
     Some(TabletData {
         status: "Aux".to_string(),
         buttons: data[4], // Just grab the first 8 aux buttons
@@ -13,16 +15,24 @@ fn parse_uclogic_aux(data: &[u8], raw: String) -> Option<TabletData> {
 }
 
 fn parse_uclogic_tablet(data: &[u8], raw: String, has_tilt: bool) -> Option<TabletData> {
-    if data.len() < 8 { return None; }
-    
+    if data.len() < 8 {
+        return None;
+    }
+
     let x = u16::from_le_bytes([data[2], data[3]]);
     let y = u16::from_le_bytes([data[4], data[5]]);
     let pressure = u16::from_le_bytes([data[6], data[7]]);
 
     let mut buttons: u8 = 0;
-    if (data[1] & 0x01) != 0 { buttons |= 1 << 0; }
-    if (data[1] & 0x02) != 0 { buttons |= 1 << 1; }
-    if (data[1] & 0x04) != 0 { buttons |= 1 << 2; }
+    if (data[1] & 0x01) != 0 {
+        buttons |= 1 << 0;
+    }
+    if (data[1] & 0x02) != 0 {
+        buttons |= 1 << 1;
+    }
+    if (data[1] & 0x04) != 0 {
+        buttons |= 1 << 2;
+    }
     let eraser = (data[1] & 0x04) != 0; // standard usually puts eraser on bit 2 or sometimes 3
 
     let mut tilt_x = 0;
@@ -53,10 +63,22 @@ pub struct UCLogicParser;
 
 impl ReportParser for UCLogicParser {
     fn parse(&self, data: &[u8]) -> Option<TabletData> {
-        if data.len() < 2 { return None; }
-        let raw = data.iter().map(|b| format!("{:02X}", b)).collect::<Vec<_>>().join(" ");
-        if data[1] == 0xC0 { return None; }
-        if (data[1] & 0x40) != 0 { parse_uclogic_aux(data, raw) } else { parse_uclogic_tablet(data, raw, false) }
+        if data.len() < 2 {
+            return None;
+        }
+        let raw = data
+            .iter()
+            .map(|b| format!("{:02X}", b))
+            .collect::<Vec<_>>()
+            .join(" ");
+        if data[1] == 0xC0 {
+            return None;
+        }
+        if (data[1] & 0x40) != 0 {
+            parse_uclogic_aux(data, raw)
+        } else {
+            parse_uclogic_tablet(data, raw, false)
+        }
     }
 }
 
@@ -64,11 +86,21 @@ pub struct UCLogicV1Parser;
 
 impl ReportParser for UCLogicV1Parser {
     fn parse(&self, data: &[u8]) -> Option<TabletData> {
-        if data.len() < 2 { return None; }
-        let raw = data.iter().map(|b| format!("{:02X}", b)).collect::<Vec<_>>().join(" ");
-        if data[1] == 0xE0 { parse_uclogic_aux(data, raw) }
-        else if (data[1] & 0x40) != 0 { parse_uclogic_tablet(data, raw, false) }
-        else { None }
+        if data.len() < 2 {
+            return None;
+        }
+        let raw = data
+            .iter()
+            .map(|b| format!("{:02X}", b))
+            .collect::<Vec<_>>()
+            .join(" ");
+        if data[1] == 0xE0 {
+            parse_uclogic_aux(data, raw)
+        } else if (data[1] & 0x40) != 0 {
+            parse_uclogic_tablet(data, raw, false)
+        } else {
+            None
+        }
     }
 }
 
@@ -76,8 +108,14 @@ pub struct UCLogicV2Parser;
 
 impl ReportParser for UCLogicV2Parser {
     fn parse(&self, data: &[u8]) -> Option<TabletData> {
-        if data.len() < 2 { return None; }
-        let raw = data.iter().map(|b| format!("{:02X}", b)).collect::<Vec<_>>().join(" ");
+        if data.len() < 2 {
+            return None;
+        }
+        let raw = data
+            .iter()
+            .map(|b| format!("{:02X}", b))
+            .collect::<Vec<_>>()
+            .join(" ");
         match data[1] {
             0xE0 => parse_uclogic_aux(data, raw),
             0xF0 => None,
@@ -90,10 +128,19 @@ pub struct UCLogicTiltParser;
 
 impl ReportParser for UCLogicTiltParser {
     fn parse(&self, data: &[u8]) -> Option<TabletData> {
-        if data.len() < 2 { return None; }
-        let raw = data.iter().map(|b| format!("{:02X}", b)).collect::<Vec<_>>().join(" ");
-        if (data[1] & 0x40) != 0 { parse_uclogic_aux(data, raw) }
-        else { parse_uclogic_tablet(data, raw, true) }
+        if data.len() < 2 {
+            return None;
+        }
+        let raw = data
+            .iter()
+            .map(|b| format!("{:02X}", b))
+            .collect::<Vec<_>>()
+            .join(" ");
+        if (data[1] & 0x40) != 0 {
+            parse_uclogic_aux(data, raw)
+        } else {
+            parse_uclogic_tablet(data, raw, true)
+        }
     }
 }
 

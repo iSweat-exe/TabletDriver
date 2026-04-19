@@ -11,7 +11,6 @@ pub fn render_performance_panel(
     avg_ui_latency: f32,
     ui: &mut egui::Ui,
 ) -> bool {
-    // 1. Snapshot all data needed for rendering first to avoid holding locks during button clicks
     let (tablet_status, is_connected, x, y, pressure, tilt_x, tilt_y, raw_data) = {
         let data = shared.tablet_data.read().unwrap();
         (
@@ -66,7 +65,6 @@ pub fn render_performance_panel(
                 ui.label("Max");
                 ui.end_row();
 
-                // HID Read
                 ui.label("HID Read:");
                 ui.label(
                     egui::RichText::new(format!("{:.3}ms", stats.hid_read_ms))
@@ -91,7 +89,6 @@ pub fn render_performance_panel(
                 ui.label(egui::RichText::new(format!("{:.3}ms", stats.max_hid_read_ms)).weak());
                 ui.end_row();
 
-                // Parser
                 ui.label("Parser:");
                 ui.label(
                     egui::RichText::new(format!("{:.3}ms", stats.parser_ms))
@@ -116,7 +113,6 @@ pub fn render_performance_panel(
                 ui.label(egui::RichText::new(format!("{:.3}ms", stats.max_parser_ms)).weak());
                 ui.end_row();
 
-                // UI Sync
                 ui.label("UI Sync:");
                 ui.label(
                     egui::RichText::new(format!("{:.3}ms", ui_latency)).color(egui::Color32::GOLD),

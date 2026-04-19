@@ -30,25 +30,37 @@ impl IntuosV1Parser {
     }
 
     fn parse_tool(&self, data: &[u8], raw: String) -> Option<TabletData> {
-        if data.len() < 10 { return None; }
-        if data[0] == 0x10 && data[1] == 0x20 { return None; }
-        if data[1] == 0x80 { return None; } // Out of range
+        if data.len() < 10 {
+            return None;
+        }
+        if data[0] == 0x10 && data[1] == 0x20 {
+            return None;
+        }
+        if data[1] == 0x80 {
+            return None;
+        } // Out of range
 
         let is_rotation = (data[1] & 0x02) != 0 && (data[1] & 0x08) != 0;
         let is_tablet = (data[1] & 0x20) != 0;
 
         if is_tablet {
-            let x = (((data[2] as u16) << 8) | (data[3] as u16)) << 1 | (((data[9] >> 1) & 1) as u16);
+            let x =
+                (((data[2] as u16) << 8) | (data[3] as u16)) << 1 | (((data[9] >> 1) & 1) as u16);
             let y = (((data[4] as u16) << 8) | (data[5] as u16)) << 1 | ((data[9] & 1) as u16);
-            
+
             let tilt_x = ((((data[7] << 1) & 0x7E) | (data[8] >> 7)) as i16 - 64) as i8;
             let tilt_y = ((data[8] & 0x7F) as i16 - 64) as i8;
 
-            let pressure = ((data[6] as u16) << 3) | (((data[7] & 0xC0) >> 5) as u16) | ((data[1] & 1) as u16);
+            let pressure =
+                ((data[6] as u16) << 3) | (((data[7] & 0xC0) >> 5) as u16) | ((data[1] & 1) as u16);
 
             let mut buttons: u8 = 0;
-            if (data[1] & 0x02) != 0 { buttons |= 1 << 0; }
-            if (data[1] & 0x04) != 0 { buttons |= 1 << 1; }
+            if (data[1] & 0x02) != 0 {
+                buttons |= 1 << 0;
+            }
+            if (data[1] & 0x04) != 0 {
+                buttons |= 1 << 1;
+            }
 
             *self.prev_pressure.lock().unwrap() = pressure;
             *self.prev_tilt_x.lock().unwrap() = tilt_x;
@@ -72,22 +84,23 @@ impl IntuosV1Parser {
                 ..Default::default()
             })
         } else if is_rotation {
-             let x = (((data[2] as u16) << 8) | (data[3] as u16)) << 1 | (((data[9] >> 1) & 1) as u16);
-             let y = (((data[4] as u16) << 8) | (data[5] as u16)) << 1 | ((data[9] & 1) as u16);
-             
-             Some(TabletData {
-                 status: "Rotation".to_string(),
-                 x,
-                 y,
-                 pressure: *self.prev_pressure.lock().unwrap(),
-                 tilt_x: *self.prev_tilt_x.lock().unwrap(),
-                 tilt_y: *self.prev_tilt_y.lock().unwrap(),
-                 buttons: *self.prev_buttons.lock().unwrap(),
-                 hover_distance: data[9],
-                 raw_data: raw,
-                 is_connected: true,
-                 ..Default::default()
-             })
+            let x =
+                (((data[2] as u16) << 8) | (data[3] as u16)) << 1 | (((data[9] >> 1) & 1) as u16);
+            let y = (((data[4] as u16) << 8) | (data[5] as u16)) << 1 | ((data[9] & 1) as u16);
+
+            Some(TabletData {
+                status: "Rotation".to_string(),
+                x,
+                y,
+                pressure: *self.prev_pressure.lock().unwrap(),
+                tilt_x: *self.prev_tilt_x.lock().unwrap(),
+                tilt_y: *self.prev_tilt_y.lock().unwrap(),
+                buttons: *self.prev_buttons.lock().unwrap(),
+                hover_distance: data[9],
+                raw_data: raw,
+                is_connected: true,
+                ..Default::default()
+            })
         } else if data[1] == 0xC2 {
             // Tool Report
             let eraser = (data[3] & 0x80) != 0;
@@ -104,7 +117,9 @@ impl IntuosV1Parser {
     }
 
     pub(crate) fn parse_aux(&self, data: &[u8], raw: String) -> Option<TabletData> {
-        if data.len() < 5 { return None; }
+        if data.len() < 5 {
+            return None;
+        }
         let buttons = data[4];
         Some(TabletData {
             status: "Aux".to_string(),
@@ -118,8 +133,14 @@ impl IntuosV1Parser {
 
 impl ReportParser for IntuosV1Parser {
     fn parse(&self, data: &[u8]) -> Option<TabletData> {
-        if data.is_empty() { return None; }
-        let raw = data.iter().map(|b| format!("{:02X}", b)).collect::<Vec<_>>().join(" ");
+        if data.is_empty() {
+            return None;
+        }
+        let raw = data
+            .iter()
+            .map(|b| format!("{:02X}", b))
+            .collect::<Vec<_>>()
+            .join(" ");
         self.parse_internal(data, raw)
     }
 }
@@ -130,15 +151,23 @@ pub struct WacomDriverIntuosV1Parser {
 
 impl WacomDriverIntuosV1Parser {
     pub fn new() -> Self {
-        Self { inner: IntuosV1Parser::new() }
+        Self {
+            inner: IntuosV1Parser::new(),
+        }
     }
 }
 
 impl ReportParser for WacomDriverIntuosV1Parser {
     fn parse(&self, data: &[u8]) -> Option<TabletData> {
-        if data.len() < 2 { return None; }
-         // WacomDriver usually skips first byte (report ID) then calls base
-        let raw = data.iter().map(|b| format!("{:02X}", b)).collect::<Vec<_>>().join(" ");
+        if data.len() < 2 {
+            return None;
+        }
+        // WacomDriver usually skips first byte (report ID) then calls base
+        let raw = data
+            .iter()
+            .map(|b| format!("{:02X}", b))
+            .collect::<Vec<_>>()
+            .join(" ");
         self.inner.parse_internal(&data[1..], raw)
     }
 }

@@ -1,6 +1,6 @@
-use std::sync::atomic::{AtomicU8, Ordering};
 use crate::drivers::TabletData;
 use crate::drivers::parsers::ReportParser;
+use std::sync::atomic::{AtomicU8, Ordering};
 
 pub struct AcepenParser {
     aux_state: AtomicU8,
@@ -35,8 +35,12 @@ impl ReportParser for AcepenParser {
                     let pressure = u16::from_le_bytes([data[7], data[8]]);
 
                     let mut buttons: u8 = 0;
-                    if (data[2] & 0x02) != 0 { buttons |= 1 << 0; }
-                    if (data[2] & 0x04) != 0 { buttons |= 1 << 1; }
+                    if (data[2] & 0x02) != 0 {
+                        buttons |= 1 << 0;
+                    }
+                    if (data[2] & 0x04) != 0 {
+                        buttons |= 1 << 1;
+                    }
 
                     let tilt_x = data[9] as i8;
                     let tilt_y = data[10] as i8;
@@ -61,9 +65,13 @@ impl ReportParser for AcepenParser {
             }
             0x42 => {
                 // AUX_MODE
-                let bit_index = if data[4] > 0 { data[4].trailing_zeros() } else { 0 };
+                let bit_index = if data[4] > 0 {
+                    data[4].trailing_zeros()
+                } else {
+                    0
+                };
                 let is_set = (data[3] & 0x01) != 0;
-                
+
                 let mut current_state = self.aux_state.load(Ordering::Relaxed);
                 if is_set {
                     current_state |= 1 << bit_index;

@@ -31,8 +31,12 @@ impl ReportParser for FlooGooParser {
         let tilt_y = (raw_tilt_y as f32 * 0.01).round() as i8;
 
         let mut buttons: u8 = 0;
-        if (data[1] & 0x02) != 0 { buttons |= 1 << 0; }
-        if (data[1] & 0x04) != 0 { buttons |= 1 << 1; }
+        if (data[1] & 0x02) != 0 {
+            buttons |= 1 << 0;
+        }
+        if (data[1] & 0x04) != 0 {
+            buttons |= 1 << 1;
+        }
 
         let eraser = (data[1] & 0x08) != 0;
         let status = if pressure > 0 { "Contact" } else { "Hover" };
@@ -60,7 +64,9 @@ mod tests {
     #[test]
     fn test_floogoo_pen_contact() {
         let parser = FlooGooParser;
-        let data: [u8; 12] = [0x01, 0x2A, 0x02, 0x01, 0x04, 0x03, 0x05, 0x00, 0xE8, 0x03, 0x18, 0xFC];
+        let data: [u8; 12] = [
+            0x01, 0x2A, 0x02, 0x01, 0x04, 0x03, 0x05, 0x00, 0xE8, 0x03, 0x18, 0xFC,
+        ];
         let report = parser.parse(&data).unwrap();
         assert_eq!(report.status, "Contact");
         assert_eq!(report.x, 258);

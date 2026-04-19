@@ -115,9 +115,7 @@ pub fn run_manager(
                 }
             }
 
-            // Drain stale packets from the HID buffer after initialization.
-            // The init sequence (feature/output reports) can leave response
-            // packets queued that would cause a cursor teleport if processed.
+            // Drain stale packets left by init sequence to prevent cursor teleport
             let mut drain_buf = [0u8; 64];
             while device.read_timeout(&mut drain_buf, 10).unwrap_or(0) > 0 {}
             pipeline.reset_relative();
@@ -134,27 +132,24 @@ pub fn run_manager(
                             data.receive_time = Some(hid_read_start);
                             data.parser_time = parse_duration;
 
-                            // --- FAST PATH: Injection First ---
-                            // Process the packet and apply coordinate transforms + OS injection
-                            // We do this immediately after parsing to minimize latency.
                             pipeline.process(
                                 &data,
                                 driver.as_ref(),
                                 &local_config,
                                 &mut injector,
                                 &mut filters,
+                                &shared,
                             );
 
-                            // --- SLOW PATH: Metrics & UI (Throttled) ---
                             shared.packet_count.fetch_add(1, Ordering::Relaxed);
 
-                            // Update stats on a temporal basis (~60Hz) to match UI refresh rate
                             let now = Instant::now();
                             if now.duration_since(last_stats_update) > Duration::from_millis(16)
                                 && let Ok(mut stats) = shared.stats.write()
                             {
                                 last_stats_update = now;
-                                stats.total_packets = shared.packet_count.load(Ordering::Relaxed) as u64;
+                                stats.total_packets =
+                                    shared.packet_count.load(Ordering::Relaxed) as u64;
 
                                 let hr_ms = hid_read_duration.as_secs_f32() * 1000.0;
                                 stats.hid_read_ms = hr_ms;
@@ -181,15 +176,10 @@ pub fn run_manager(
                                 last_config_check = now;
                             }
 
-                            // Inject UI updates
                             let _ = tablet_sender.send(data.clone());
                         }
                     }
                     Ok(_) => {
-                        // HID read timeout — no data from the tablet.
-                        // The pen has left the detection range.
-                        // Run through the pipeline to release buttons, reset filters,
-                        // and reset relative tracking, then notify the UI.
                         let out_of_range = crate::drivers::TabletData {
                             status: "Out of Range".to_string(),
                             ..Default::default()
@@ -200,6 +190,7 @@ pub fn run_manager(
                             &local_config,
                             &mut injector,
                             &mut filters,
+                            &shared,
                         );
                         let _ = tablet_sender.send(out_of_range);
 

@@ -20,7 +20,9 @@ impl ReportParser for InspiroyParser {
             0x00 => return None, // OutOfRange
             0xE0 | 0xE3 => {
                 // Aux Report
-                if data.len() < 7 { return None; }
+                if data.len() < 7 {
+                    return None;
+                }
                 let buttons = data[4]; // first 8 buttons
                 return Some(TabletData {
                     status: "Aux".to_string(),
@@ -48,8 +50,12 @@ impl ReportParser for InspiroyParser {
         // Position Y: [4] | [5] << 8 | ([9] & 1) << 16
         // Pressure: [6] | [7] << 8
 
-        let x = (data[2] as u32) | ((data[3] as u32) << 8) | ((data.get(8).unwrap_or(&0) & 1) as u32) << 16;
-        let y = (data[4] as u32) | ((data[5] as u32) << 8) | ((data.get(9).unwrap_or(&0) & 1) as u32) << 16;
+        let x = (data[2] as u32)
+            | ((data[3] as u32) << 8)
+            | ((data.get(8).unwrap_or(&0) & 1) as u32) << 16;
+        let y = (data[4] as u32)
+            | ((data[5] as u32) << 8)
+            | ((data.get(9).unwrap_or(&0) & 1) as u32) << 16;
         let pressure = (data[6] as u16) | ((data[7] as u16) << 8);
 
         // Tilt (X at 10, Y at 11) - OTD uses * -1 for Giano

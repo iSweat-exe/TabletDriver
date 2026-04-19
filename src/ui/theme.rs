@@ -121,7 +121,13 @@ pub fn ui_section_header(ui: &mut egui::Ui, title: &str) {
 }
 
 /// Renders a styled container holding a label and an `f32` DragValue input with an optional range.
-pub fn ui_input_box_range(ui: &mut egui::Ui, label: &str, value: &mut f32, unit: &str, range: std::ops::RangeInclusive<f32>) {
+pub fn ui_input_box_range(
+    ui: &mut egui::Ui,
+    label: &str,
+    value: &mut f32,
+    unit: &str,
+    range: std::ops::RangeInclusive<f32>,
+) {
     let visuals = ui.visuals();
     let bg_fill = panel_bg(visuals);
     let border_color = panel_border(visuals);
@@ -141,11 +147,20 @@ pub fn ui_input_box_range(ui: &mut egui::Ui, label: &str, value: &mut f32, unit:
             .show(ui, |ui| {
                 ui.set_width(140.0);
                 ui.horizontal(|ui| {
-                    ui.label(egui::RichText::new(label).size(11.0).color(label_clr).strong());
-                    
+                    ui.label(
+                        egui::RichText::new(label)
+                            .size(11.0)
+                            .color(label_clr)
+                            .strong(),
+                    );
+
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                         if !unit.is_empty() {
-                            ui.label(egui::RichText::new(unit).size(10.0).color(label_clr.gamma_multiply(0.5)));
+                            ui.label(
+                                egui::RichText::new(unit)
+                                    .size(10.0)
+                                    .color(label_clr.gamma_multiply(0.5)),
+                            );
                             ui.add_space(2.0);
                         }
 
@@ -175,7 +190,13 @@ pub fn ui_input_box(ui: &mut egui::Ui, label: &str, value: &mut f32, unit: &str)
 }
 
 /// Renders a styled container holding a label and a `u32` DragValue input with an optional range.
-pub fn ui_input_box_u32_range(ui: &mut egui::Ui, label: &str, value: &mut u32, unit: &str, range: std::ops::RangeInclusive<u32>) {
+pub fn ui_input_box_u32_range(
+    ui: &mut egui::Ui,
+    label: &str,
+    value: &mut u32,
+    unit: &str,
+    range: std::ops::RangeInclusive<u32>,
+) {
     let visuals = ui.visuals();
     let bg_fill = panel_bg(visuals);
     let border_color = panel_border(visuals);
@@ -194,11 +215,20 @@ pub fn ui_input_box_u32_range(ui: &mut egui::Ui, label: &str, value: &mut u32, u
             .show(ui, |ui| {
                 ui.set_width(140.0);
                 ui.horizontal(|ui| {
-                    ui.label(egui::RichText::new(label).size(11.0).color(label_clr).strong());
+                    ui.label(
+                        egui::RichText::new(label)
+                            .size(11.0)
+                            .color(label_clr)
+                            .strong(),
+                    );
 
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                         if !unit.is_empty() {
-                            ui.label(egui::RichText::new(unit).size(10.0).color(label_clr.gamma_multiply(0.5)));
+                            ui.label(
+                                egui::RichText::new(unit)
+                                    .size(10.0)
+                                    .color(label_clr.gamma_multiply(0.5)),
+                            );
                             ui.add_space(2.0);
                         }
 
@@ -217,7 +247,13 @@ pub fn ui_input_box_u32(ui: &mut egui::Ui, label: &str, value: &mut u32, unit: &
 }
 
 /// Renders a styled container holding a label and a `u16` DragValue input with an optional range.
-pub fn ui_input_box_u16_range(ui: &mut egui::Ui, label: &str, value: &mut u16, unit: &str, range: std::ops::RangeInclusive<u16>) {
+pub fn ui_input_box_u16_range(
+    ui: &mut egui::Ui,
+    label: &str,
+    value: &mut u16,
+    unit: &str,
+    range: std::ops::RangeInclusive<u16>,
+) {
     let visuals = ui.visuals();
     let bg_fill = panel_bg(visuals);
     let border_color = panel_border(visuals);
@@ -236,11 +272,20 @@ pub fn ui_input_box_u16_range(ui: &mut egui::Ui, label: &str, value: &mut u16, u
             .show(ui, |ui| {
                 ui.set_width(140.0);
                 ui.horizontal(|ui| {
-                    ui.label(egui::RichText::new(label).size(11.0).color(label_clr).strong());
+                    ui.label(
+                        egui::RichText::new(label)
+                            .size(11.0)
+                            .color(label_clr)
+                            .strong(),
+                    );
 
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                         if !unit.is_empty() {
-                            ui.label(egui::RichText::new(unit).size(10.0).color(label_clr.gamma_multiply(0.5)));
+                            ui.label(
+                                egui::RichText::new(unit)
+                                    .size(10.0)
+                                    .color(label_clr.gamma_multiply(0.5)),
+                            );
                             ui.add_space(2.0);
                         }
 
@@ -281,11 +326,20 @@ pub fn ui_setting_row(ui: &mut egui::Ui, label: &str, value: &mut f32, unit: &st
             .show(ui, |ui| {
                 ui.set_min_width(220.0);
                 ui.horizontal(|ui| {
-                    ui.label(egui::RichText::new(label).size(11.5).color(label_clr).strong());
+                    ui.label(
+                        egui::RichText::new(label)
+                            .size(11.5)
+                            .color(label_clr)
+                            .strong(),
+                    );
 
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                         if !unit.is_empty() {
-                            ui.label(egui::RichText::new(unit).size(10.5).color(label_clr.gamma_multiply(0.5)));
+                            ui.label(
+                                egui::RichText::new(unit)
+                                    .size(10.5)
+                                    .color(label_clr.gamma_multiply(0.5)),
+                            );
                             ui.add_space(4.0);
                         }
 
@@ -311,7 +365,12 @@ pub fn ui_setting_row(ui: &mut egui::Ui, label: &str, value: &mut f32, unit: &st
 }
 
 /// Renders a standard modern card for grouping settings.
-pub fn ui_card<R>(ui: &mut egui::Ui, title: &str, icon: &str, add_contents: impl FnOnce(&mut egui::Ui) -> R) {
+pub fn ui_card<R>(
+    ui: &mut egui::Ui,
+    title: &str,
+    icon: &str,
+    add_contents: impl FnOnce(&mut egui::Ui) -> R,
+) {
     let visuals = ui.visuals();
     let card_bg = panel_bg(visuals).gamma_multiply(0.6);
     let border_color = panel_border(visuals).gamma_multiply(0.4);
@@ -325,7 +384,11 @@ pub fn ui_card<R>(ui: &mut egui::Ui, title: &str, icon: &str, add_contents: impl
             ui.set_width(ui.available_width());
             ui.vertical(|ui| {
                 ui.horizontal(|ui| {
-                    ui.label(egui::RichText::new(format!("{} {}", icon, title)).size(14.0).strong());
+                    ui.label(
+                        egui::RichText::new(format!("{} {}", icon, title))
+                            .size(14.0)
+                            .strong(),
+                    );
                 });
 
                 ui.add_space(10.0);

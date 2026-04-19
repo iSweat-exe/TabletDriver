@@ -53,14 +53,13 @@ pub fn websocket_loop(shared: Arc<SharedState>) {
     let mut next_client_id = 0;
 
     loop {
-        // 1. Read current config
         let (enabled, port, hz, send_coords, send_pressure, _send_tilt, send_status) = {
             let config = shared.config.read().unwrap();
             let ws = &config.websocket;
             (
                 ws.enabled,
                 ws.port,
-                ws.polling_rate_hz.max(1), // Prevent div by 0
+                ws.polling_rate_hz.max(1),
                 ws.send_coordinates,
                 ws.send_pressure,
                 ws.send_tilt,
@@ -68,7 +67,6 @@ pub fn websocket_loop(shared: Arc<SharedState>) {
             )
         };
 
-        // 2. Manage Server State
         if !enabled {
             if listener.is_some() {
                 log::info!(target: "WebSocket", "WebSocket Server disabled, shutting down...");
@@ -76,7 +74,6 @@ pub fn websocket_loop(shared: Arc<SharedState>) {
                 listener = None;
             }
         } else {
-            // Check if port changed or listener needs starting
             if listener.is_none() || current_port != port {
                 log::info!(target: "WebSocket", "Starting WebSocket Server on 127.0.0.1:{}", port);
                 clients.clear();
@@ -95,16 +92,14 @@ pub fn websocket_loop(shared: Arc<SharedState>) {
             }
         }
 
-        // 3. Process Server Logic if running
         if let Some(l) = &listener {
-            // Accept new clients
             match l.accept() {
                 Ok((stream, addr)) => {
                     log::info!(target: "WebSocket", "New connection from {}", addr);
-                    stream.set_nonblocking(false).unwrap(); // Block for handshake
+                    stream.set_nonblocking(false).unwrap(); // Blocking for WS handshake
                     match accept(stream) {
                         Ok(mut websocket) => {
-                            websocket.get_mut().set_nonblocking(true).unwrap(); // Non-blocking for data
+                            websocket.get_mut().set_nonblocking(true).unwrap(); // Back to non-blocking for data
                             clients.insert(next_client_id, websocket);
                             next_client_id += 1;
                         }
@@ -113,15 +108,12 @@ pub fn websocket_loop(shared: Arc<SharedState>) {
                         }
                     }
                 }
-                Err(ref e) if e.kind() == std::io::ErrorKind::WouldBlock => {
-                    // No new connections
-                }
+                Err(ref e) if e.kind() == std::io::ErrorKind::WouldBlock => {}
                 Err(e) => {
                     log::error!(target: "WebSocket", "Listener error: {}", e);
                 }
             }
 
-            // Prepare Payload
             if !clients.is_empty() {
                 let data = shared.tablet_data.read().unwrap().clone();
 
@@ -162,7 +154,6 @@ pub fn websocket_loop(shared: Arc<SharedState>) {
             }
         }
 
-        // 4. Sleep according to polling rate
         let sleep_ms = 1000 / hz;
         thread::sleep(Duration::from_millis(sleep_ms as u64));
     }

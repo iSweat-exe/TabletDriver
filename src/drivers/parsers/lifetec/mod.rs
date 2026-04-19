@@ -20,8 +20,12 @@ impl ReportParser for LifetecParser {
         let pressure = u16::from_le_bytes([data[6], data[7]]);
 
         let mut buttons: u8 = 0;
-        if (data[5] & 0x08) != 0 { buttons |= 1 << 0; }
-        if (data[5] & 0x10) != 0 { buttons |= 1 << 1; }
+        if (data[5] & 0x08) != 0 {
+            buttons |= 1 << 0;
+        }
+        if (data[5] & 0x10) != 0 {
+            buttons |= 1 << 1;
+        }
 
         let status = if pressure > 0 { "Contact" } else { "Hover" };
 

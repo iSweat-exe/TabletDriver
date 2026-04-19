@@ -28,17 +28,14 @@ pub fn save_settings(name: &str, config: &MappingConfig) -> Result<(), String> {
         log::error!(target: "Settings", "Failed to serialize preset '{}': {}", name, e);
         e.to_string()
     })?;
-    
+
     fs::write(&path, json).map_err(|e| {
         log::error!(target: "Settings", "Failed to write preset to {:?}: {}", path, e);
         e.to_string()
     })?;
-    
+
     log::info!(target: "Settings", "Saved preset '{}' to {:?}", name, path);
 
-    // Also update "last_session.json" to point to this or save state?
-    // User requested "last settings applied". We can save a "last_session.json" with the current config content
-    // OR a reference. Saving content is safer.
     save_last_session(config)?;
 
     Ok(())

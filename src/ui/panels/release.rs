@@ -135,7 +135,12 @@ pub fn render_release_panel(_app: &crate::app::state::TabletMapperApp, ui: &mut 
 fn render_release_entry(ui: &mut egui::Ui, entry: &ReleaseEntry) {
     let visuals = ui.visuals();
     let card_bg = visuals.window_fill.gamma_multiply(0.6);
-    let border_color = visuals.widgets.noninteractive.bg_stroke.color.gamma_multiply(0.4);
+    let border_color = visuals
+        .widgets
+        .noninteractive
+        .bg_stroke
+        .color
+        .gamma_multiply(0.4);
 
     egui::Frame::new()
         .fill(card_bg)
@@ -145,9 +150,12 @@ fn render_release_entry(ui: &mut egui::Ui, entry: &ReleaseEntry) {
         .show(ui, |ui| {
             ui.set_width(ui.available_width());
             ui.vertical(|ui| {
-                // Header (Version & Date)
                 ui.horizontal(|ui| {
-                    ui.label(egui::RichText::new(format!("Next Tablet Driver | v{}", entry.version)).size(16.0).strong());
+                    ui.label(
+                        egui::RichText::new(format!("Next Tablet Driver | v{}", entry.version))
+                            .size(16.0)
+                            .strong(),
+                    );
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                         ui.label(egui::RichText::new(entry.date).weak().size(12.0));
                     });
@@ -155,29 +163,62 @@ fn render_release_entry(ui: &mut egui::Ui, entry: &ReleaseEntry) {
 
                 ui.add_space(12.0);
 
-                // Categories
-                render_category(ui, "NEW", egui_phosphor::regular::PLUS_CIRCLE, egui::Color32::from_rgb(166, 227, 161), entry.additions);
-                render_category(ui, "FIX", egui_phosphor::regular::WRENCH, egui::Color32::from_rgb(249, 226, 175), entry.fixes);
-                render_category(ui, "IMP", egui_phosphor::regular::CHART_LINE_UP, egui::Color32::from_rgb(137, 180, 250), entry.improvements);
-                render_category(ui, "DEL", egui_phosphor::regular::MINUS_CIRCLE, egui::Color32::from_rgb(243, 139, 168), entry.removals);
+                render_category(
+                    ui,
+                    "NEW",
+                    egui_phosphor::regular::PLUS_CIRCLE,
+                    egui::Color32::from_rgb(166, 227, 161),
+                    entry.additions,
+                );
+                render_category(
+                    ui,
+                    "FIX",
+                    egui_phosphor::regular::WRENCH,
+                    egui::Color32::from_rgb(249, 226, 175),
+                    entry.fixes,
+                );
+                render_category(
+                    ui,
+                    "IMP",
+                    egui_phosphor::regular::CHART_LINE_UP,
+                    egui::Color32::from_rgb(137, 180, 250),
+                    entry.improvements,
+                );
+                render_category(
+                    ui,
+                    "DEL",
+                    egui_phosphor::regular::MINUS_CIRCLE,
+                    egui::Color32::from_rgb(243, 139, 168),
+                    entry.removals,
+                );
             });
         });
 }
 
-fn render_category(ui: &mut egui::Ui, label: &str, icon: &str, color: egui::Color32, items: &[&str]) {
+fn render_category(
+    ui: &mut egui::Ui,
+    label: &str,
+    icon: &str,
+    color: egui::Color32,
+    items: &[&str],
+) {
     if items.is_empty() {
         return;
     }
 
     ui.horizontal(|ui| {
-        // Badge
         egui::Frame::new()
             .fill(color.gamma_multiply(0.1))
             .stroke(egui::Stroke::new(1.0, color.gamma_multiply(0.5)))
             .corner_radius(4.0)
             .inner_margin(egui::Margin::symmetric(6, 2))
             .show(ui, |ui| {
-                ui.label(egui::RichText::new(format!("{} {}", icon, label)).color(color).size(10.0).strong());
+                ui.label(
+                    egui::RichText::new(format!("{} {}", icon, label))
+                        .color(color)
+                        .size(10.0)
+                        .strong(),
+                );
             });
     });
 
@@ -188,7 +229,11 @@ fn render_category(ui: &mut egui::Ui, label: &str, icon: &str, color: egui::Colo
             ui.add_space(8.0);
             ui.label(egui_phosphor::regular::CARET_RIGHT);
             ui.add_space(4.0);
-            ui.label(egui::RichText::new(*item).size(12.5).color(ui.visuals().text_color().gamma_multiply(0.8)));
+            ui.label(
+                egui::RichText::new(*item)
+                    .size(12.5)
+                    .color(ui.visuals().text_color().gamma_multiply(0.8)),
+            );
         });
         ui.add_space(2.0);
     }
