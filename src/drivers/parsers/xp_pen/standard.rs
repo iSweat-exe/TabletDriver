@@ -35,8 +35,7 @@ pub fn parse(data: &[u8]) -> Option<TabletData> {
         _ => "Active",
     }.to_string();
     
-    // Treat (0,0) as invalid/out of range, even if status says otherwise
-    let is_connected = status != "Out of Range" && (x != 0 || y != 0);
+    let is_connected = status != "Out of Range";
 
     Some(TabletData {
         status,

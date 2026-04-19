@@ -116,18 +116,9 @@ impl Pipeline {
                     config.target_area.h,
                 );
 
-                if self.last_screen_x < 0.0 || self.last_screen_y < 0.0 {
-                    // First packet after connection or pen re-entry:
-                    // record the position without injecting to avoid a cursor teleport.
-                    self.last_screen_x = screen_x;
-                    self.last_screen_y = screen_y;
-                } else if (screen_x - self.last_screen_x).abs() > 0.1
-                    || (screen_y - self.last_screen_y).abs() > 0.1
-                {
-                    injector.move_absolute(screen_x, screen_y, u, v);
-                    self.last_screen_x = screen_x;
-                    self.last_screen_y = screen_y;
-                }
+                injector.move_absolute(screen_x, screen_y, u, v);
+                self.last_screen_x = screen_x;
+                self.last_screen_y = screen_y;
             }
             DriverMode::Relative => {
                 if now.duration_since(self.last_packet_time)

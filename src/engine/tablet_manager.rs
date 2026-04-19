@@ -74,6 +74,7 @@ pub fn run_manager(
     let mut local_config = shared.config.read().unwrap().clone();
     let mut local_config_version = shared.config_version.load(Ordering::Relaxed);
     let mut last_config_check = Instant::now();
+    let mut last_stats_update = Instant::now();
 
     let mut filters = crate::filters::FilterPipeline::new();
     log::debug!(target: "TabletManager", "Initializing filters...");
@@ -145,13 +146,15 @@ pub fn run_manager(
                             );
 
                             // --- SLOW PATH: Metrics & UI (Throttled) ---
-                            let packet_index = shared.packet_count.fetch_add(1, Ordering::Relaxed);
+                            shared.packet_count.fetch_add(1, Ordering::Relaxed);
 
-                            // Update stats only every 10 packets to reduce RwLock contention
-                            if packet_index.is_multiple_of(10)
+                            // Update stats on a temporal basis (~60Hz) to match UI refresh rate
+                            let now = Instant::now();
+                            if now.duration_since(last_stats_update) > Duration::from_millis(16)
                                 && let Ok(mut stats) = shared.stats.write()
                             {
-                                stats.total_packets = packet_index as u64;
+                                last_stats_update = now;
+                                stats.total_packets = shared.packet_count.load(Ordering::Relaxed) as u64;
 
                                 let hr_ms = hid_read_duration.as_secs_f32() * 1000.0;
                                 stats.hid_read_ms = hr_ms;
@@ -183,6 +186,23 @@ pub fn run_manager(
                         }
                     }
                     Ok(_) => {
+                        // HID read timeout — no data from the tablet.
+                        // The pen has left the detection range.
+                        // Run through the pipeline to release buttons, reset filters,
+                        // and reset relative tracking, then notify the UI.
+                        let out_of_range = crate::drivers::TabletData {
+                            status: "Out of Range".to_string(),
+                            ..Default::default()
+                        };
+                        pipeline.process(
+                            &out_of_range,
+                            driver.as_ref(),
+                            &local_config,
+                            &mut injector,
+                            &mut filters,
+                        );
+                        let _ = tablet_sender.send(out_of_range);
+
                         let cv = shared.config_version.load(Ordering::Relaxed);
                         if cv != local_config_version {
                             local_config = shared.config.read().unwrap().clone();
