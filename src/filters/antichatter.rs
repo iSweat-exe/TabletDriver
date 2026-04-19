@@ -89,3 +89,45 @@ impl Filter for DevocubAntichatter {
         self.history.clear();
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::core::config::models::MappingConfig;
+
+    fn create_test_config(enabled: bool, latency: f32) -> MappingConfig {
+        let mut config = MappingConfig::default_test();
+        config.antichatter.enabled = enabled;
+        config.antichatter.latency = latency;
+        config.antichatter.frequency = 1000.0;
+        config.antichatter.antichatter_multiplier = 1.0;
+        config.antichatter.antichatter_offset_x = 0.0;
+        config.antichatter.antichatter_offset_y = 0.0;
+        config.antichatter.prediction_enabled = false;
+        config
+    }
+
+    #[test]
+    fn test_antichatter_disabled_passthrough() {
+        let mut filter = DevocubAntichatter::new();
+        let config = create_test_config(false, 10.0);
+
+        let (x, y) = filter.process(0.5, 0.5, &config);
+        assert_eq!(x, 0.5);
+        assert_eq!(y, 0.5);
+    }
+
+    #[test]
+    fn test_antichatter_averaging() {
+        let mut filter = DevocubAntichatter::new();
+        // 2ms latency at 1000Hz = window of 2
+        let config = create_test_config(true, 2.0);
+
+        filter.process(0.0, 0.0, &config);
+        let (x, y) = filter.process(1.0, 1.0, &config);
+
+        // Average of (0,0) and (1,1) should be (0.5, 0.5)
+        assert_eq!(x, 0.5);
+        assert_eq!(y, 0.5);
+    }
+}

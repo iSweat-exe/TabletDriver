@@ -21,8 +21,9 @@ pub fn render_tabs(app: &mut TabletMapperApp, ctx: &egui::Context) {
                 ui.selectable_value(&mut app.active_tab, AppTab::PenSettings, "Pen Settings");
                 ui.selectable_value(&mut app.active_tab, AppTab::Console, "Console");
                 ui.selectable_value(&mut app.active_tab, AppTab::Settings, "Settings");
-                ui.selectable_value(&mut app.active_tab, AppTab::Support, "Support");
                 ui.selectable_value(&mut app.active_tab, AppTab::Release, "Release");
+                #[cfg(debug_assertions)]
+                ui.selectable_value(&mut app.active_tab, AppTab::Developer, "Developer");
             });
         });
 }

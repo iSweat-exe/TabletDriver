@@ -15,7 +15,6 @@ pub fn render_debugger_panel(shared: Arc<SharedState>, displayed_hz: f32, ui: &m
 
     ui.add_space(10.0);
 
-    // 1. VISUALIZER
     let available_width = ui.available_width();
     let desired_height = (available_width * (9.0 / 16.0)).min(300.0);
 
@@ -24,7 +23,6 @@ pub fn render_debugger_panel(shared: Arc<SharedState>, displayed_hz: f32, ui: &m
         egui::Sense::hover(),
     );
 
-    // Background
     ui.painter()
         .rect_filled(rect, 8.0, egui::Color32::from_rgb(15, 15, 15));
     ui.painter().rect_stroke(
@@ -73,7 +71,6 @@ pub fn render_debugger_panel(shared: Arc<SharedState>, displayed_hz: f32, ui: &m
 
     ui.add_space(20.0);
 
-    // 2. DASHBOARD (Fixed columns instead of Grid)
     ui.columns(2, |cols| {
         cols[0].vertical(|ui| {
             status_card(
@@ -131,7 +128,6 @@ pub fn render_debugger_panel(shared: Arc<SharedState>, displayed_hz: f32, ui: &m
 
     ui.add_space(20.0);
 
-    // 3. RAW DATA (Hexadecimal and Binary)
     egui::Frame::group(ui.style())
         .fill(egui::Color32::from_gray(30))
         .show(ui, |ui: &mut egui::Ui| {
@@ -172,7 +168,7 @@ pub fn render_debugger_panel(shared: Arc<SharedState>, displayed_hz: f32, ui: &m
 fn status_card(ui: &mut egui::Ui, label: &str, value: &str, color: egui::Color32) {
     egui::Frame::new()
         .fill(egui::Color32::from_gray(28))
-        .corner_radius(6.0)
+        .corner_radius(4.0)
         .inner_margin(12.0)
         .show(ui, |ui: &mut egui::Ui| {
             ui.set_width(ui.available_width());

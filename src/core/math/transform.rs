@@ -5,8 +5,27 @@
 //! It handles aspects like rotation, active area cropping, absolute-to-relative
 //! conversion, and respecting aspect ratios.
 
-/// Applies 2D rotation around a center point (usually 0.5, 0.5 in normalized space)
-/// Or directly to continuous values.
+/// Applies 2D rotation around a center point in normalized space.
+///
+/// Rotation is applied clockwise in degrees. This function is typically used
+/// to adjust for tablets that are physically rotated on the desk.
+///
+/// # Examples
+///
+/// ```
+/// use next_tablet_driver::core::math::transform::rotate_point;
+///
+/// // No rotation should return the same point
+/// let (x, y) = rotate_point(0.7, 0.2, 0.5, 0.5, 0.0);
+/// assert!((x - 0.7).abs() < f32::EPSILON);
+/// assert!((y - 0.2).abs() < f32::EPSILON);
+///
+/// // 90 degree rotation around center (0.5, 0.5)
+/// // (0.5, 0.0) -> (0.0, 0.5)
+/// let (x, y) = rotate_point(0.5, 0.0, 0.5, 0.5, 90.0);
+/// assert!((x - 0.0).abs() < 1e-6);
+/// assert!((y - 0.5).abs() < 1e-6);
+/// ```
 pub fn rotate_point(
     x: f32,
     y: f32,
@@ -17,6 +36,7 @@ pub fn rotate_point(
     if rotation_degrees == 0.0 {
         return (x, y);
     }
+    // Convert to radians and invert sign for clockwise rotation in a Y-down coordinate system
     let rad = -rotation_degrees.to_radians();
     let (sin, cos) = rad.sin_cos();
 
@@ -29,21 +49,27 @@ pub fn rotate_point(
     (rx, ry)
 }
 
-/// Normalizes physical tablet coordinates (millimeters) into [0.0, 1.0] UV space,
-/// taking the user-defined active area and tablet rotation into account.
+/// Normalizes physical tablet coordinates (millimeters) into [0.0, 1.0] UV space.
 ///
-/// This is the first step of the **Absolute** mapping pipeline.
+/// This function maps the raw pen position from the tablet surface into a
+/// unit-square representation relative to the user's defined active area.
 ///
 /// # Arguments
-/// * `x_mm`, `y_mm` - Raw physical position from the tablet, converted to millimeters.
-/// * `area_x`, `area_y` - The top-left offset of the mapped active area (mm).
-/// * `area_w`, `area_h` - The width and height of the mapped active area (mm).
-/// * `rotation` - Degrees to rotate the output space around its center.
+/// * `x_mm`, `y_mm` - Raw physical position from the tablet (in millimeters).
+/// * `area_x`, `area_y` - Center offset of the active area (in millimeters).
+/// * `area_w`, `area_h` - Total width and height of the active area (in millimeters).
+/// * `rotation` - Physical tablet rotation in degrees.
 ///
-/// # Returns
-/// A tuple `(u, v)` representing the pen's position as a percentage of the active area.
-/// Note: These values can briefly exceed `0.0` or `1.0` if the pen moves slightly outside
-/// the mathematically defined active area before being clamped by the screen projection.
+/// # Examples
+///
+/// ```
+/// use next_tablet_driver::core::math::transform::physical_to_normalized;
+///
+/// // Map a point exactly in the middle of a 100x100 area centered at (50, 50)
+/// let (u, v) = physical_to_normalized(50.0, 50.0, 50.0, 50.0, 100.0, 100.0, 0.0);
+/// assert_eq!(u, 0.5);
+/// assert_eq!(v, 0.5);
+/// ```
 pub fn physical_to_normalized(
     x_mm: f32,
     y_mm: f32,
@@ -53,11 +79,9 @@ pub fn physical_to_normalized(
     area_h: f32,
     rotation: f32,
 ) -> (f32, f32) {
-    // 1. Normalize (Tablet Space in mm) - Center Based
     let mut u = (x_mm - area_x) / area_w + 0.5;
     let mut v = (y_mm - area_y) / area_h + 0.5;
 
-    // 2. Apply Rotation
     if rotation != 0.0 {
         let (nu, nv) = rotate_point(u, v, 0.5, 0.5, rotation);
         u = nu;
@@ -67,17 +91,26 @@ pub fn physical_to_normalized(
     (u, v)
 }
 
-/// Projects normalized UV coordinates `[0.0, 1.0]` onto physical Screen Space pixels.
+/// Projects normalized UV coordinates `[0.0, 1.0]` onto screen pixels.
 ///
-/// This is the second step of the **Absolute** mapping pipeline following normalization.
+/// Inputs are clamped to the `[0.0, 1.0]` range to ensure the cursor stays
+/// within the bounds of the target screen area.
 ///
 /// # Arguments
-/// * `u`, `v` - Normalized percentage coordinates, clamped internally by this function.
-/// * `target_x`, `target_y` - The top-left origin of the display map (e.g., `0,0` for primary).
-/// * `target_w`, `target_h` - The resolution/dimensions of the target screen area.
+/// * `u`, `v` - Normalized percentage coordinates (0.0 to 1.0).
+/// * `target_x`, `target_y` - Top-left origin of the destination screen area (pixels).
+/// * `target_w`, `target_h` - Dimensions of the destination screen area (pixels).
 ///
-/// # Returns
-/// Sub-pixel precise `(x, y)` coordinates in OS screen space.
+/// # Examples
+///
+/// ```
+/// use next_tablet_driver::core::math::transform::normalized_to_screen;
+///
+/// // Map the center of UV space to a 1920x1080 monitor starting at (0, 0)
+/// let (x, y) = normalized_to_screen(0.5, 0.5, 0.0, 0.0, 1920.0, 1080.0);
+/// assert_eq!(x, 960.0);
+/// assert_eq!(y, 540.0);
+/// ```
 pub fn normalized_to_screen(
     u: f32,
     v: f32,
@@ -95,21 +128,16 @@ pub fn normalized_to_screen(
     (screen_x, screen_y)
 }
 
-/// Computes the delta movement for **Relative** (mouse-like) driver mode.
+/// Computes the pixel delta for relative (mouse-like) movement.
 ///
-/// Instead of mapping absolute physical positions to absolute screen positions,
-/// relative mode acts like a traditional mouse, moving the cursor by an offset
-/// from its current location.
+/// This mode is typically used for general desktop navigation where
+/// the pen acts like a high-precision touchpad.
 ///
 /// # Arguments
-/// * `x_mm`, `y_mm` - The current physical location of the pen.
-/// * `last_x_mm`, `last_y_mm` - The previous physical location of the pen.
-/// * `rotation` - Rotational offset applied to the movement vector.
+/// * `x_mm`, `y_mm` - Current physical location of the pen.
+/// * `last_x_mm`, `last_y_mm` - Previous physical location of the pen.
+/// * `rotation` - Movement vector rotation in degrees.
 /// * `sens_x`, `sens_y` - Sensitivity multipliers (Pixels per Millimeter).
-///
-/// # Returns
-/// A tuple `(dx_px, dy_px)` representing how many pixels the cursor should be
-/// translated by this tick.
 pub fn apply_relative_delta(
     x_mm: f32,
     y_mm: f32,
@@ -124,7 +152,7 @@ pub fn apply_relative_delta(
 
     // Apply rotation to the movement vector
     if rotation != 0.0 {
-        let rad = rotation.to_radians(); // Note: Relative mode rotation is typically positive towards the right.
+        let rad = rotation.to_radians();
         let (sin, cos) = rad.sin_cos();
         let rx = dx_mm * cos - dy_mm * sin;
         let ry = dx_mm * sin + dy_mm * cos;
@@ -132,9 +160,65 @@ pub fn apply_relative_delta(
         dy_mm = ry;
     }
 
-    // Apply sensitivity mapping
+    // Convert millimeter movement into pixel movement
     let dx_px = dx_mm * sens_x;
     let dy_px = dy_mm * sens_y;
 
     (dx_px, dy_px)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_rotate_point_90_deg() {
+        let center = (0.5, 0.5);
+        // Top middle rotated 90 degrees around center should be Left middle
+        let (x, y) = rotate_point(0.5, 0.0, center.0, center.1, 90.0);
+        assert!((x - 0.0).abs() < 1e-6);
+        assert!((y - 0.5).abs() < 1e-6);
+    }
+
+    #[test]
+    fn test_rotate_point_180_deg() {
+        let center = (0.5, 0.5);
+        // Top left rotated 180 degrees should be Bottom right
+        let (x, y) = rotate_point(0.0, 0.0, center.0, center.1, 180.0);
+        assert!((x - 1.0).abs() < 1e-6);
+        assert!((y - 1.0).abs() < 1e-6);
+    }
+
+    #[test]
+    fn test_normalization_clamping_behavior() {
+        // Test that physical_to_normalized does NOT clamp (it should allow over-hovering)
+        let (u, v) = physical_to_normalized(150.0, 150.0, 50.0, 50.0, 100.0, 100.0, 0.0);
+        assert!(u > 1.0);
+        assert!(v > 1.0);
+    }
+
+    #[test]
+    fn test_screen_projection_clamping() {
+        // Test that normalized_to_screen DOES clamp
+        let (x, y) = normalized_to_screen(1.5, -0.5, 0.0, 0.0, 1000.0, 1000.0);
+        assert_eq!(x, 1000.0);
+        assert_eq!(y, 0.0);
+    }
+
+    #[test]
+    fn test_relative_delta_with_rotation() {
+        // Move 10mm right with 90 degree rotation should result in moving "down" in screen space
+        let (dx, dy) = apply_relative_delta(10.0, 0.0, 0.0, 0.0, 90.0, 1.0, 1.0);
+        // (10, 0) rotated 90 deg -> (0, 10)
+        assert!(dx.abs() < 1e-6);
+        assert!((dy - 10.0).abs() < 1e-6);
+    }
+
+    #[test]
+    fn test_zero_area_normalization() {
+        // Should not panic, even if results are Infinity or NaN
+        let (u, v) = physical_to_normalized(50.0, 50.0, 50.0, 50.0, 0.0, 0.0, 0.0);
+        assert!(u.is_nan() || u.is_infinite());
+        assert!(v.is_nan() || v.is_infinite());
+    }
 }

@@ -1,6 +1,6 @@
 [Setup]
 AppName=Next Tablet Driver
-AppVersion=1.26.2103.02
+AppVersion=1.26.2004.01
 AppPublisher=iSweat
 OutputBaseFilename=Next_Tablet_Driver_Setup_x64
 

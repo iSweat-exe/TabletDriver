@@ -1,14 +1,40 @@
-//! # NextTabletDriver Core Library
+//! # NextTabletDriver (NextTD) Core Library
 //!
-//! This library exposes the core modules of the NextTabletDriver application:
-//! - **`app`**: GUI application state, lifecycle, and auto-update flow.
-//! - **`core`**: Configuration models, math (transforms/matrices).
-//! - **`drivers`**: Tablet data parsing, configuration, and vendor-specific protocol handling.
-//! - **`engine`**: Event pipeline, shared state, input injection, and tablet management.
-//! - **`filters`**: Smoothing, antichatter, and statistics filters.
-//! - **`settings`**: Configuration loading/saving and session management.
-//! - **`startup`**: Windows startup registration (registry/shortcuts).
-//! - **`ui`**: egui panels, components, and theming.
+//! NextTabletDriver is a high-performance, cross-platform tablet driver designed for
+//! drawing and rhythm games (like osu!). It focuses on low latency, modularity,
+//! and broad hardware compatibility.
+//!
+//! ## Architecture Overview
+//!
+//! The driver operates as a pipeline with the following stages:
+//!
+//! 1.  **HID Detection & Polling** ([`drivers`]): Scans the USB bus for supported devices
+//!     using `hidapi` and initiates a high-frequency polling loop.
+//! 2.  **Packet Parsing** ([`drivers::parsers`]): Decodes vendor-specific byte arrays
+//!     into a standardized [`drivers::TabletData`] structure.
+//! 3.  **Filter Pipeline** ([`filters`]): Applies optional processing such as
+//!     antichatter (smoothing) or telemetry collection.
+//! 4.  **Coordinate Transformation** ([`core::math`]): Maps physical tablet coordinates
+//!     into normalized space, then projects them onto the target screen pixels.
+//! 5.  **Event Injection** ([`engine::injector`]): Injects the final coordinates and
+//!     button states into the operating system (uinput on Linux, SendInput on Windows).
+//!
+//! ## Threading Model
+//!
+//! NextTabletDriver uses a multi-threaded architecture to ensure UI responsiveness:
+//! *   **Input Engine Thread**: Handles HID polling and the entire processing pipeline.
+//! *   **GUI Thread**: Runs the `egui` interface for configuration and monitoring.
+//! *   **WebSocket Thread**: Provides real-time data to external integrations.
+//!
+//! ## Key Modules
+//! *   **[`app`]**: GUI application state and lifecycle management.
+//! *   **[`core`]**: Core configuration models and mathematical transforms.
+//! *   **[`drivers`]**: Protocol definitions and hardware-specific parsers.
+//! *   **[`engine`]**: The execution core that links the UI, drivers, and OS.
+//! *   **[`filters`]**: Digital signal processing for pen data.
+//! *   **[`settings`]**: Persistence logic for user configurations.
+//! *   **[`startup`]**: Platform-specific autostart registration.
+//! *   **[`ui`]**: Graphical components and theming.
 
 pub mod app;
 pub mod core;
@@ -20,12 +46,5 @@ pub mod settings;
 pub mod startup;
 pub mod ui;
 
-/// The current version of the application.
-///
-/// # Versioning Scheme
-/// Format: `V.YY.DDMM.SV`
-/// - `V`: Major Version
-/// - `YY`: Year
-/// - `DDMM`: Day and Month
-/// - `SV`: Sub-Version (e.g. build increment for the day)
-pub const VERSION: &str = "1.26.2103.02";
+/// Version.
+pub const VERSION: &str = "1.26.2004.01";

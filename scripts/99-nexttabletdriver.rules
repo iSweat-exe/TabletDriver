@@ -1,0 +1,26 @@
+# NextTabletDriver udev rules
+# Allows non-root users in the "input" group to access /dev/uinput
+# for creating virtual input devices.
+#
+# Installation:
+#   sudo cp 99-nexttabletdriver.rules /etc/udev/rules.d/
+#   sudo udevadm control --reload-rules
+#   sudo udevadm trigger
+#
+# Then add your user to the input group:
+#   sudo usermod -aG input $USER
+#
+# You will need to log out and back in for group changes to take effect.
+
+# Grant read/write access to /dev/uinput for the "input" group
+KERNEL=="uinput", SUBSYSTEM=="misc", MODE="0660", GROUP="input", TAG+="uaccess"
+
+# Grant read access to tablet HID devices via hidraw
+# This is needed so the driver can read raw USB packets from the tablet
+# without requiring root privileges.
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="056a", MODE="0660", GROUP="input"
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="28bd", MODE="0660", GROUP="input"
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="5543", MODE="0660", GROUP="input"
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="2179", MODE="0660", GROUP="input"
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="0416", MODE="0660", GROUP="input"
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="256c", MODE="0660", GROUP="input"

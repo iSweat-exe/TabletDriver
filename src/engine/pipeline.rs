@@ -7,6 +7,7 @@
 
 use crate::core::config::models::{DriverMode, MappingConfig};
 use crate::drivers::TabletData;
+use std::sync::Arc;
 use std::time::Duration;
 use std::time::Instant;
 
@@ -68,12 +69,27 @@ impl Pipeline {
         config: &MappingConfig,
         injector: &mut crate::engine::injector::Injector,
         filters: &mut crate::filters::FilterPipeline,
+        #[allow(unused_variables)] shared: &Arc<crate::engine::state::SharedState>,
     ) {
+        #[cfg(debug_assertions)]
+        let pipeline_start = Instant::now();
+
         if !data.is_connected {
             injector.set_left_button(false);
             self.reset_relative();
             filters.reset();
             return;
+        }
+
+        // Skip non-positional reports (aux, tool ID, out-of-range)
+        let status = data.status.as_str();
+        if !matches!(status, "Contact" | "Hover" | "Active") {
+            return;
+        }
+
+        #[cfg(debug_assertions)]
+        if let Ok(mut stage) = shared.debug_pipeline_stage.write() {
+            *stage = "Normalize".to_string();
         }
 
         let now = Instant::now();
@@ -82,6 +98,9 @@ impl Pipeline {
 
         let x_mm = (data.x as f32 / max_w) * phys_w;
         let y_mm = (data.y as f32 / max_h) * phys_h;
+
+        #[cfg(debug_assertions)]
+        let transform_start = Instant::now();
 
         let (mut u, mut v) = crate::core::math::transform::physical_to_normalized(
             x_mm,
@@ -93,9 +112,44 @@ impl Pipeline {
             config.active_area.rotation,
         );
 
+        #[cfg(debug_assertions)]
+        {
+            if let Ok(mut uv) = shared.debug_last_uv.write() {
+                *uv = (u, v);
+            }
+            shared.debug_transform_time_ns.store(
+                transform_start.elapsed().as_nanos() as u64,
+                std::sync::atomic::Ordering::Relaxed,
+            );
+        }
+
+        #[cfg(debug_assertions)]
+        if let Ok(mut stage) = shared.debug_pipeline_stage.write() {
+            *stage = "Filter".to_string();
+        }
+
+        #[cfg(debug_assertions)]
+        let filter_start = Instant::now();
+
         let (nx, ny) = filters.process(u, v, config);
         u = nx;
         v = ny;
+
+        #[cfg(debug_assertions)]
+        {
+            shared.debug_filter_time_ns.store(
+                filter_start.elapsed().as_nanos() as u64,
+                std::sync::atomic::Ordering::Relaxed,
+            );
+            if let Ok(mut fuv) = shared.debug_last_filtered_uv.write() {
+                *fuv = (u, v);
+            }
+        }
+
+        #[cfg(debug_assertions)]
+        if let Ok(mut stage) = shared.debug_pipeline_stage.write() {
+            *stage = "Project".to_string();
+        }
 
         match config.mode {
             DriverMode::Absolute => {
@@ -108,13 +162,16 @@ impl Pipeline {
                     config.target_area.h,
                 );
 
-                if (screen_x - self.last_screen_x).abs() > 0.1
-                    || (screen_y - self.last_screen_y).abs() > 0.1
+                #[cfg(debug_assertions)]
                 {
-                    injector.move_absolute(screen_x, screen_y);
-                    self.last_screen_x = screen_x;
-                    self.last_screen_y = screen_y;
+                    if let Ok(mut debug_sc) = shared.debug_last_screen.write() {
+                        *debug_sc = (screen_x, screen_y);
+                    }
                 }
+
+                injector.move_absolute(screen_x, screen_y, u, v);
+                self.last_screen_x = screen_x;
+                self.last_screen_y = screen_y;
             }
             DriverMode::Relative => {
                 if now.duration_since(self.last_packet_time)
@@ -135,11 +192,24 @@ impl Pipeline {
                         config.relative_config.y_sensitivity,
                     );
                     injector.move_relative(dx_px, dy_px);
+
+                    // Approximate screen pos — no absolute reference in relative mode
+                    #[cfg(debug_assertions)]
+                    {
+                        if let Ok(mut debug_sc) = shared.debug_last_screen.write() {
+                            *debug_sc = (debug_sc.0 + dx_px, debug_sc.1 + dy_px);
+                        }
+                    }
                 }
 
                 self.last_screen_x = x_mm;
                 self.last_screen_y = y_mm;
             }
+        }
+
+        #[cfg(debug_assertions)]
+        if let Ok(mut stage) = shared.debug_pipeline_stage.write() {
+            *stage = "Inject".to_string();
         }
 
         let pressure = if config.disable_pressure {
@@ -151,5 +221,16 @@ impl Pipeline {
         let is_down = pressure as f32 > threshold_raw;
 
         injector.set_left_button(is_down);
+
+        #[cfg(debug_assertions)]
+        {
+            shared
+                .debug_inject_count
+                .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+            shared.debug_pipeline_time_ns.store(
+                pipeline_start.elapsed().as_nanos() as u64,
+                std::sync::atomic::Ordering::Relaxed,
+            );
+        }
     }
 }

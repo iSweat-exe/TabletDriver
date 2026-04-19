@@ -1,7 +1,6 @@
 use chrono::Local;
-use lazy_static::lazy_static;
 use log::{LevelFilter, Log, Metadata, Record};
-use std::sync::{Arc, RwLock};
+use std::sync::{Arc, LazyLock, RwLock};
 
 #[derive(Debug, Clone)]
 pub struct LogEntry {
@@ -15,9 +14,8 @@ pub struct GlobalLogger {
     pub entries: Arc<RwLock<Vec<LogEntry>>>,
 }
 
-lazy_static! {
-    pub static ref LOG_BUFFER: Arc<RwLock<Vec<LogEntry>>> = Arc::new(RwLock::new(Vec::new()));
-}
+pub static LOG_BUFFER: LazyLock<Arc<RwLock<Vec<LogEntry>>>> =
+    LazyLock::new(|| Arc::new(RwLock::new(Vec::new())));
 
 impl Log for GlobalLogger {
     fn enabled(&self, _metadata: &Metadata) -> bool {
@@ -28,7 +26,7 @@ impl Log for GlobalLogger {
         if self.enabled(record.metadata()) {
             let target = record.target();
 
-            // Define relevant targets for the in-app console
+            // Whitelist: only these named targets appear in the in-app console
             let allowed_targets = [
                 "App",
                 "Detect",
@@ -42,6 +40,7 @@ impl Log for GlobalLogger {
                 "TabletManager",
                 "Startup",
                 "Settings",
+                "Timer",
             ];
             let is_allowed =
                 allowed_targets.contains(&target) || target.starts_with("NextTabletDriver");
@@ -53,7 +52,6 @@ impl Log for GlobalLogger {
                 message: format!("{}", record.args()),
             };
 
-            // Print to stdout for debugging (will show if console window is visible)
             if cfg!(debug_assertions) {
                 let log_line = format!(
                     "[{}] {} [{}] {}",
@@ -61,7 +59,6 @@ impl Log for GlobalLogger {
                 );
                 println!("{}", log_line);
 
-                // Write to debug.log file (always write all logs to file)
                 if let Ok(mut file) = std::fs::OpenOptions::new()
                     .create(true)
                     .append(true)
@@ -72,11 +69,10 @@ impl Log for GlobalLogger {
                 }
             }
 
-            // Only buffer allowed targets for the in-app UI to keep it clean and fast
             if is_allowed && let Ok(mut entries) = self.entries.write() {
                 entries.push(entry);
 
-                // Cap the buffer at 500 entries to prevent memory issues
+                // Ring buffer: evict oldest when full
                 if entries.len() > 500 {
                     entries.remove(0);
                 }

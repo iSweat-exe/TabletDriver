@@ -2,39 +2,51 @@
 //!
 //! This module defines the data structures used to serialize and deserialize
 //! the application's configuration state (typically saved to `settings.json`).
-//! It includes models for tablet mapping arrays, UI preferences, and filter settings.
+//! It includes models for tablet mapping areas, UI preferences, and filter settings.
 
 use serde::{Deserialize, Serialize};
 
 /// Represents the absolute physical mapping area on the tablet surface.
 ///
-/// Units are in **millimeters** representing the distance from the top-left corner
-/// of the tablet's active zone.
+/// All spatial coordinates in this struct are in **millimeters**.
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
 pub struct ActiveArea {
-    pub x: f32,        // Millimeters
-    pub y: f32,        // Millimeters
-    pub w: f32,        // Millimeters
-    pub h: f32,        // Millimeters
-    pub rotation: f32, // Degrees
+    /// Horizontal offset from the center of the tablet surface.
+    pub x: f32,
+    /// Vertical offset from the center of the tablet surface.
+    pub y: f32,
+    /// Total width of the mapping zone.
+    pub w: f32,
+    /// Total height of the mapping zone.
+    pub h: f32,
+    /// Clockwise rotation of the active area in degrees.
+    pub rotation: f32,
 }
 
-/// Represents the target mapping area on the user's connected monitors.
+/// Represents the target mapping area on the user's monitors.
 ///
-/// Units are in absolute virtual **pixels** spanning across all displays.
+/// All coordinates in this struct are in absolute virtual **pixels**
+/// spanning across all connected displays.
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
 pub struct TargetArea {
-    pub x: f32, // Pixels
-    pub y: f32, // Pixels
-    pub w: f32, // Pixels
-    pub h: f32, // Pixels
+    /// Horizontal pixel offset from the top-left of the virtual desktop.
+    pub x: f32,
+    /// Vertical pixel offset from the top-left of the virtual desktop.
+    pub y: f32,
+    /// Total width of the mapped screen region.
+    pub w: f32,
+    /// Total height of the mapped screen region.
+    pub h: f32,
 }
 
 /// Determines how pen movement translates to cursor movement.
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, Default)]
 pub enum DriverMode {
+    /// Maps specific points on the tablet to specific points on the screen.
+    /// Primarily used for drawing and osu!.
     #[default]
     Absolute,
+    /// Moves the cursor relative to its current position, similar to a mouse.
     Relative,
 }
 
@@ -51,12 +63,16 @@ pub enum ThemePreference {
     CatppuccinMocha,
 }
 
-/// Settings specific to `Relative` (mouse-like) driver mode.
+/// Settings specific to [`DriverMode::Relative`] operation.
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
 pub struct RelativeConfig {
+    /// Pixels per millimeter on the horizontal axis.
     pub x_sensitivity: f32,
+    /// Pixels per millimeter on the vertical axis.
     pub y_sensitivity: f32,
+    /// Rotation applied to the movement vector in degrees.
     pub rotation: f32,
+    /// Time in milliseconds before relative movement resets (prevents drift).
     pub reset_time_ms: u32,
 }
 
@@ -228,6 +244,8 @@ pub struct MappingConfig {
     pub pen_button_bindings: Vec<String>,
     #[serde(default = "default_false")]
     pub run_at_startup: bool,
+    #[serde(default = "default_false")]
+    pub system_tray_on_minimize: bool,
     #[serde(default)]
     pub websocket: WebSocketConfig,
     #[serde(default)]
@@ -236,4 +254,67 @@ pub struct MappingConfig {
     pub lock_aspect_ratio: bool,
     #[serde(default)]
     pub show_osu_playfield: bool,
+}
+
+impl MappingConfig {
+    /// Creates a default configuration suitable for testing environments.
+    pub fn default_test() -> Self {
+        Self {
+            mode: DriverMode::Absolute,
+            active_area: ActiveArea {
+                x: 80.0,
+                y: 50.0,
+                w: 160.0,
+                h: 100.0,
+                rotation: 0.0,
+            },
+            target_area: TargetArea {
+                x: 0.0,
+                y: 0.0,
+                w: 1920.0,
+                h: 1080.0,
+            },
+            relative_config: RelativeConfig::default(),
+            antichatter: AntichatterConfig::default(),
+            speed_stats: SpeedStatsConfig::default(),
+            tip_threshold: 10,
+            eraser_threshold: 10,
+            disable_pressure: false,
+            disable_tilt: false,
+            tip_binding: default_tip_binding(),
+            eraser_binding: default_eraser_binding(),
+            pen_button_bindings: default_button_bindings(),
+            run_at_startup: false,
+            system_tray_on_minimize: false,
+            websocket: WebSocketConfig::default(),
+            theme: ThemePreference::System,
+            lock_aspect_ratio: false,
+            show_osu_playfield: false,
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_config_serialization() {
+        let config = MappingConfig::default_test();
+        let json = serde_json::to_string(&config).unwrap();
+        let deserialized: MappingConfig = serde_json::from_str(&json).unwrap();
+        assert_eq!(config, deserialized);
+    }
+
+    #[test]
+    fn test_active_area_logic() {
+        let area = ActiveArea {
+            x: 10.0,
+            y: 10.0,
+            w: 20.0,
+            h: 20.0,
+            rotation: 0.0,
+        };
+        assert_eq!(area.w, 20.0);
+    }
 }

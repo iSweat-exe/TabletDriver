@@ -77,8 +77,8 @@ pub fn render_tablet_section(app: &TabletMapperApp, ui: &mut egui::Ui, config: &
                 .circle_filled(egui::pos2(aa_center_x, aa_center_y), 1.5, stroke_color);
 
             if config.show_osu_playfield {
-                // Dynamic Osu! playfield calculation using actual Target Area (Screen Resolution)
-                // Proportionally maps 1316x1028 (at 1080p) to the user's specific monitor
+                // Map the 1316×1028 osu! playfield (at 1080p reference) proportionally
+                // onto the user's actual active area and screen resolution
                 let target_w = config.target_area.w;
                 let target_h = config.target_area.h;
 
@@ -127,11 +127,12 @@ pub fn render_tablet_section(app: &TabletMapperApp, ui: &mut egui::Ui, config: &
                 (points[0].y + points[3].y) / 2.0,
             );
             let galley = ui.fonts_mut(|f| {
-                f.layout_no_wrap(
-                    format!("{:.2}mm", config.active_area.h).replace(".", ","),
-                    font_id.clone(),
-                    color,
-                )
+                let text = format!("{:.2}", config.active_area.h)
+                    .trim_end_matches('0')
+                    .trim_end_matches('.')
+                    .replace(".", ",")
+                    + "mm";
+                f.layout_no_wrap(text, font_id.clone(), color)
             });
             ui.painter().add(egui::epaint::TextShape {
                 pos: left_mid
@@ -164,10 +165,15 @@ pub fn render_tablet_section(app: &TabletMapperApp, ui: &mut egui::Ui, config: &
                 (points[0].x + points[1].x) / 2.0,
                 (points[0].y + points[1].y) / 2.0,
             );
+            let text_w = format!("{:.2}", config.active_area.w)
+                .trim_end_matches('0')
+                .trim_end_matches('.')
+                .replace(".", ",")
+                + "mm";
             ui.painter().text(
                 top_mid + egui::vec2(5.0 * rot_rad.sin(), 5.0 * rot_rad.cos()),
                 egui::Align2::CENTER_TOP,
-                format!("{:.2}mm", config.active_area.w).replace(".", ","),
+                text_w,
                 font_id.clone(),
                 color,
             );
@@ -268,6 +274,12 @@ pub fn render_tablet_section(app: &TabletMapperApp, ui: &mut egui::Ui, config: &
                     ui_input_box(ui, "X", &mut config.active_area.x, "mm");
                     ui_input_box(ui, "Y", &mut config.active_area.y, "mm");
                     ui_input_box(ui, "Rotation", &mut config.active_area.rotation, "°");
+
+                    config.active_area.rotation %= 360.0;
+                    if config.active_area.rotation < 0.0 {
+                        config.active_area.rotation += 360.0;
+                    }
+
                     ui.end_row();
 
                     config.active_area.w = config.active_area.w.clamp(1.0, phys_w);

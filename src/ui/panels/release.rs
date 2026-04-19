@@ -11,6 +11,25 @@ struct ReleaseEntry {
 
 const RELEASES: &[ReleaseEntry] = &[
     ReleaseEntry {
+        version: "1.26.2004.01",
+        date: "20/04/2026",
+        additions: &[
+            "Add: 'Developer' debug tab for real-time pipeline telemetry and HID packet inspection",
+            "Add: Extensive support for new tablet drivers (Acepen, Bosto, Floogoo, Genius, Lifetec, Robotpen, Tenmoon, UC-Logic, ViewSonic, and numerous Wacom models)",
+        ],
+        removals: &["Remove: Support panel"],
+        fixes: &[
+            "Fix: Cursor teleportation bug occurring upon tablet connection",
+            "Fix: Input not registering at the exact [0, 0] coordinate",
+            "Fix: Pen hover distance detection (out-of-range) not properly clearing state on timeout",
+        ],
+        improvements: &[
+            "Improve: Complete refactoring and modularization of tablet driver parsers",
+            "Improve: Debugger UI responsiveness with optimized 16ms temporal throttling",
+            "Improve: Codebase maintainability through comprehensive comment auditing and cleanup",
+        ],
+    },
+    ReleaseEntry {
         version: "1.26.2103.02",
         date: "21/03/2026",
         additions: &[],
@@ -116,71 +135,127 @@ const RELEASES: &[ReleaseEntry] = &[
 pub fn render_release_panel(_app: &crate::app::state::TabletMapperApp, ui: &mut egui::Ui) {
     ui.vertical_centered(|ui| {
         ui.add_space(20.0);
-        ui.heading("Release History");
-        ui.add_space(10.0);
+        ui.label(egui::RichText::new("Release History").size(24.0).strong());
+        ui.add_space(15.0);
     });
 
     egui::ScrollArea::vertical()
         .auto_shrink([false; 2])
         .show(ui, |ui| {
             ui.add_space(10.0);
-
             for release in RELEASES {
                 render_release_entry(ui, release);
-                ui.add_space(15.0);
+                ui.add_space(20.0);
             }
-
             ui.add_space(10.0);
         });
 }
 
 fn render_release_entry(ui: &mut egui::Ui, entry: &ReleaseEntry) {
-    egui::Frame::group(ui.style())
-        .fill(ui.visuals().faint_bg_color)
-        .corner_radius(8.0)
-        .inner_margin(12.0)
+    let visuals = ui.visuals();
+    let card_bg = visuals.window_fill.gamma_multiply(0.6);
+    let border_color = visuals
+        .widgets
+        .noninteractive
+        .bg_stroke
+        .color
+        .gamma_multiply(0.4);
+
+    egui::Frame::new()
+        .fill(card_bg)
+        .corner_radius(4.0)
+        .stroke(egui::Stroke::new(1.0, border_color))
+        .inner_margin(egui::Margin::symmetric(20, 15))
         .show(ui, |ui| {
             ui.set_width(ui.available_width());
             ui.vertical(|ui| {
                 ui.horizontal(|ui| {
-                    ui.heading(format!("Next Tablet Driver | v{}", entry.version));
+                    ui.label(
+                        egui::RichText::new(format!("Next Tablet Driver | v{}", entry.version))
+                            .size(16.0)
+                            .strong(),
+                    );
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                        ui.label(egui::RichText::new(entry.date).weak());
+                        ui.label(egui::RichText::new(entry.date).weak().size(12.0));
                     });
                 });
 
-                ui.add_space(8.0);
+                ui.add_space(12.0);
 
-                if !entry.additions.is_empty() {
-                    ui.label(egui::RichText::new("Additions").strong());
-                    for add in entry.additions {
-                        ui.label(format!("• {}", add));
-                    }
-                    ui.add_space(8.0);
-                }
-
-                if !entry.removals.is_empty() {
-                    ui.label(egui::RichText::new("Removals").strong());
-                    for rem in entry.removals {
-                        ui.label(format!("• {}", rem));
-                    }
-                    ui.add_space(8.0);
-                }
-
-                if !entry.fixes.is_empty() {
-                    ui.label(egui::RichText::new("Fixes").strong());
-                    for fix in entry.fixes {
-                        ui.label(format!("• {}", fix));
-                    }
-                    ui.add_space(8.0);
-                }
-
-                if !entry.improvements.is_empty() {
-                    ui.label(egui::RichText::new("Improvements").strong());
-                    for imp in entry.improvements {
-                        ui.label(format!("• {}", imp));
-                    }
-                }
+                render_category(
+                    ui,
+                    "NEW",
+                    egui_phosphor::regular::PLUS_CIRCLE,
+                    egui::Color32::from_rgb(166, 227, 161),
+                    entry.additions,
+                );
+                render_category(
+                    ui,
+                    "FIX",
+                    egui_phosphor::regular::WRENCH,
+                    egui::Color32::from_rgb(249, 226, 175),
+                    entry.fixes,
+                );
+                render_category(
+                    ui,
+                    "IMP",
+                    egui_phosphor::regular::CHART_LINE_UP,
+                    egui::Color32::from_rgb(137, 180, 250),
+                    entry.improvements,
+                );
+                render_category(
+                    ui,
+                    "DEL",
+                    egui_phosphor::regular::MINUS_CIRCLE,
+                    egui::Color32::from_rgb(243, 139, 168),
+                    entry.removals,
+                );
             });
         });
+}
+
+fn render_category(
+    ui: &mut egui::Ui,
+    label: &str,
+    icon: &str,
+    color: egui::Color32,
+    items: &[&str],
+) {
+    if items.is_empty() {
+        return;
+    }
+
+    ui.horizontal(|ui| {
+        egui::Frame::new()
+            .fill(color.gamma_multiply(0.1))
+            .stroke(egui::Stroke::new(1.0, color.gamma_multiply(0.5)))
+            .corner_radius(4.0)
+            .inner_margin(egui::Margin::symmetric(6, 2))
+            .show(ui, |ui| {
+                ui.label(
+                    egui::RichText::new(format!("{} {}", icon, label))
+                        .color(color)
+                        .size(10.0)
+                        .strong(),
+                );
+            });
+    });
+
+    ui.add_space(4.0);
+
+    for item in items {
+        ui.horizontal(|ui| {
+            ui.add_space(8.0);
+            ui.label(egui_phosphor::regular::CARET_RIGHT);
+            ui.add_space(4.0);
+            ui.label(
+                egui::RichText::new(*item)
+                    .size(12.5)
+                    .color(ui.visuals().text_color().gamma_multiply(0.8)),
+            );
+        });
+        ui.add_space(2.0);
+    }
+
+    ui.add_space(10.0);
 }

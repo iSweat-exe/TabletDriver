@@ -33,7 +33,7 @@ use std::time::{Duration, Instant};
 /// 5. **Disconnection Hook**: If reading fails, cleans up state and drops back to detection loop.
 pub fn run_manager(
     shared: Arc<SharedState>,
-    ctx: egui::Context,
+    _ctx: egui::Context,
     tablet_sender: Sender<crate::drivers::TabletData>,
 ) {
     log::info!(target: "TabletManager", "Starting device manager thread");
@@ -43,11 +43,41 @@ pub fn run_manager(
     let mut injector = Injector::new();
     let mut pipeline = Pipeline::new();
 
+    #[cfg(windows)]
+    unsafe {
+        use windows_sys::Win32::System::Threading::{
+            GetCurrentThread, SetThreadPriority, THREAD_PRIORITY_TIME_CRITICAL,
+        };
+        // Set engine thread to Time Critical for minimum scheduling jitter
+        if SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_TIME_CRITICAL) != 0 {
+            log::info!(target: "TabletManager", "Thread priority set to TIME_CRITICAL");
+        } else {
+            log::warn!(target: "TabletManager", "Failed to set thread priority to TIME_CRITICAL");
+        }
+    }
+
+    #[cfg(target_os = "linux")]
+    {
+        // Attempt to lower nice value for higher scheduling priority.
+        // This may silently fail without CAP_SYS_NICE — that's acceptable,
+        // the driver will still work at normal priority.
+        unsafe {
+            let ret = libc::nice(-11);
+            if ret == -1 {
+                log::info!(target: "TabletManager", "Running at normal priority (CAP_SYS_NICE not available)");
+            } else {
+                log::info!(target: "TabletManager", "Thread priority increased (nice -11)");
+            }
+        }
+    }
+
     let mut local_config = shared.config.read().unwrap().clone();
     let mut local_config_version = shared.config_version.load(Ordering::Relaxed);
     let mut last_config_check = Instant::now();
+    let mut last_stats_update = Instant::now();
 
     let mut filters = crate::filters::FilterPipeline::new();
+    log::debug!(target: "TabletManager", "Initializing filters...");
     filters.add(Box::new(
         crate::filters::antichatter::DevocubAntichatter::new(),
     ));
@@ -55,6 +85,7 @@ pub fn run_manager(
         Arc::clone(&shared),
     )));
     filters.update_config(&local_config);
+    log::info!(target: "TabletManager", "Filter pipeline ready");
 
     loop {
         if let Some((device, driver, vid, pid)) = detect_tablet(&hid_api) {
@@ -84,6 +115,11 @@ pub fn run_manager(
                 }
             }
 
+            // Drain stale packets left by init sequence to prevent cursor teleport
+            let mut drain_buf = [0u8; 64];
+            while device.read_timeout(&mut drain_buf, 10).unwrap_or(0) > 0 {}
+            pipeline.reset_relative();
+
             let mut buf = [0u8; 64];
             loop {
                 let hid_read_start = Instant::now();
@@ -96,9 +132,22 @@ pub fn run_manager(
                             data.receive_time = Some(hid_read_start);
                             data.parser_time = parse_duration;
 
+                            pipeline.process(
+                                &data,
+                                driver.as_ref(),
+                                &local_config,
+                                &mut injector,
+                                &mut filters,
+                                &shared,
+                            );
+
                             shared.packet_count.fetch_add(1, Ordering::Relaxed);
 
-                            if let Ok(mut stats) = shared.stats.write() {
+                            let now = Instant::now();
+                            if now.duration_since(last_stats_update) > Duration::from_millis(16)
+                                && let Ok(mut stats) = shared.stats.write()
+                            {
+                                last_stats_update = now;
                                 stats.total_packets =
                                     shared.packet_count.load(Ordering::Relaxed) as u64;
 
@@ -127,21 +176,24 @@ pub fn run_manager(
                                 last_config_check = now;
                             }
 
-                            // Inject UI updates
                             let _ = tablet_sender.send(data.clone());
-                            ctx.request_repaint();
-
-                            // Process the packet and apply coordinate transforms + OS injection
-                            pipeline.process(
-                                &data,
-                                driver.as_ref(),
-                                &local_config,
-                                &mut injector,
-                                &mut filters,
-                            );
                         }
                     }
                     Ok(_) => {
+                        let out_of_range = crate::drivers::TabletData {
+                            status: "Out of Range".to_string(),
+                            ..Default::default()
+                        };
+                        pipeline.process(
+                            &out_of_range,
+                            driver.as_ref(),
+                            &local_config,
+                            &mut injector,
+                            &mut filters,
+                            &shared,
+                        );
+                        let _ = tablet_sender.send(out_of_range);
+
                         let cv = shared.config_version.load(Ordering::Relaxed);
                         if cv != local_config_version {
                             local_config = shared.config.read().unwrap().clone();
@@ -149,8 +201,9 @@ pub fn run_manager(
                             filters.update_config(&local_config);
                         }
                     }
-                    Err(_) => {
-                        log::warn!(target: "TabletManager", "Tablet disconnected");
+                    Err(e) => {
+                        log::error!(target: "TabletManager", "HID Read Error: {}", e);
+                        log::warn!(target: "TabletManager", "Tablet disconnected or bus reset");
                         break;
                     } // Disconnected
                 }

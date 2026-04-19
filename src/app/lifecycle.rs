@@ -8,6 +8,8 @@ use display_info::DisplayInfo;
 use std::sync::Arc;
 use std::sync::RwLock;
 use std::sync::atomic::AtomicU32;
+#[cfg(debug_assertions)]
+use std::sync::atomic::AtomicU64;
 use std::thread;
 use std::time::Instant;
 
@@ -37,6 +39,16 @@ impl TabletMapperApp {
     /// 6. **Auto-Updater Thread**: Spawns a background thread to check GitHub releases
     ///    for newer versions of the software.
     pub fn new(_ctx: eframe::egui::Context) -> Self {
+        #[cfg(windows)]
+        unsafe {
+            use windows_sys::Win32::Media::timeBeginPeriod;
+            use windows_sys::Win32::System::Threading::{
+                GetCurrentProcess, HIGH_PRIORITY_CLASS, SetPriorityClass,
+            };
+            timeBeginPeriod(1);
+            SetPriorityClass(GetCurrentProcess(), HIGH_PRIORITY_CLASS);
+        }
+
         let displays = DisplayInfo::all().unwrap_or_default();
 
         let loaded_config = load_last_session();
@@ -77,11 +89,30 @@ impl TabletMapperApp {
                 theme: crate::core::config::models::ThemePreference::System,
                 lock_aspect_ratio: false,
                 show_osu_playfield: false,
+                system_tray_on_minimize: false,
             }
         };
 
-        // Apply theme before shared state move
         crate::ui::theme::apply_theme(&_ctx, config.theme);
+
+        let mut fonts = eframe::egui::FontDefinitions::default();
+
+        egui_phosphor::add_to_fonts(&mut fonts, egui_phosphor::Variant::Regular);
+
+        fonts.font_data.insert(
+            "Helvetica".to_owned(),
+            std::sync::Arc::new(eframe::egui::FontData::from_static(include_bytes!(
+                "../../resources/fonts/Helvetica.ttf"
+            ))),
+        );
+
+        fonts
+            .families
+            .entry(eframe::egui::FontFamily::Proportional)
+            .or_default()
+            .insert(0, "Helvetica".to_owned());
+
+        _ctx.set_fonts(fonts);
 
         let shared = Arc::new(SharedState {
             config: RwLock::new(config),
@@ -95,11 +126,27 @@ impl TabletMapperApp {
             is_first_run: RwLock::new(is_first_run),
             packet_count: AtomicU32::new(0),
             stats: RwLock::new(crate::drivers::DriverStats::default()),
+
+            #[cfg(debug_assertions)]
+            debug_pipeline_stage: RwLock::new("Idle".to_string()),
+            #[cfg(debug_assertions)]
+            debug_last_uv: RwLock::new((0.0, 0.0)),
+            #[cfg(debug_assertions)]
+            debug_last_filtered_uv: RwLock::new((0.0, 0.0)),
+            #[cfg(debug_assertions)]
+            debug_last_screen: RwLock::new((0.0, 0.0)),
+            #[cfg(debug_assertions)]
+            debug_inject_count: AtomicU32::new(0),
+            #[cfg(debug_assertions)]
+            debug_filter_time_ns: AtomicU64::new(0),
+            #[cfg(debug_assertions)]
+            debug_transform_time_ns: AtomicU64::new(0),
+            #[cfg(debug_assertions)]
+            debug_pipeline_time_ns: AtomicU64::new(0),
         });
 
         let (tablet_sender, tablet_receiver) = crossbeam_channel::unbounded();
 
-        // Spawn Input Thread
         let thread_shared = Arc::clone(&shared);
         let thread_ctx = _ctx.clone();
         log::info!(target: "App", "Spawning Input Engine thread");
@@ -107,7 +154,6 @@ impl TabletMapperApp {
             run_manager(thread_shared, thread_ctx, tablet_sender);
         });
 
-        // Spawn WebSocket Setup Thread
         let ws_shared = Arc::clone(&shared);
         log::info!(target: "App", "Spawning WebSocket thread");
         thread::spawn(move || {
@@ -124,6 +170,75 @@ impl TabletMapperApp {
             Err(e) => {
                 log::error!(target: "Update", "Failed to check for updates: {}", e);
             }
+        });
+
+        let icon_bytes = include_bytes!("../../resources/icon.png");
+        let image = image::load_from_memory(icon_bytes)
+            .expect("Failed to load icon")
+            .into_rgba8();
+        let (width, height) = image.dimensions();
+        let icon = tray_icon::Icon::from_rgba(image.into_raw(), width, height).unwrap();
+
+        let tray_icon = tray_icon::TrayIconBuilder::new()
+            .with_icon(icon)
+            .with_tooltip("NextTabletDriver")
+            .build()
+            .ok();
+
+        let tray_ctx = _ctx.clone();
+        thread::spawn(move || {
+            let receiver = tray_icon::TrayIconEvent::receiver();
+            log::info!(target: "Tray", "System Tray listener background thread started");
+            while let Ok(event) = receiver.recv() {
+                log::info!(target: "Tray", "Received Tray Event: {:?}", event);
+
+                let matches = matches!(
+                    event,
+                    tray_icon::TrayIconEvent::Click {
+                        button: tray_icon::MouseButton::Left,
+                        ..
+                    } | tray_icon::TrayIconEvent::DoubleClick {
+                        button: tray_icon::MouseButton::Left,
+                        ..
+                    }
+                );
+
+                if matches {
+                    log::info!(target: "Tray", "Restoring eframe UI...");
+
+                    #[cfg(windows)]
+                    {
+                        #[link(name = "user32")]
+                        unsafe extern "system" {
+                            fn FindWindowA(
+                                lpClassName: *const std::ffi::c_char,
+                                lpWindowName: *const std::ffi::c_char,
+                            ) -> isize;
+                            fn ShowWindow(hWnd: isize, nCmdShow: i32) -> i32;
+                            fn SetForegroundWindow(hWnd: isize) -> i32;
+                        }
+                        unsafe {
+                            let title = format!("NextTabletDriver v{}\0", crate::VERSION);
+                            // Find our window by title for native Win32 restore
+                            let hwnd = FindWindowA(std::ptr::null(), title.as_ptr() as *const _);
+                            if hwnd != 0 {
+                                log::info!(target: "Tray", "Native window found (HWND: {}), restoring...", hwnd);
+                                ShowWindow(hwnd, 9); // SW_RESTORE
+                                SetForegroundWindow(hwnd);
+                            } else {
+                                log::warn!(target: "Tray", "FindWindowA could not find target window title: {:?}", title);
+                            }
+                        }
+                    }
+
+                    // Sync eframe viewport state with the native window restore above
+                    tray_ctx.send_viewport_cmd(eframe::egui::ViewportCommand::Minimized(false));
+                    tray_ctx.send_viewport_cmd(eframe::egui::ViewportCommand::Visible(true));
+                    tray_ctx.send_viewport_cmd(eframe::egui::ViewportCommand::Focus);
+                    tray_ctx.request_repaint();
+                }
+            }
+            log::error!(target: "Tray", "System Tray listener thread died!");
         });
 
         Self {
@@ -145,6 +260,25 @@ impl TabletMapperApp {
             min_ui_latency_ms: f32::MAX,
             max_ui_latency_ms: 0.0,
             avg_ui_latency_ms: 0.0,
+            was_minimized: false,
+            console_search: String::new(),
+            console_show_info: true,
+            console_show_warn: true,
+            console_show_error: true,
+            console_show_debug: true,
+            console_autoscroll: true,
+            tray_icon,
+
+            #[cfg(debug_assertions)]
+            dev_pause_pipeline: false,
+            #[cfg(debug_assertions)]
+            dev_raw_hid_history: std::collections::VecDeque::with_capacity(50),
+            #[cfg(debug_assertions)]
+            dev_pipeline_log: std::collections::VecDeque::with_capacity(30),
+            #[cfg(debug_assertions)]
+            dev_show_full_config: false,
+            #[cfg(debug_assertions)]
+            dev_filter_details_open: false,
         }
     }
 }

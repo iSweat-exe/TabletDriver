@@ -1,108 +1,58 @@
 # NextTabletDriver (NextTD)
 
-> A high-performance user-mode drawing tablet driver written in Rust, designed to minimize input lag. A modern alternative to OpenTabletDriver.
+NextTabletDriver is a high-performance, cross-platform tablet driver designed for artists and rhythm game players. It provides a modern alternative to vendor-specific drivers, focusing on low latency, hardware compatibility, and a streamlined user experience.
 
-![Windows](https://img.shields.io/badge/Windows-0078D6?style=for-the-badge&logo=windows&logoColor=white)
-![Rust](https://img.shields.io/badge/Rust-000000?style=for-the-badge&logo=rust&logoColor=white)
-![License](https://img.shields.io/github/license/Next-Tablet-Driver/NextTabletDriver?style=for-the-badge)
-![Release](https://img.shields.io/github/v/release/Next-Tablet-Driver/NextTabletDriver?style=for-the-badge)
-![Stars](https://img.shields.io/github/stars/Next-Tablet-Driver/NextTabletDriver?style=for-the-badge)
+## Key Features
 
----
+- **High-Frequency Polling**: Optimized for 1000Hz+ reporting rates to ensure minimal input delay.
+- **Native Linux Support**: Uses the kernel's `uinput` interface for seamless compatibility with X11 and Wayland.
+- **Advanced Mapping**: Precise control over active area, rotation, and screen projection with sub-pixel accuracy.
+- **Modular Filter System**: Includes industry-standard smoothing filters (like Devocub Antichatter) to eliminate sensor noise.
+- **Cross-Platform**: Consistent experience across Windows and Linux.
+- **WebSocket Integration**: Real-time telemetry for streaming overlays and external tools.
 
-## ✨ Features
+## Supported Hardware
 
-- ⚡ **Ultra-low input lag** : optimized at the driver level for maximum responsiveness
-- 🎨 **Drawing & osu! ready** : designed for digital artists and osu! players
-- 🖥️ **User-mode driver** : no need to install kernel-level drivers
-- 🔌 **HID support** : communicates directly with tablets via HID protocol
-- 🌐 **WebSocket support** : real-time communication via `tungstenite`
-- 🖱️ **Area mapping** : configure tablet area, screen mapping and more
-- 💾 **Persistent settings** : configuration saved locally via `serde_json`
-- 🪟 **Windows support** : native Windows integration via `windows-sys`
+NextTabletDriver supports a wide range of tablets from various manufacturers, including:
 
----
+- **Wacom** (Intuos, Bamboo, One, etc.)
+- **Huion** (Kamvas, Inspiroy, etc.)
+- **Gaomon**
+- **XP-Pen**
+- **VEIKK**
+- **Artisul**
+- ...and many others via community-contributed JSON configurations.
 
-## 📦 Installation
+## Installation
 
-1. Go to the [**Releases**](https://github.com/Next-Tablet-Driver/NextTabletDriver/releases) page
-2. Download the latest installer (`.exe`)
-3. Run the installer and follow the instructions
-4. Launch **NextTabletDriver** and configure your tablet
+### Windows
+1. Download the latest release.
+2. Run the installer or extract the portable version.
+3. Launch `next_tablet_driver.exe`.
 
-> ⚠️ Windows only for now.
+### Linux
+1. Ensure the `uinput` kernel module is loaded.
+2. Install the provided udev rules to grant permission to your user:
+   ```bash
+   sudo cp scripts/99-nexttabletdriver.rules /etc/udev/rules.d/
+   sudo udevadm control --reload-rules && sudo udevadm trigger
+   sudo usermod -aG input $USER
+   ```
+3. Log out and back in.
+4. Run the driver executable.
 
----
+## Documentation for Developers
 
-## 🛠️ Build from Source
-
-### Prerequisites
-
-- [Rust](https://rustup.rs/) (edition 2021)
-- Windows 10 or later
-
-### Steps
+The core logic of NextTabletDriver is written in Rust. You can generate the technical documentation by running:
 
 ```bash
-git clone https://github.com/Next-Tablet-Driver/NextTabletDriver.git
-cd NextTabletDriver
-cargo build --release
+cargo doc --no-deps --open
 ```
 
-The compiled binary will be available in `./target/release/`.
+## Contributing
 
----
+We welcome contributions! Whether it's adding support for a new tablet model, fixing a bug, or suggesting a feature, please feel free to open an issue or submit a pull request on GitHub.
 
-## 🗂️ Project Structure
+## License
 
-```
-NextTabletDriver/
-├── .github/        # GitHub Actions & workflows
-├── resources/      # Application resources (icons, assets)
-├── src/            # Source code
-├── tablets/        # Tablet configuration files
-├── build.rs        # Build script (Windows resources)
-├── installer.iss   # Inno Setup installer script
-├── Cargo.toml      # Project dependencies
-└── Cargo.lock
-```
-
----
-
-## 🎮 Supported Use Cases
-
-- **Osu!** — minimal latency for competitive play
-- **Digital drawing** — precise and smooth pen input
-- **General tablet use** — area mapping, pressure curve, etc.
-
----
-
-## 🤝 Contributing
-
-Contributions are welcome! This project is tagged `help-wanted` feel free to open an issue or submit a pull request.
-
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/my-feature`)
-3. Commit your changes (`git commit -m 'Add my feature'`)
-4. Push to the branch (`git push origin feature/my-feature`)
-5. Open a Pull Request
-
----
-
-## 📄 License
-
-This project is open source. See the [LICENSE](LICENSE) file for details.
-
----
-
-## 👤 Author
-
-[@iSweat](https://github.com/iSweat-exe)
-
----
-
-<p align="center">
-  <a href="https://github.com/Next-Tablet-Driver/NextTabletDriver/releases">Download latest release</a> •
-  <a href="https://github.com/Next-Tablet-Driver/NextTabletDriver/issues">Report a bug</a> •
-  <a href="https://github.com/Next-Tablet-Driver/NextTabletDriver/discussions">Discussions</a>
-</p>
+This project is licensed under the MIT License see the [LICENSE](LICENSE) file for details.

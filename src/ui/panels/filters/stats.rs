@@ -1,5 +1,6 @@
 use crate::app::state::TabletMapperApp;
 use crate::core::config::models::MappingConfig;
+use crate::ui::theme::{panel_border, ui_card, ui_input_box_u16};
 use eframe::egui;
 
 pub fn render_stats_settings(app: &TabletMapperApp, ui: &mut egui::Ui, config: &mut MappingConfig) {
@@ -10,131 +11,172 @@ pub fn render_stats_settings(app: &TabletMapperApp, ui: &mut egui::Ui, config: &
         .map(|g| *g)
         .unwrap_or_else(|e| *e.into_inner());
 
-    ui.horizontal(|ui| {
-        ui.checkbox(
-            &mut config.speed_stats.enabled,
-            "Enable HandSpeed Stats WebSocket Server",
-        );
-    });
-    ui.add_space(12.0);
+    ui.add_space(5.0);
 
-    ui.vertical(|ui| {
-        ui.set_width(ui.available_width());
-        ui.spacing_mut().item_spacing.y = 8.0;
-
-        // LIVE STATS SECTION
-        ui.group(|ui| {
-            ui.set_width(ui.available_width());
-            ui.vertical(|ui| {
-                ui.label(egui::RichText::new("Live Statistics").strong().size(14.0));
-                ui.add_space(4.0);
-
-                ui.horizontal(|ui| {
-                    ui.label("Current HandSpeed:");
-                    let unit_str = match config.speed_stats.unit {
-                        crate::core::config::models::SpeedUnit::MillimetersPerSecond => "mm/s",
-                        crate::core::config::models::SpeedUnit::MetersPerSecond => "m/s",
-                        crate::core::config::models::SpeedUnit::KilometersPerHour => "km/h",
-                        crate::core::config::models::SpeedUnit::MilesPerHour => "mph",
-                    };
-                    ui.label(
-                        egui::RichText::new(format!("{:.2} {}", stats.handspeed, unit_str))
-                            .color(egui::Color32::from_rgb(0, 150, 255))
-                            .strong(),
-                    );
-                });
-
-                ui.horizontal(|ui| {
-                    ui.label("Total Distance:");
-                    let dist = stats.total_distance_mm;
-                    let dist_text = if dist < 1000.0 {
-                        format!("{:.1} mm", dist)
-                    } else if dist < 1000000.0 {
-                        format!("{:.3} m", dist / 1000.0)
-                    } else {
-                        format!("{:.3} km", dist / 1000000.0)
-                    };
-                    ui.label(
-                        egui::RichText::new(dist_text)
-                            .color(egui::Color32::from_rgb(0, 150, 255))
-                            .strong(),
-                    );
-
-                    if ui.button("Reset").clicked()
-                        && let Ok(mut stats) = app.shared.stats.write()
-                    {
-                        stats.total_distance_mm = 0.0;
-                    }
-                });
-            });
-        });
-
-        ui.add_space(12.0);
-
+    ui_card(ui, "Live Statistics", egui_phosphor::regular::GAUGE, |ui| {
         ui.horizontal(|ui| {
-            ui.label("IP Address:");
-            ui.text_edit_singleline(&mut config.speed_stats.ip);
-        });
-
-        ui.horizontal(|ui| {
-            ui.label("Port:");
-            let mut port_f32 = config.speed_stats.port as f32;
-            if ui
-                .add(
-                    egui::DragValue::new(&mut port_f32)
-                        .speed(1.0)
-                        .range(1.0..=65535.0),
-                )
-                .changed()
-            {
-                config.speed_stats.port = port_f32 as u16;
-            }
-        });
-
-        ui.horizontal(|ui| {
-            ui.label("Speed Unit:");
-            egui::ComboBox::from_id_salt("speed_unit_combo")
-                .selected_text(match config.speed_stats.unit {
+            render_stat_badge(
+                ui,
+                "HandSpeed",
+                &format!("{:.2}", stats.handspeed),
+                match config.speed_stats.unit {
                     crate::core::config::models::SpeedUnit::MillimetersPerSecond => "mm/s",
                     crate::core::config::models::SpeedUnit::MetersPerSecond => "m/s",
                     crate::core::config::models::SpeedUnit::KilometersPerHour => "km/h",
                     crate::core::config::models::SpeedUnit::MilesPerHour => "mph",
-                })
-                .show_ui(ui, |ui| {
-                    ui.selectable_value(
-                        &mut config.speed_stats.unit,
-                        crate::core::config::models::SpeedUnit::MillimetersPerSecond,
-                        "mm/s",
-                    );
-                    ui.selectable_value(
-                        &mut config.speed_stats.unit,
-                        crate::core::config::models::SpeedUnit::MetersPerSecond,
-                        "m/s",
-                    );
-                    ui.selectable_value(
-                        &mut config.speed_stats.unit,
-                        crate::core::config::models::SpeedUnit::KilometersPerHour,
-                        "km/h",
-                    );
-                    ui.selectable_value(
-                        &mut config.speed_stats.unit,
-                        crate::core::config::models::SpeedUnit::MilesPerHour,
-                        "mph",
+                },
+            );
+
+            ui.add_space(15.0);
+
+            let dist = stats.total_distance_mm;
+            let (dist_val, dist_unit) = if dist < 1000.0 {
+                (format!("{:.1}", dist), "mm")
+            } else if dist < 1000000.0 {
+                (format!("{:.3}", dist / 1000.0), "m")
+            } else {
+                (format!("{:.3}", dist / 1000000.0), "km")
+            };
+
+            render_stat_badge(ui, "Total Distance", &dist_val, dist_unit);
+
+            ui.add_space(15.0);
+
+            if ui
+                .button(egui_phosphor::regular::ARROWS_COUNTER_CLOCKWISE)
+                .on_hover_text("Reset accumulated distance")
+                .clicked()
+                && let Ok(mut stats) = app.shared.stats.write()
+            {
+                stats.total_distance_mm = 0.0;
+            }
+        });
+    });
+
+    ui.add_space(15.0);
+
+    ui_card(
+        ui,
+        "Server Configuration",
+        egui_phosphor::regular::GLOBE,
+        |ui| {
+            ui.horizontal(|ui| {
+                ui.checkbox(
+                    &mut config.speed_stats.enabled,
+                    "Enable Stats WebSocket Server",
+                );
+            });
+
+            ui.add_space(12.0);
+
+            ui.add_enabled_ui(config.speed_stats.enabled, |ui| {
+                ui.horizontal(|ui| {
+                    ui.vertical(|ui| {
+                        ui.label(egui::RichText::new("IP Address").weak().size(11.0));
+                        ui.add_space(4.0);
+                        ui.text_edit_singleline(&mut config.speed_stats.ip);
+                    });
+
+                    ui.add_space(15.0);
+
+                    ui_input_box_u16(ui, "Port", &mut config.speed_stats.port, "");
+
+                    ui.add_space(15.0);
+
+                    ui.vertical(|ui| {
+                        ui.label(egui::RichText::new("Speed Unit").weak().size(11.0));
+                        ui.add_space(4.0);
+                        egui::ComboBox::from_id_salt("speed_unit_combo")
+                            .selected_text(match config.speed_stats.unit {
+                                crate::core::config::models::SpeedUnit::MillimetersPerSecond => {
+                                    "mm/s"
+                                }
+                                crate::core::config::models::SpeedUnit::MetersPerSecond => "m/s",
+                                crate::core::config::models::SpeedUnit::KilometersPerHour => "km/h",
+                                crate::core::config::models::SpeedUnit::MilesPerHour => "mph",
+                            })
+                            .show_ui(ui, |ui| {
+                                ui.selectable_value(
+                                    &mut config.speed_stats.unit,
+                                    crate::core::config::models::SpeedUnit::MillimetersPerSecond,
+                                    "mm/s",
+                                );
+                                ui.selectable_value(
+                                    &mut config.speed_stats.unit,
+                                    crate::core::config::models::SpeedUnit::MetersPerSecond,
+                                    "m/s",
+                                );
+                                ui.selectable_value(
+                                    &mut config.speed_stats.unit,
+                                    crate::core::config::models::SpeedUnit::KilometersPerHour,
+                                    "km/h",
+                                );
+                                ui.selectable_value(
+                                    &mut config.speed_stats.unit,
+                                    crate::core::config::models::SpeedUnit::MilesPerHour,
+                                    "mph",
+                                );
+                            });
+                    });
+                });
+            });
+        },
+    );
+
+    ui.add_space(15.0);
+
+    ui_card(
+        ui,
+        "Documentation & Logic",
+        egui_phosphor::regular::INFO,
+        |ui| {
+            ui.label(
+                egui::RichText::new(format!(
+                    "Listening at: ws://{}:{}",
+                    config.speed_stats.ip, config.speed_stats.port
+                ))
+                .strong(),
+            );
+            ui.add_space(8.0);
+
+            ui.label(egui::RichText::new("Payload JSON Format").weak().size(11.0));
+            ui.add_space(4.0);
+
+            egui::Frame::new()
+            .fill(ui.visuals().widgets.noninteractive.bg_fill)
+            .stroke(egui::Stroke::new(1.0, panel_border(ui.visuals()).gamma_multiply(0.5)))
+            .corner_radius(4.0)
+            .inner_margin(8.0)
+            .show(ui, |ui| {
+                ui.set_width(ui.available_width());
+                ui.label(egui::RichText::new("{ \"handspeed\": float, \"timestamp\": u128, \"total_distance\": float }").monospace().size(10.0));
+            });
+        },
+    );
+}
+
+fn render_stat_badge(ui: &mut egui::Ui, label: &str, value: &str, unit: &str) {
+    ui.vertical(|ui| {
+        ui.label(egui::RichText::new(label).weak().size(10.0));
+        ui.add_space(2.0);
+
+        let accent = egui::Color32::from_rgb(0, 150, 255);
+
+        egui::Frame::new()
+            .fill(accent.gamma_multiply(0.1))
+            .stroke(egui::Stroke::new(1.0, accent.gamma_multiply(0.3)))
+            .corner_radius(4.0)
+            .inner_margin(egui::Margin::symmetric(10, 5))
+            .show(ui, |ui| {
+                ui.horizontal(|ui| {
+                    ui.label(egui::RichText::new(value).color(accent).strong().size(15.0));
+                    ui.add_space(2.0);
+                    ui.label(
+                        egui::RichText::new(unit)
+                            .color(accent.gamma_multiply(0.6))
+                            .size(10.0),
                     );
                 });
-        });
-
-        ui.add_space(16.0);
-        ui.separator();
-        ui.add_space(8.0);
-
-        ui.label(egui::RichText::new("WebSocket Information").strong());
-        ui.label(format!(
-            "Server Address: ws://{}:{}",
-            config.speed_stats.ip, config.speed_stats.port
-        ));
-        ui.label(
-            "JSON format: { \"handspeed\": float, \"timestamp\": u128, \"total_distance\": float }",
-        );
+            });
     });
 }

@@ -47,7 +47,7 @@ impl ReportParser for XpPenStarG640Parser {
         }
         .to_string();
 
-        let is_connected = status != "Out of Range" && (x != 0 || y != 0);
+        let is_connected = status != "Out of Range";
 
         Some(TabletData {
             status,
