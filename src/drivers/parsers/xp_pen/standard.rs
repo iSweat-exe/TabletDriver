@@ -31,6 +31,8 @@ pub fn parse(data: &[u8]) -> Option<TabletData> {
     let status = match data[1] {
         0xA0 => "Hover",
         0xA1 => "Contact",
+        0xC0 | 0x00 => "Out of Range",
+        _ => "Active",
     }.to_string();
     
     // Treat (0,0) as invalid/out of range, even if status says otherwise
@@ -48,5 +50,6 @@ pub fn parse(data: &[u8]) -> Option<TabletData> {
         hover_distance: 0, // Not provided in this report
         raw_data: raw,
         is_connected,
+        ..Default::default()
     })
 }

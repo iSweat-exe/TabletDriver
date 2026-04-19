@@ -11,7 +11,6 @@ use eframe::egui;
 
 /// Injects custom spacing, colors, and strokes into the `egui::Context`.
 /// Called once at application startup.
-/// Injects custom spacing, colors, and strokes into the `egui::Context`.
 pub fn apply_theme(ctx: &egui::Context, theme: ThemePreference) {
     match theme {
         ThemePreference::Light => ctx.set_visuals(egui::Visuals::light()),
