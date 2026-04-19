@@ -14,7 +14,15 @@ impl Intuos3Parser {
             inner_v1: IntuosV1Parser::new(),
         }
     }
+}
 
+impl Default for Intuos3Parser {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl Intuos3Parser {
     pub(crate) fn parse_internal(&self, data: &[u8], raw: String) -> Option<TabletData> {
         match data[0] {
             0x02 => match data[1] {
@@ -140,6 +148,12 @@ impl Intuos3ExtraAuxParser {
     }
 }
 
+impl Default for Intuos3ExtraAuxParser {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ReportParser for Intuos3ExtraAuxParser {
     fn parse(&self, data: &[u8]) -> Option<TabletData> {
         if data.is_empty() {
@@ -166,6 +180,12 @@ impl WacomDriverIntuos3Parser {
         Self {
             inner: Intuos3Parser::new(),
         }
+    }
+}
+
+impl Default for WacomDriverIntuos3Parser {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

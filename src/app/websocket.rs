@@ -73,21 +73,19 @@ pub fn websocket_loop(shared: Arc<SharedState>) {
                 clients.clear();
                 listener = None;
             }
-        } else {
-            if listener.is_none() || current_port != port {
-                log::info!(target: "WebSocket", "Starting WebSocket Server on 127.0.0.1:{}", port);
-                clients.clear();
+        } else if listener.is_none() || current_port != port {
+            log::info!(target: "WebSocket", "Starting WebSocket Server on 127.0.0.1:{}", port);
+            clients.clear();
 
-                match TcpListener::bind(format!("127.0.0.1:{}", port)) {
-                    Ok(l) => {
-                        l.set_nonblocking(true).unwrap();
-                        listener = Some(l);
-                        current_port = port;
-                    }
-                    Err(e) => {
-                        log::error!(target: "WebSocket", "Failed to bind to port {}: {}", port, e);
-                        listener = None;
-                    }
+            match TcpListener::bind(format!("127.0.0.1:{}", port)) {
+                Ok(l) => {
+                    l.set_nonblocking(true).unwrap();
+                    listener = Some(l);
+                    current_port = port;
+                }
+                Err(e) => {
+                    log::error!(target: "WebSocket", "Failed to bind to port {}: {}", port, e);
+                    listener = None;
                 }
             }
         }

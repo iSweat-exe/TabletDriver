@@ -1,5 +1,3 @@
-#![cfg(debug_assertions)]
-
 use crate::app::state::TabletMapperApp;
 use crate::core::config::models::MappingConfig;
 use eframe::egui;

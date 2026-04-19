@@ -14,6 +14,12 @@ impl CintiqV1Parser {
     }
 }
 
+impl Default for CintiqV1Parser {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ReportParser for CintiqV1Parser {
     fn parse(&self, data: &[u8]) -> Option<TabletData> {
         if data.is_empty() {
@@ -26,7 +32,7 @@ impl ReportParser for CintiqV1Parser {
             .join(" ");
 
         match data[0] {
-            0x02 | 0x10 => self.inner_v1.parse(&data), // reuse v1 tablet parsing
+            0x02 | 0x10 => self.inner_v1.parse(data), // reuse v1 tablet parsing
             0x0C => {
                 let mut buttons: u32 = 0;
                 let b5 = data[5];

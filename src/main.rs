@@ -1,4 +1,4 @@
-//! # NextTabletDriver Entry Point
+//! # `NextTabletDriver` Entry Point
 //!
 //! This is the main executable for the `NextTabletDriver` application.
 //! It initializes logging, checks for single-instance enforcement,
@@ -33,14 +33,14 @@ use windows_sys::Win32::System::LibraryLoader::{GetModuleHandleA, GetProcAddress
 #[cfg(windows)]
 fn set_fast_timer(enable: u8) {
     unsafe {
-        let ntdll = GetModuleHandleA(b"ntdll.dll\0".as_ptr());
+        let ntdll = GetModuleHandleA(c"ntdll.dll".as_ptr().cast::<u8>());
         if ntdll.is_null() {
             log::warn!(target: "Timer", "Failed to get ntdll handle for timer resolution");
             return;
         }
 
-        let addr_set = GetProcAddress(ntdll, b"NtSetTimerResolution\0".as_ptr());
-        let addr_query = GetProcAddress(ntdll, b"NtQueryTimerResolution\0".as_ptr());
+        let addr_set = GetProcAddress(ntdll, c"NtSetTimerResolution".as_ptr().cast::<u8>());
+        let addr_query = GetProcAddress(ntdll, c"NtQueryTimerResolution".as_ptr().cast::<u8>());
 
         if let (Some(addr_set), Some(addr_query)) = (addr_set, addr_query) {
             let nt_set: extern "system" fn(u32, u8, *mut u32) -> i32 =
@@ -54,14 +54,14 @@ fn set_fast_timer(enable: u8) {
 
             let _ = nt_query(&raw mut min, &raw mut max, &raw mut cur);
             log::debug!(target: "Timer", "System Timer Resolution: Min={:.1}ms, Max={:.1}ms, Current={:.1}ms", 
-                min as f32 / 10000.0, max as f32 / 10000.0, cur as f32 / 10000.0);
+                f64::from(min) / 10000.0, f64::from(max) / 10000.0, f64::from(cur) / 10000.0);
             windows_sys::Win32::Media::timeBeginPeriod(1);
 
             let mut new_cur = 0;
             let status = nt_set(max, enable, &raw mut new_cur);
 
             if status == 0 {
-                log::info!(target: "Timer", "Timer resolution adjusted to {:.1}ms", new_cur as f32 / 10000.0);
+                log::info!(target: "Timer", "Timer resolution adjusted to {:.1}ms", f64::from(new_cur) / 10000.0);
             } else {
                 log::warn!(target: "Timer", "Failed to adjust timer resolution (NTSTATUS: 0x{status:08X})");
             }

@@ -16,6 +16,12 @@ impl PLParser {
     }
 }
 
+impl Default for PLParser {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ReportParser for PLParser {
     fn parse(&self, data: &[u8]) -> Option<TabletData> {
         if data.len() < 8 {

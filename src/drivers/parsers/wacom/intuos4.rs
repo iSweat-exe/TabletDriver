@@ -14,7 +14,15 @@ impl Intuos4Parser {
             inner_v1: IntuosV1Parser::new(),
         }
     }
+}
 
+impl Default for Intuos4Parser {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl Intuos4Parser {
     fn parse_internal(&self, data: &[u8], raw: String) -> Option<TabletData> {
         match data[0] {
             0x02 => match data[1] {
@@ -99,6 +107,12 @@ impl WacomDriverIntuos4Parser {
         Self {
             inner: Intuos4Parser::new(),
         }
+    }
+}
+
+impl Default for WacomDriverIntuos4Parser {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

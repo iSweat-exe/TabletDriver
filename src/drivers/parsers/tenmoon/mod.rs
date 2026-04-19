@@ -65,11 +65,7 @@ impl ReportParser for TenMoonParser {
 
             let pressure = if pre_pressure >= pressure_offset {
                 let adjusted = pre_pressure - pressure_offset;
-                if 0x0672 > adjusted {
-                    0x0672 - adjusted
-                } else {
-                    0
-                }
+                0x0672_u16.saturating_sub(adjusted)
             } else {
                 0x0672
             };

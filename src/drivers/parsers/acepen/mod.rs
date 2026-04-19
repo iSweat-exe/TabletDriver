@@ -14,6 +14,12 @@ impl AcepenParser {
     }
 }
 
+impl Default for AcepenParser {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ReportParser for AcepenParser {
     fn parse(&self, data: &[u8]) -> Option<TabletData> {
         if data.len() < 11 {

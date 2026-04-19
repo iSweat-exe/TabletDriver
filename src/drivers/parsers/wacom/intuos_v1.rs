@@ -20,7 +20,15 @@ impl IntuosV1Parser {
             prev_buttons: Mutex::new(0),
         }
     }
+}
 
+impl Default for IntuosV1Parser {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl IntuosV1Parser {
     pub(crate) fn parse_internal(&self, data: &[u8], raw: String) -> Option<TabletData> {
         match data[0] {
             0x02 | 0x10 => self.parse_tool(data, raw),
@@ -154,6 +162,12 @@ impl WacomDriverIntuosV1Parser {
         Self {
             inner: IntuosV1Parser::new(),
         }
+    }
+}
+
+impl Default for WacomDriverIntuosV1Parser {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

@@ -213,10 +213,9 @@ pub fn render_console_panel(app: &mut TabletMapperApp, ui: &mut egui::Ui) {
             )
             .on_hover_text("Remove all logs from memory")
             .clicked()
+            && let Ok(mut entries) = crate::logger::LOG_BUFFER.write()
         {
-            if let Ok(mut entries) = crate::logger::LOG_BUFFER.write() {
-                entries.clear();
-            }
+            entries.clear();
         }
 
         if ui
