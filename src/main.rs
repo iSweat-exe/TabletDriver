@@ -6,6 +6,7 @@
 
 #![windows_subsystem = "windows"]
 #![warn(clippy::all, clippy::pedantic, clippy::nursery)]
+#![deny(dead_code)]
 
 use eframe::egui;
 use next_tablet_driver::app::TabletMapperApp;

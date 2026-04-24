@@ -108,11 +108,18 @@ pub fn render_menu_bar(app: &mut TabletMapperApp, ctx: &egui::Context) {
 
                     if ui.button("Reset to default").clicked() {
                         ui.close();
-                        let mut shared_config = app.shared.config.write().unwrap();
-                        shared_config.target_area =
-                            crate::core::config::models::TargetArea::default();
-                        shared_config.active_area =
-                            crate::core::config::models::ActiveArea::default();
+                        {
+                            let mut shared_config = app.shared.config.write().unwrap();
+                            let theme = shared_config.theme;
+                            let run_at_startup = shared_config.run_at_startup;
+
+                            *shared_config = crate::core::config::models::MappingConfig::default();
+                            shared_config.theme = theme;
+                            shared_config.run_at_startup = run_at_startup;
+
+                            app.shared.config_version.fetch_add(1, Ordering::SeqCst);
+                        }
+                        app.push_toast("Settings reset to default (Unsaved)".to_string(), ToastLevel::Info);
                     }
 
                     ui.separator();
