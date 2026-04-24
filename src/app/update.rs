@@ -4,8 +4,7 @@
 //! `TabletMapperApp`. The `update` function defined here is called by egui
 //! every frame to process events, update state, and render the user interface.
 
-use crate::app::state::{AppTab, TabletMapperApp};
-use crate::settings::save_last_session;
+use crate::app::state::{AppTab, TabletMapperApp, ToastLevel};
 use crate::ui::panels::console::render_console_panel;
 #[cfg(debug_assertions)]
 use crate::ui::panels::developer::render_developer_panel;
@@ -14,8 +13,12 @@ use crate::ui::panels::output::render_output_panel;
 use crate::ui::panels::pen_settings::render_pen_settings_panel;
 use crate::ui::panels::release::render_release_panel;
 use crate::ui::panels::settings::render_settings_panel;
-use eframe::egui;
+use eframe::egui::{self, Shadow};
 use std::sync::atomic::Ordering;
+use std::time::Duration;
+
+/// Duration before a toast notification auto-dismisses.
+const TOAST_DURATION: Duration = Duration::from_secs(3);
 
 impl eframe::App for TabletMapperApp {
     /// The main application loop called by egui.
@@ -26,14 +29,25 @@ impl eframe::App for TabletMapperApp {
     /// 2. **Dialogs & Modals**: Renders global overlay elements (e.g., update dialog).
     /// 3. **UI Layout**: Organizes the screen into Menu Bar, Tabs, Main Panel, and Footer.
     /// 4. **State Persistence**: Detects if user interaction modified the configuration
-    ///    and writes changes to both the shared engine state and disk.
+    ///    and sends changes to the background saver thread asynchronously.
     /// 5. **Debugging & Overlays**: Handles the optional advanced debugger viewport.
+    /// 6. **Toast Notifications**: Renders transient notifications and auto-dismisses expired ones.
     ///
     /// # Performance
     /// The GUI runs asynchronously from the input capture thread. `update` requests
     /// repaints automatically when events are fired, but also enforces a minimum 1Hz
     /// refresh rate for passive status updates.
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        // Shortcuts
+        if ctx.input_mut(|i| {
+            i.consume_shortcut(&egui::KeyboardShortcut::new(
+                egui::Modifiers::CTRL,
+                egui::Key::S,
+            ))
+        }) {
+            crate::ui::components::menu_bar::save_current_settings(self);
+        }
+
         // Drain pending tablet events, keeping only the latest
         let mut last_data = None;
         while let Ok(data) = self.tablet_receiver.try_recv() {
@@ -71,11 +85,62 @@ impl eframe::App for TabletMapperApp {
 
         crate::ui::components::update_dialog::render_update_dialog(self, ctx);
 
+        // Unsaved Changes Close Guard
+        {
+            let close_requested = ctx.input(|i| i.viewport().close_requested());
+            let config_snapshot = self.shared.config.read().unwrap().clone();
+            let is_dirty = self.profile.is_dirty(&config_snapshot);
+
+            if close_requested && is_dirty && !self.show_close_confirm && !self.force_close {
+                // Block the close and show the confirmation dialog
+                ctx.send_viewport_cmd(egui::ViewportCommand::CancelClose);
+                self.show_close_confirm = true;
+            }
+        }
+
+        if self.show_close_confirm {
+            let frame = egui::Frame::window(&ctx.style()).shadow(Shadow::NONE);
+            egui::Window::new("Unsaved Changes")
+                .collapsible(false)
+                .resizable(false)
+                .anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0])
+                .frame(frame)
+                .show(ctx, |ui| {
+                    ui.vertical_centered(|ui| {
+                        ui.add_space(8.0);
+                        ui.label("Are you sure you want to close the application?");
+                        ui.label("The current profile has unsaved changes.");
+                        ui.add_space(12.0);
+                        ui.horizontal(|ui| {
+                            if ui.button("Cancel").clicked() {
+                                self.show_close_confirm = false;
+                            }
+                            ui.add_space(8.0);
+                            if ui
+                                .button(
+                                    egui::RichText::new("Close Anyway")
+                                        .color(egui::Color32::from_rgb(220, 80, 80)),
+                                )
+                                .clicked()
+                            {
+                                // REVERT last_session.json to the unmodified state before closing
+                                let _ =
+                                    crate::settings::save_last_session(&self.profile.last_saved);
+                                self.force_close = true;
+                                self.show_close_confirm = false;
+                                ctx.send_viewport_cmd(egui::ViewportCommand::Close);
+                            }
+                        });
+                        ui.add_space(4.0);
+                    });
+                });
+        }
+
         // Clone config for diffing — UI mutates this copy, then we push back if changed
         let mut config = self.shared.config.read().unwrap().clone();
         let initial_config = config.clone();
 
-        // --- System Tray Minimize-to-Tray ---
+        // System Tray Minimize-to-Tray
         if config.system_tray_on_minimize {
             let is_minimized = ctx.input(|i| i.viewport().minimized).unwrap_or(false);
 
@@ -164,7 +229,45 @@ impl eframe::App for TabletMapperApp {
                 self.shared.config_version.fetch_add(1, Ordering::SeqCst);
             }
 
-            let _ = save_last_session(&config);
+            // Send to background saver — non-blocking, drops if channel full
+            let _ = self.save_sender.try_send(config.clone());
+        }
+
+        // Toast Notifications
+        // Expire old toasts
+        self.toasts
+            .retain(|t| t.created_at.elapsed() < TOAST_DURATION);
+
+        // Render active toasts anchored to bottom-right
+        if !self.toasts.is_empty() {
+            // Request repaint so toasts auto-dismiss smoothly
+            ctx.request_repaint_after(Duration::from_millis(100));
+        }
+
+        for (i, toast) in self.toasts.iter().enumerate() {
+            let offset_y = i as f32 * 50.0 + 10.0;
+            let id = egui::Id::new("toast").with(i);
+
+            let (bg_color, text_color) = match toast.level {
+                ToastLevel::Info => (egui::Color32::from_rgb(40, 120, 60), egui::Color32::WHITE),
+                ToastLevel::Warning => {
+                    (egui::Color32::from_rgb(180, 130, 30), egui::Color32::WHITE)
+                }
+                ToastLevel::Error => (egui::Color32::from_rgb(180, 50, 50), egui::Color32::WHITE),
+            };
+
+            egui::Area::new(id)
+                .order(egui::Order::Foreground)
+                .anchor(egui::Align2::RIGHT_TOP, egui::vec2(-10.0, offset_y))
+                .show(ctx, |ui| {
+                    egui::Frame::new()
+                        .fill(bg_color)
+                        .corner_radius(6.0)
+                        .inner_margin(egui::Margin::symmetric(12, 8))
+                        .show(ui, |ui| {
+                            ui.label(egui::RichText::new(&toast.message).color(text_color));
+                        });
+                });
         }
 
         if self.show_debugger {
@@ -183,7 +286,7 @@ impl eframe::App for TabletMapperApp {
                     }
 
                     egui::CentralPanel::default().show(ctx, |ui| {
-                        // --- HZ ---
+                        // HZ
                         let current_packets = self.shared.packet_count.load(Ordering::Relaxed);
                         let elapsed_hz = self.last_hz_update.elapsed();
                         if elapsed_hz >= std::time::Duration::from_millis(200) {

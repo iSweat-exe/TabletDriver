@@ -1,7 +1,7 @@
 use crate::drivers::TabletData;
 use crate::drivers::parsers::ReportParser;
 
-// --- Intuos V3 ---
+// Intuos V3
 
 pub struct IntuosV3Parser;
 

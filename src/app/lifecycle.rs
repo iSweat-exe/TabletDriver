@@ -14,12 +14,12 @@ use std::thread;
 use std::time::Instant;
 
 use crate::app::autoupdate::{self, UpdateStatus};
-use crate::app::state::{AppTab, TabletMapperApp};
-use crate::core::config::models::{ActiveArea, MappingConfig, TargetArea, WebSocketConfig};
+use crate::app::state::{AppTab, ProfileState, TabletMapperApp, ToastLevel};
+use crate::core::config::models::MappingConfig;
 use crate::drivers::TabletData;
 use crate::engine::state::SharedState;
 use crate::engine::tablet_manager::run_manager;
-use crate::settings::load_last_session;
+use crate::settings::{load_last_session, load_session_meta};
 
 impl TabletMapperApp {
     /// Creates a new instance of the application and initializes all background services.
@@ -38,6 +38,8 @@ impl TabletMapperApp {
     ///    for external integrations (e.g., streaming overlays).
     /// 6. **Auto-Updater Thread**: Spawns a background thread to check GitHub releases
     ///    for newer versions of the software.
+    /// 7. **Background Saver Thread**: Spawns a thread to write `last_session.json`
+    ///    asynchronously, keeping disk I/O off the UI thread.
     pub fn new(_ctx: eframe::egui::Context) -> Self {
         #[cfg(windows)]
         unsafe {
@@ -51,46 +53,18 @@ impl TabletMapperApp {
 
         let displays = DisplayInfo::all().unwrap_or_default();
 
-        let loaded_config = load_last_session();
-        let is_first_run = loaded_config.is_none();
+        let loaded = load_last_session();
+        let is_first_run = loaded.is_none();
 
-        let config = if let Some(cfg) = loaded_config {
+        let (config, load_corrections) = if let Some((cfg, corrections)) = loaded {
             log::info!(target: "App", "Using loaded configuration from last session");
-            cfg
+            (cfg, corrections)
         } else {
-            MappingConfig {
-                mode: crate::core::config::models::DriverMode::Absolute,
-                active_area: ActiveArea {
-                    x: 80.0,
-                    y: 50.0,
-                    w: 160.0,
-                    h: 100.0,
-                    rotation: 0.0,
-                },
-                target_area: TargetArea {
-                    x: 0.0,
-                    y: 0.0,
-                    w: 1920.0,
-                    h: 1080.0,
-                },
-                relative_config: crate::core::config::models::RelativeConfig::default(),
-                tip_threshold: 10,
-                eraser_threshold: 10,
-                disable_pressure: false,
-                disable_tilt: false,
-                tip_binding: "Mouse Button Binding: (Button: Left)".to_string(),
-                eraser_binding: "None".to_string(),
-                pen_button_bindings: vec!["None".to_string(), "None".to_string()],
+            let cfg = MappingConfig {
                 run_at_startup: crate::startup::is_run_at_startup_registered(),
-
-                websocket: WebSocketConfig::default(),
-                antichatter: crate::core::config::models::AntichatterConfig::default(),
-                speed_stats: crate::core::config::models::SpeedStatsConfig::default(),
-                theme: crate::core::config::models::ThemePreference::System,
-                lock_aspect_ratio: false,
-                show_osu_playfield: false,
-                system_tray_on_minimize: false,
-            }
+                ..Default::default()
+            };
+            (cfg, Vec::new())
         };
 
         crate::ui::theme::apply_theme(&_ctx, config.theme);
@@ -115,7 +89,7 @@ impl TabletMapperApp {
         _ctx.set_fonts(fonts);
 
         let shared = Arc::new(SharedState {
-            config: RwLock::new(config),
+            config: RwLock::new(config.clone()),
             config_version: AtomicU32::new(0),
             tablet_data: RwLock::new(TabletData::default()),
             tablet_name: RwLock::new("No Tablet Detected".to_string()),
@@ -170,6 +144,24 @@ impl TabletMapperApp {
             Err(e) => {
                 log::error!(target: "Update", "Failed to check for updates: {}", e);
             }
+        });
+
+        // Background saver: receives configs from the UI thread and writes
+        // last_session.json without blocking the render loop.
+        let (save_sender, save_receiver) = crossbeam_channel::bounded::<MappingConfig>(1);
+        log::info!(target: "App", "Spawning Background Saver thread");
+        thread::spawn(move || {
+            while let Ok(cfg) = save_receiver.recv() {
+                // Drain any queued updates, keep only the latest
+                let mut latest = cfg;
+                while let Ok(newer) = save_receiver.try_recv() {
+                    latest = newer;
+                }
+                if let Err(e) = crate::settings::save_last_session(&latest) {
+                    log::error!(target: "Settings", "Background saver failed: {}", e);
+                }
+            }
+            log::error!(target: "Settings", "Background saver thread exited");
         });
 
         let icon_bytes = include_bytes!("../../resources/icon.png");
@@ -241,15 +233,41 @@ impl TabletMapperApp {
             log::error!(target: "Tray", "System Tray listener thread died!");
         });
 
+        // Build initial toast notifications for any config corrections
+        let mut initial_toasts = Vec::new();
+        if !load_corrections.is_empty() {
+            let msg = format!(
+                "Config repaired: {} field(s) had invalid values and were reset to defaults",
+                load_corrections.len()
+            );
+            initial_toasts.push(crate::app::state::Toast {
+                message: msg,
+                level: ToastLevel::Warning,
+                created_at: Instant::now(),
+            });
+        }
+
         Self {
             shared,
             displays,
             last_update: Instant::now(),
-            profile_name: "Default".to_string(),
+            profile: {
+                // Restore profile identity from session_meta.json (silent, no toast)
+                let meta = load_session_meta();
+                ProfileState {
+                    name: meta
+                        .as_ref()
+                        .map_or_else(|| "Unsaved Session".to_string(), |m| m.profile_name.clone()),
+                    path: meta.and_then(|m| m.profile_path),
+                    last_saved: config.clone(),
+                }
+            },
             active_tab: AppTab::Output,
             tablet_receiver,
             update_receiver,
             update_status: UpdateStatus::Idle,
+            save_sender,
+            toasts: initial_toasts,
             selected_filter: "Devocub Antichatter".to_string(),
             show_debugger: false,
             show_latency_stats: false,
@@ -268,6 +286,8 @@ impl TabletMapperApp {
             console_show_debug: true,
             console_autoscroll: true,
             tray_icon,
+            show_close_confirm: false,
+            force_close: false,
 
             #[cfg(debug_assertions)]
             dev_pause_pipeline: false,

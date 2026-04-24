@@ -1,7 +1,39 @@
 use crate::core::config::models::MappingConfig;
 use directories::ProjectDirs;
+use serde::{Deserialize, Serialize};
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
+
+/// Lightweight metadata about the active profile, persisted across restarts.
+///
+/// Stored in `session_meta.json` alongside `last_session.json`.
+/// This allows the driver to silently restore the profile identity
+/// (name + file path) on startup without re-prompting the user.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct SessionMeta {
+    /// Display name of the active profile.
+    pub profile_name: String,
+    /// Absolute path to the profile file on disk, if any.
+    pub profile_path: Option<PathBuf>,
+}
+
+/// Saves the active profile metadata to `session_meta.json`.
+pub fn save_session_meta(meta: &SessionMeta) {
+    let path = get_settings_dir().join("session_meta.json");
+    if let Ok(json) = serde_json::to_string_pretty(meta) {
+        let tmp = path.with_extension("json.tmp");
+        if fs::write(&tmp, &json).is_ok() {
+            let _ = fs::rename(&tmp, &path);
+        }
+    }
+}
+
+/// Loads the active profile metadata from `session_meta.json`.
+pub fn load_session_meta() -> Option<SessionMeta> {
+    let path = get_settings_dir().join("session_meta.json");
+    let content = fs::read_to_string(&path).ok()?;
+    serde_json::from_str(&content).ok()
+}
 
 pub fn get_settings_dir() -> PathBuf {
     if let Some(proj_dirs) = ProjectDirs::from("com", "NextTabletDriver", "NextTabletReader") {
@@ -11,10 +43,40 @@ pub fn get_settings_dir() -> PathBuf {
         }
         config_dir
     } else {
-        PathBuf::from("Settings") // Fallback
+        PathBuf::from("Settings")
     }
 }
 
+/// Atomically writes a `MappingConfig` to an arbitrary path on disk.
+///
+/// Uses a write-to-temp-then-rename strategy to prevent corruption
+/// if the process crashes mid-write.
+pub fn save_to_path(path: &Path, config: &MappingConfig) -> Result<(), String> {
+    let json = serde_json::to_string_pretty(config).map_err(|e| {
+        log::error!(target: "Settings", "Failed to serialize config for {:?}: {}", path, e);
+        e.to_string()
+    })?;
+
+    let tmp_path = path.with_extension("json.tmp");
+    fs::write(&tmp_path, &json).map_err(|e| {
+        log::error!(target: "Settings", "Failed to write temp file {:?}: {}", tmp_path, e);
+        e.to_string()
+    })?;
+
+    fs::rename(&tmp_path, path).map_err(|e| {
+        log::error!(target: "Settings", "Failed to rename {:?} -> {:?}: {}", tmp_path, path, e);
+        // Clean up the orphaned temp file on rename failure
+        let _ = fs::remove_file(&tmp_path);
+        e.to_string()
+    })?;
+
+    Ok(())
+}
+
+/// Saves config as a named preset in the application's settings directory.
+///
+/// This does **not** update `last_session.json` — the caller is responsible
+/// for that separately.
 pub fn save_settings(name: &str, config: &MappingConfig) -> Result<(), String> {
     let dir = get_settings_dir();
     let filename = if name.ends_with(".json") {
@@ -24,51 +86,41 @@ pub fn save_settings(name: &str, config: &MappingConfig) -> Result<(), String> {
     };
     let path = dir.join(filename);
 
-    let json = serde_json::to_string_pretty(config).map_err(|e| {
-        log::error!(target: "Settings", "Failed to serialize preset '{}': {}", name, e);
-        e.to_string()
-    })?;
-
-    fs::write(&path, json).map_err(|e| {
-        log::error!(target: "Settings", "Failed to write preset to {:?}: {}", path, e);
-        e.to_string()
-    })?;
-
+    save_to_path(&path, config)?;
     log::info!(target: "Settings", "Saved preset '{}' to {:?}", name, path);
-
-    save_last_session(config)?;
-
     Ok(())
 }
 
+/// Persists the current session state to `last_session.json`.
+///
+/// Called asynchronously from a background saver thread — never from the UI thread.
 pub fn save_last_session(config: &MappingConfig) -> Result<(), String> {
-    let dir = get_settings_dir();
-    let path = dir.join("last_session.json");
-    let json = serde_json::to_string_pretty(config).map_err(|e| {
-        log::error!(target: "Settings", "Failed to serialize last session: {}", e);
-        e.to_string()
-    })?;
-    fs::write(&path, json).map_err(|e| {
-        log::error!(target: "Settings", "Failed to write last session to {:?}: {}", path, e);
-        e.to_string()
-    })?;
+    let path = get_settings_dir().join("last_session.json");
+    save_to_path(&path, config)?;
     log::debug!(target: "Settings", "Last session persistent state updated");
     Ok(())
 }
 
-pub fn load_last_session() -> Option<MappingConfig> {
-    let dir = get_settings_dir();
-    let path = dir.join("last_session.json");
+/// Loads the last session config, running validation and repair on the result.
+///
+/// Returns `None` if no session file exists. Returns `Some((config, corrections))`
+/// where `corrections` is a list of fields that were repaired (empty if all valid).
+pub fn load_last_session() -> Option<(MappingConfig, Vec<String>)> {
+    let path = get_settings_dir().join("last_session.json");
     if !path.exists() {
         log::debug!(target: "Settings", "No last session file found at {:?}", path);
         return None;
     }
 
     match fs::read_to_string(&path) {
-        Ok(content) => match serde_json::from_str(&content) {
-            Ok(config) => {
+        Ok(content) => match serde_json::from_str::<MappingConfig>(&content) {
+            Ok(mut config) => {
+                let corrections = config.validate_and_repair();
+                if !corrections.is_empty() {
+                    log::warn!(target: "Settings", "Last session config had {} field(s) repaired", corrections.len());
+                }
                 log::info!(target: "Settings", "Loaded last session from {:?}", path);
-                Some(config)
+                Some((config, corrections))
             }
             Err(e) => {
                 log::error!(target: "Settings", "Failed to parse last session JSON: {}", e);
@@ -82,15 +134,54 @@ pub fn load_last_session() -> Option<MappingConfig> {
     }
 }
 
-pub fn load_settings_from_file(path: PathBuf) -> Result<MappingConfig, String> {
-    let content = fs::read_to_string(&path).map_err(|e| {
+/// Loads and validates a config from an arbitrary file path.
+///
+/// Returns the config and a list of corrections applied during validation.
+pub fn load_settings_from_file(path: &Path) -> Result<(MappingConfig, Vec<String>), String> {
+    let content = fs::read_to_string(path).map_err(|e| {
         log::error!(target: "Settings", "Failed to read settings file {:?}: {}", path, e);
         e.to_string()
     })?;
-    let config = serde_json::from_str(&content).map_err(|e| {
+    let mut config: MappingConfig = serde_json::from_str(&content).map_err(|e| {
         log::error!(target: "Settings", "Failed to parse settings JSON from {:?}: {}", path, e);
         e.to_string()
     })?;
+
+    let corrections = config.validate_and_repair();
+    if !corrections.is_empty() {
+        log::warn!(target: "Settings", "Config from {:?} had {} field(s) repaired", path, corrections.len());
+    }
+
     log::info!(target: "Settings", "Loaded settings from {:?}", path);
-    Ok(config)
+    Ok((config, corrections))
+}
+
+/// Lists all saved profile files in the settings directory.
+///
+/// Returns `(display_name, absolute_path)` pairs, excluding `last_session.json`.
+pub fn list_profiles() -> Vec<(String, PathBuf)> {
+    let dir = get_settings_dir();
+    let mut profiles = Vec::new();
+
+    let entries = match fs::read_dir(&dir) {
+        Ok(entries) => entries,
+        Err(e) => {
+            log::error!(target: "Settings", "Failed to list profiles in {:?}: {}", dir, e);
+            return profiles;
+        }
+    };
+
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if path.extension().and_then(|e| e.to_str()) == Some("json")
+            && let Some(stem) = path.file_stem().and_then(|s| s.to_str())
+            && stem != "last_session"
+            && stem != "session_meta"
+        {
+            profiles.push((stem.to_string(), path));
+        }
+    }
+
+    profiles.sort_by_key(|a| a.0.to_lowercase());
+    profiles
 }

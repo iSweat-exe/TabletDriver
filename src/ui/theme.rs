@@ -37,7 +37,7 @@ pub fn apply_theme(ctx: &egui::Context, theme: ThemePreference) {
 
     let mut style = (*ctx.style()).clone();
 
-    // --- Premium Spacing & Rounding ---
+    // Spacing & Rounding
     style.spacing.item_spacing = egui::vec2(8.0, 8.0);
     style.spacing.button_padding = egui::vec2(8.0, 4.0);
     style.spacing.interact_size.y = 20.0;

@@ -1,7 +1,5 @@
-use crate::app::state::TabletMapperApp;
-use crate::settings::save_last_session;
+use crate::app::state::{TabletMapperApp, ToastLevel};
 use eframe::egui;
-use std::sync::Arc;
 use std::sync::atomic::Ordering;
 
 pub fn render_menu_bar(app: &mut TabletMapperApp, ctx: &egui::Context) {
@@ -21,38 +19,58 @@ pub fn render_menu_bar(app: &mut TabletMapperApp, ctx: &egui::Context) {
                             .add_filter("JSON", &["json"])
                             .pick_file()
                         {
-                            let shared_clone = Arc::clone(&app.shared);
-                            let path_clone = path.clone();
-                            std::thread::spawn(move || {
-                                if let Ok(cfg) =
-                                    crate::settings::load_settings_from_file(path_clone)
-                                {
-                                    let mut shared_config = shared_clone.config.write().unwrap();
-                                    *shared_config = cfg.clone();
-                                    shared_clone.config_version.fetch_add(1, Ordering::SeqCst);
-                                    let _ = crate::settings::save_last_session(&cfg);
+                            match crate::settings::load_settings_from_file(&path) {
+                                Ok((cfg, corrections)) => {
+                                    {
+                                        let mut shared_config = app.shared.config.write().unwrap();
+                                        *shared_config = cfg.clone();
+                                        app.shared.config_version.fetch_add(1, Ordering::SeqCst);
+                                    }
+                                    let _ = app.save_sender.try_send(cfg.clone());
+
+                                    // Update profile state to track this file
+                                    if let Some(name) = path.file_stem().and_then(|s| s.to_str()) {
+                                        app.profile.name = name.to_string();
+                                    }
+                                    app.profile.path = Some(path);
+                                    app.profile.mark_saved(&cfg);
+
+                                    crate::settings::save_session_meta(
+                                        &crate::settings::SessionMeta {
+                                            profile_name: app.profile.name.clone(),
+                                            profile_path: app.profile.path.clone(),
+                                        },
+                                    );
+
+                                    if !corrections.is_empty() {
+                                        app.push_toast(
+                                            format!(
+                                                "Config repaired: {} field(s) reset to defaults",
+                                                corrections.len()
+                                            ),
+                                            ToastLevel::Warning,
+                                        );
+                                    }
+                                    app.push_toast(
+                                        "Settings loaded successfully".to_string(),
+                                        ToastLevel::Info,
+                                    );
                                 }
-                            });
-                            if let Some(name) = path.file_stem().and_then(|s| s.to_str()) {
-                                app.profile_name = name.to_string();
+                                Err(e) => {
+                                    app.push_toast(
+                                        format!("Failed to load settings: {}", e),
+                                        ToastLevel::Error,
+                                    );
+                                }
                             }
                         }
                     }
+
                     if ui.button("Save Settings").clicked() {
                         ui.close();
-                        let config = app.shared.config.read().unwrap().clone();
-                        let profile = if !app.profile_name.is_empty() {
-                            app.profile_name.clone()
-                        } else {
-                            "Default".to_string()
-                        };
-                        std::thread::spawn(move || {
-                            let _ = crate::settings::save_settings(&profile, &config);
-                        });
-                        if app.profile_name.is_empty() {
-                            app.profile_name = "Default".to_string();
-                        }
+                        save_current_settings(app);
                     }
+
                     if ui.button("Save Settings As...").clicked() {
                         ui.close();
                         if let Some(path) = rfd::FileDialog::new()
@@ -61,44 +79,50 @@ pub fn render_menu_bar(app: &mut TabletMapperApp, ctx: &egui::Context) {
                             .save_file()
                         {
                             let config = app.shared.config.read().unwrap().clone();
-                            let path_clone = path.clone();
-                            std::thread::spawn(move || {
-                                if let Ok(json) = serde_json::to_string_pretty(&config) {
-                                    let _ = std::fs::write(&path_clone, json);
+                            match crate::settings::save_to_path(&path, &config) {
+                                Ok(()) => {
+                                    if let Some(name) = path.file_stem().and_then(|s| s.to_str()) {
+                                        app.profile.name = name.to_string();
+                                    }
+                                    app.profile.path = Some(path);
+                                    app.profile.mark_saved(&config);
+                                    let _ = app.save_sender.try_send(config);
+
+                                    crate::settings::save_session_meta(
+                                        &crate::settings::SessionMeta {
+                                            profile_name: app.profile.name.clone(),
+                                            profile_path: app.profile.path.clone(),
+                                        },
+                                    );
+                                    app.push_toast("Settings saved".to_string(), ToastLevel::Info);
                                 }
-                            });
-                            if let Some(name) = path.file_stem().and_then(|s| s.to_str()) {
-                                app.profile_name = name.to_string();
+                                Err(e) => {
+                                    app.push_toast(
+                                        format!("Failed to save: {}", e),
+                                        ToastLevel::Error,
+                                    );
+                                }
                             }
                         }
                     }
 
                     if ui.button("Reset to default").clicked() {
                         ui.close();
-                        let default_target = crate::core::config::models::TargetArea {
-                            x: 0.0,
-                            y: 0.0,
-                            w: 1920.0,
-                            h: 1080.0,
-                        };
-                        let default_active = crate::core::config::models::ActiveArea {
-                            x: 80.0,
-                            y: 50.0,
-                            w: 160.0,
-                            h: 100.0,
-                            rotation: 0.0,
-                        };
-                        let mut shared_config = app.shared.config.write().unwrap();
-                        shared_config.target_area = default_target;
-                        shared_config.active_area = default_active;
-                    }
+                        {
+                            let mut shared_config = app.shared.config.write().unwrap();
+                            let theme = shared_config.theme;
+                            let run_at_startup = shared_config.run_at_startup;
 
-                    ui.separator();
+                            *shared_config = crate::core::config::models::MappingConfig::default();
+                            shared_config.theme = theme;
+                            shared_config.run_at_startup = run_at_startup;
 
-                    if ui.button("Apply Settings").clicked() {
-                        ui.close();
-                        let config = app.shared.config.read().unwrap().clone();
-                        let _ = save_last_session(&config);
+                            app.shared.config_version.fetch_add(1, Ordering::SeqCst);
+                        }
+                        app.push_toast(
+                            "Settings reset to default (Unsaved)".to_string(),
+                            ToastLevel::Info,
+                        );
                     }
 
                     ui.separator();
@@ -111,8 +135,19 @@ pub fn render_menu_bar(app: &mut TabletMapperApp, ctx: &egui::Context) {
                             .save_file()
                         {
                             let config = app.shared.config.read().unwrap().clone();
-                            if let Ok(json) = serde_json::to_string_pretty(&config) {
-                                let _ = std::fs::write(path, json);
+                            match crate::settings::save_to_path(&path, &config) {
+                                Ok(()) => {
+                                    app.push_toast(
+                                        "Settings exported".to_string(),
+                                        ToastLevel::Info,
+                                    );
+                                }
+                                Err(e) => {
+                                    app.push_toast(
+                                        format!("Export failed: {}", e),
+                                        ToastLevel::Error,
+                                    );
+                                }
                             }
                         }
                     }
@@ -121,10 +156,30 @@ pub fn render_menu_bar(app: &mut TabletMapperApp, ctx: &egui::Context) {
                         if let Some(path) = rfd::FileDialog::new()
                             .add_filter("JSON", &["json"])
                             .pick_file()
-                            && let Ok(cfg) = crate::settings::load_settings_from_file(path)
                         {
-                            let mut shared_config = app.shared.config.write().unwrap();
-                            *shared_config = cfg;
+                            match crate::settings::load_settings_from_file(&path) {
+                                Ok((cfg, corrections)) => {
+                                    let mut shared_config = app.shared.config.write().unwrap();
+                                    *shared_config = cfg;
+                                    if !corrections.is_empty() {
+                                        // Drop the write lock before pushing toast
+                                        drop(shared_config);
+                                        app.push_toast(
+                                            format!(
+                                                "Imported config repaired: {} field(s) reset",
+                                                corrections.len()
+                                            ),
+                                            ToastLevel::Warning,
+                                        );
+                                    }
+                                }
+                                Err(e) => {
+                                    app.push_toast(
+                                        format!("Import failed: {}", e),
+                                        ToastLevel::Error,
+                                    );
+                                }
+                            }
                         }
                     }
                 });
@@ -141,4 +196,49 @@ pub fn render_menu_bar(app: &mut TabletMapperApp, ctx: &egui::Context) {
                 ui.menu_button("Help", |_| {});
             });
         });
+}
+
+pub fn save_current_settings(app: &mut TabletMapperApp) {
+    let config = app.shared.config.read().unwrap().clone();
+
+    if let Some(ref path) = app.profile.path {
+        // Save back to the loaded profile path
+        match crate::settings::save_to_path(path, &config) {
+            Ok(()) => {
+                app.profile.mark_saved(&config);
+                let _ = app.save_sender.try_send(config);
+                app.push_toast("Settings saved".to_string(), ToastLevel::Info);
+            }
+            Err(e) => {
+                app.push_toast(format!("Failed to save: {}", e), ToastLevel::Error);
+            }
+        }
+    } else {
+        // No profile path — prompt "Save As"
+        if let Some(path) = rfd::FileDialog::new()
+            .set_directory(crate::settings::get_settings_dir())
+            .add_filter("JSON", &["json"])
+            .save_file()
+        {
+            match crate::settings::save_to_path(&path, &config) {
+                Ok(()) => {
+                    if let Some(name) = path.file_stem().and_then(|s| s.to_str()) {
+                        app.profile.name = name.to_string();
+                    }
+                    app.profile.path = Some(path);
+                    app.profile.mark_saved(&config);
+                    let _ = app.save_sender.try_send(config);
+
+                    crate::settings::save_session_meta(&crate::settings::SessionMeta {
+                        profile_name: app.profile.name.clone(),
+                        profile_path: app.profile.path.clone(),
+                    });
+                    app.push_toast("Settings saved".to_string(), ToastLevel::Info);
+                }
+                Err(e) => {
+                    app.push_toast(format!("Failed to save: {}", e), ToastLevel::Error);
+                }
+            }
+        }
+    }
 }

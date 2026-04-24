@@ -2,7 +2,7 @@ use crate::drivers::TabletData;
 use crate::drivers::parsers::ReportParser;
 use std::sync::Mutex;
 
-// --- Intuos V1 ---
+// Intuos V1
 
 pub struct IntuosV1Parser {
     prev_pressure: Mutex<u16>,

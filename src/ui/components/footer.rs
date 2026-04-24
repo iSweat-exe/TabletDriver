@@ -8,6 +8,7 @@ pub fn render_footer(
     config: &mut crate::core::config::models::MappingConfig,
 ) {
     let tablet_name = app.shared.tablet_name.read().unwrap().clone();
+    let profile_display = app.profile.display_name(config);
 
     egui::TopBottomPanel::bottom("footer")
         .frame(
@@ -48,7 +49,12 @@ pub fn render_footer(
                     ui.add_space(8.0);
 
                     ui.horizontal(|ui| {
-                        ui.label(egui::RichText::new(&app.profile_name).strong());
+                        let label_text = if app.profile.is_dirty(config) {
+                            egui::RichText::new(&profile_display).strong().italics()
+                        } else {
+                            egui::RichText::new(&profile_display).strong()
+                        };
+                        ui.label(label_text);
                         ui.label("Profile:");
                     });
 

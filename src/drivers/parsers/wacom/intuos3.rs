@@ -2,7 +2,7 @@ use super::intuos_v1::IntuosV1Parser;
 use crate::drivers::TabletData;
 use crate::drivers::parsers::ReportParser;
 
-// --- Intuos 3 ---
+// Intuos 3
 
 pub struct Intuos3Parser {
     inner_v1: IntuosV1Parser,

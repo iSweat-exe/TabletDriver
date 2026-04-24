@@ -23,6 +23,18 @@ pub struct ActiveArea {
     pub rotation: f32,
 }
 
+impl Default for ActiveArea {
+    fn default() -> Self {
+        Self {
+            x: 80.0,
+            y: 50.0,
+            w: 160.0,
+            h: 100.0,
+            rotation: 0.0,
+        }
+    }
+}
+
 /// Represents the target mapping area on the user's monitors.
 ///
 /// All coordinates in this struct are in absolute virtual **pixels**
@@ -37,6 +49,17 @@ pub struct TargetArea {
     pub w: f32,
     /// Total height of the mapped screen region.
     pub h: f32,
+}
+
+impl Default for TargetArea {
+    fn default() -> Self {
+        Self {
+            x: 0.0,
+            y: 0.0,
+            w: 1920.0,
+            h: 1080.0,
+        }
+    }
 }
 
 /// Determines how pen movement translates to cursor movement.
@@ -256,29 +279,17 @@ pub struct MappingConfig {
     pub show_osu_playfield: bool,
 }
 
-impl MappingConfig {
-    /// Creates a default configuration suitable for testing environments.
-    pub fn default_test() -> Self {
+impl Default for MappingConfig {
+    fn default() -> Self {
         Self {
-            mode: DriverMode::Absolute,
-            active_area: ActiveArea {
-                x: 80.0,
-                y: 50.0,
-                w: 160.0,
-                h: 100.0,
-                rotation: 0.0,
-            },
-            target_area: TargetArea {
-                x: 0.0,
-                y: 0.0,
-                w: 1920.0,
-                h: 1080.0,
-            },
+            mode: DriverMode::default(),
+            active_area: ActiveArea::default(),
+            target_area: TargetArea::default(),
             relative_config: RelativeConfig::default(),
             antichatter: AntichatterConfig::default(),
             speed_stats: SpeedStatsConfig::default(),
-            tip_threshold: 10,
-            eraser_threshold: 10,
+            tip_threshold: default_threshold(),
+            eraser_threshold: default_threshold(),
             disable_pressure: false,
             disable_tilt: false,
             tip_binding: default_tip_binding(),
@@ -287,10 +298,78 @@ impl MappingConfig {
             run_at_startup: false,
             system_tray_on_minimize: false,
             websocket: WebSocketConfig::default(),
-            theme: ThemePreference::System,
+            theme: ThemePreference::default(),
             lock_aspect_ratio: false,
             show_osu_playfield: false,
         }
+    }
+}
+
+impl MappingConfig {
+    /// Alias for `Default::default()`, kept for backward compatibility with tests.
+    pub fn default_test() -> Self {
+        Self::default()
+    }
+
+    /// Validates deserialized config values and repairs any invalid fields.
+    ///
+    /// Returns a list of human-readable correction messages. An empty list
+    /// means the config was valid as-is.
+    pub fn validate_and_repair(&mut self) -> Vec<String> {
+        let mut corrections = Vec::new();
+        let defaults = Self::default();
+
+        if self.active_area.w <= 0.0 {
+            corrections.push(format!(
+                "active_area.w was invalid ({}), reset to {}",
+                self.active_area.w, defaults.active_area.w
+            ));
+            self.active_area.w = defaults.active_area.w;
+        }
+        if self.active_area.h <= 0.0 {
+            corrections.push(format!(
+                "active_area.h was invalid ({}), reset to {}",
+                self.active_area.h, defaults.active_area.h
+            ));
+            self.active_area.h = defaults.active_area.h;
+        }
+        if self.target_area.w <= 0.0 {
+            corrections.push(format!(
+                "target_area.w was invalid ({}), reset to {}",
+                self.target_area.w, defaults.target_area.w
+            ));
+            self.target_area.w = defaults.target_area.w;
+        }
+        if self.target_area.h <= 0.0 {
+            corrections.push(format!(
+                "target_area.h was invalid ({}), reset to {}",
+                self.target_area.h, defaults.target_area.h
+            ));
+            self.target_area.h = defaults.target_area.h;
+        }
+        if self.antichatter.frequency <= 0.0 {
+            corrections.push(format!(
+                "antichatter.frequency was invalid ({}), reset to {}",
+                self.antichatter.frequency, defaults.antichatter.frequency
+            ));
+            self.antichatter.frequency = defaults.antichatter.frequency;
+        }
+        if self.relative_config.x_sensitivity <= 0.0 {
+            corrections.push(format!(
+                "relative_config.x_sensitivity was invalid ({}), reset to {}",
+                self.relative_config.x_sensitivity, defaults.relative_config.x_sensitivity
+            ));
+            self.relative_config.x_sensitivity = defaults.relative_config.x_sensitivity;
+        }
+        if self.relative_config.y_sensitivity <= 0.0 {
+            corrections.push(format!(
+                "relative_config.y_sensitivity was invalid ({}), reset to {}",
+                self.relative_config.y_sensitivity, defaults.relative_config.y_sensitivity
+            ));
+            self.relative_config.y_sensitivity = defaults.relative_config.y_sensitivity;
+        }
+
+        corrections
     }
 }
 
