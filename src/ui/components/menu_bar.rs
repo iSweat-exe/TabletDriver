@@ -119,7 +119,10 @@ pub fn render_menu_bar(app: &mut TabletMapperApp, ctx: &egui::Context) {
 
                             app.shared.config_version.fetch_add(1, Ordering::SeqCst);
                         }
-                        app.push_toast("Settings reset to default (Unsaved)".to_string(), ToastLevel::Info);
+                        app.push_toast(
+                            "Settings reset to default (Unsaved)".to_string(),
+                            ToastLevel::Info,
+                        );
                     }
 
                     ui.separator();
