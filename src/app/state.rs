@@ -520,6 +520,23 @@ impl TabletMapperApp {
         self.update_status = crate::app::autoupdate::UpdateStatus::Idle;
     }
 
+    /// Triggers a manual check for updates from GitHub.
+    pub fn check_for_updates(&mut self) {
+        let sender = self.update_sender.clone();
+        self.update_status = crate::app::autoupdate::UpdateStatus::Checking;
+        std::thread::spawn(move || match crate::app::autoupdate::check_for_updates() {
+            Ok(Some(release)) => {
+                let _ = sender.send(crate::app::autoupdate::UpdateStatus::Available(release));
+            }
+            Ok(None) => {
+                let _ = sender.send(crate::app::autoupdate::UpdateStatus::Idle);
+            }
+            Err(e) => {
+                let _ = sender.send(crate::app::autoupdate::UpdateStatus::Error(e.to_string()));
+            }
+        });
+    }
+
     /// Atomically updates the shared config and bumps the version counter.
     fn apply_config(&mut self, cfg: MappingConfig) {
         {
