@@ -166,6 +166,57 @@ pub struct Toast {
     pub created_at: Instant,
 }
 
+/// Encapsulates performance metrics and latency tracking.
+pub struct Metrics {
+    pub displayed_hz: f32,
+    pub last_hz_update: Instant,
+    pub last_packet_count: u32,
+    pub ui_latency_ms: f32,
+    pub min_ui_latency_ms: f32,
+    pub max_ui_latency_ms: f32,
+    pub avg_ui_latency_ms: f32,
+}
+
+impl Default for Metrics {
+    fn default() -> Self {
+        Self {
+            displayed_hz: 0.0,
+            last_hz_update: Instant::now(),
+            last_packet_count: 0,
+            ui_latency_ms: 0.0,
+            min_ui_latency_ms: f32::MAX,
+            max_ui_latency_ms: 0.0,
+            avg_ui_latency_ms: 0.0,
+        }
+    }
+}
+
+impl Metrics {
+    pub fn update_hz(&mut self, current_packets: u32) {
+        let elapsed = self.last_hz_update.elapsed();
+        if elapsed >= std::time::Duration::from_millis(200) {
+            let delta = current_packets.saturating_sub(self.last_packet_count);
+            let hz = delta as f32 / elapsed.as_secs_f32();
+            self.displayed_hz += (hz - self.displayed_hz) * 0.3;
+            self.last_packet_count = current_packets;
+            self.last_hz_update = Instant::now();
+        }
+    }
+
+    pub fn update_latency(&mut self, latency: f32) {
+        self.ui_latency_ms = latency;
+        self.min_ui_latency_ms = self.min_ui_latency_ms.min(latency);
+        self.max_ui_latency_ms = self.max_ui_latency_ms.max(latency);
+        self.avg_ui_latency_ms += (latency - self.avg_ui_latency_ms) * 0.1;
+    }
+
+    pub fn reset_ui_latency(&mut self) {
+        self.min_ui_latency_ms = f32::MAX;
+        self.max_ui_latency_ms = 0.0;
+        self.avg_ui_latency_ms = 0.0;
+    }
+}
+
 /// The core application state structure used by the `eframe` (egui) integration.
 ///
 /// This struct implements the `eframe::App` trait (in `update.rs`) and holds
@@ -198,17 +249,10 @@ pub struct TabletMapperApp {
     // Filters UI State
     pub selected_filter: String,
 
-    // Debugger UI State
+    // Debugger & Performance UI State
     pub show_debugger: bool,
     pub show_latency_stats: bool,
-    pub displayed_hz: f32,
-    pub last_hz_update: Instant,
-    pub last_packet_count: u32,
-    /// Exponential moving average of engine→UI latency (ms).
-    pub ui_latency_ms: f32,
-    pub min_ui_latency_ms: f32,
-    pub max_ui_latency_ms: f32,
-    pub avg_ui_latency_ms: f32,
+    pub metrics: Metrics,
 
     pub was_minimized: bool,
 
@@ -263,5 +307,221 @@ impl TabletMapperApp {
             level,
             created_at: Instant::now(),
         });
+    }
+
+    /// Prompts the user to load a settings file and applies it.
+    pub fn load_settings(&mut self) {
+        if let Some(path) = rfd::FileDialog::new()
+            .set_directory(crate::settings::get_settings_dir())
+            .add_filter("JSON", &["json"])
+            .pick_file()
+        {
+            match crate::settings::load_settings_from_file(&path) {
+                Ok((cfg, corrections)) => {
+                    self.apply_config(cfg.clone());
+
+                    // Update profile state
+                    if let Some(name) = path.file_stem().and_then(|s| s.to_str()) {
+                        self.profile.name = name.to_string();
+                    }
+                    self.profile.path = Some(path);
+                    self.profile.mark_saved(&cfg);
+
+                    crate::settings::save_session_meta(&crate::settings::SessionMeta {
+                        profile_name: self.profile.name.clone(),
+                        profile_path: self.profile.path.clone(),
+                    });
+
+                    if !corrections.is_empty() {
+                        self.push_toast(
+                            format!(
+                                "Config repaired: {} field(s) reset to defaults",
+                                corrections.len()
+                            ),
+                            ToastLevel::Warning,
+                        );
+                    }
+                    self.push_toast("Settings loaded successfully".to_string(), ToastLevel::Info);
+                }
+                Err(e) => {
+                    self.push_toast(format!("Failed to load settings: {}", e), ToastLevel::Error);
+                }
+            }
+        }
+    }
+
+    /// Saves the current configuration to its associated file path, or prompts "Save As" if none exists.
+    pub fn save_settings(&mut self, config: &MappingConfig) {
+        let config = config.clone();
+        if let Some(ref path) = self.profile.path {
+            match crate::settings::save_to_path(path, &config) {
+                Ok(()) => {
+                    self.profile.mark_saved(&config);
+                    let _ = self.save_sender.try_send(config);
+                    self.push_toast("Settings saved".to_string(), ToastLevel::Info);
+                }
+                Err(e) => {
+                    self.push_toast(format!("Failed to save: {}", e), ToastLevel::Error);
+                }
+            }
+        } else {
+            self.save_settings_as(config);
+        }
+    }
+
+    /// Prompts the user for a path and saves the configuration.
+    pub fn save_settings_as(&mut self, config: MappingConfig) {
+        if let Some(path) = rfd::FileDialog::new()
+            .set_directory(crate::settings::get_settings_dir())
+            .add_filter("JSON", &["json"])
+            .save_file()
+        {
+            match crate::settings::save_to_path(&path, &config) {
+                Ok(()) => {
+                    if let Some(name) = path.file_stem().and_then(|s| s.to_str()) {
+                        self.profile.name = name.to_string();
+                    }
+                    self.profile.path = Some(path);
+                    self.profile.mark_saved(&config);
+                    let _ = self.save_sender.try_send(config);
+
+                    crate::settings::save_session_meta(&crate::settings::SessionMeta {
+                        profile_name: self.profile.name.clone(),
+                        profile_path: self.profile.path.clone(),
+                    });
+                    self.push_toast("Settings saved".to_string(), ToastLevel::Info);
+                }
+                Err(e) => {
+                    self.push_toast(format!("Failed to save: {}", e), ToastLevel::Error);
+                }
+            }
+        }
+    }
+
+    /// Resets the current configuration to defaults while preserving system settings.
+    pub fn reset_to_default(&mut self) {
+        {
+            let mut shared_config = self.shared.config.write().ignore_poison();
+            let theme = shared_config.theme;
+            let run_at_startup = shared_config.run_at_startup;
+
+            *shared_config = MappingConfig::default();
+            shared_config.theme = theme;
+            shared_config.run_at_startup = run_at_startup;
+
+            self.shared
+                .config_version
+                .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        }
+        self.push_toast(
+            "Settings reset to default (Unsaved)".to_string(),
+            ToastLevel::Info,
+        );
+    }
+
+    /// Exports the configuration to an external file.
+    pub fn export_settings(&mut self, config: &MappingConfig) {
+        if let Some(path) = rfd::FileDialog::new()
+            .set_file_name("settings_export.json")
+            .add_filter("JSON", &["json"])
+            .save_file()
+        {
+            match crate::settings::save_to_path(&path, config) {
+                Ok(()) => self.push_toast("Settings exported".to_string(), ToastLevel::Info),
+                Err(e) => self.push_toast(format!("Export failed: {}", e), ToastLevel::Error),
+            }
+        }
+    }
+
+    /// Imports a configuration from an external file without changing the profile identity.
+    pub fn import_settings(&mut self) {
+        if let Some(path) = rfd::FileDialog::new()
+            .add_filter("JSON", &["json"])
+            .pick_file()
+        {
+            match crate::settings::load_settings_from_file(&path) {
+                Ok((cfg, corrections)) => {
+                    self.apply_config(cfg);
+                    if !corrections.is_empty() {
+                        self.push_toast(
+                            format!(
+                                "Imported config repaired: {} field(s) reset",
+                                corrections.len()
+                            ),
+                            ToastLevel::Warning,
+                        );
+                    }
+                }
+                Err(e) => self.push_toast(format!("Import failed: {}", e), ToastLevel::Error),
+            }
+        }
+    }
+
+    /// Filters the global log buffer based on current UI settings and search query.
+    /// Returns (total_count, filtered_logs, full_log_text).
+    pub fn get_filtered_logs(&self) -> (usize, Vec<crate::logger::LogEntry>, String) {
+        use crate::engine::state::LockResultExt;
+        let logs = crate::logger::LOG_BUFFER.read().ignore_poison();
+        let search_lower = self.console_search.to_lowercase();
+
+        let mut filtered: Vec<_> = logs
+            .iter()
+            .filter(|log| {
+                let level_match = match log.level.as_str() {
+                    "Info" => self.console_show_info,
+                    "Warn" => self.console_show_warn,
+                    "Error" => self.console_show_error,
+                    "Debug" => self.console_show_debug,
+                    _ => true,
+                };
+                if !level_match {
+                    return false;
+                }
+                if search_lower.is_empty() {
+                    return true;
+                }
+                log.message.to_lowercase().contains(&search_lower)
+                    || log.group.to_lowercase().contains(&search_lower)
+            })
+            .cloned()
+            .collect();
+
+        filtered.reverse();
+
+        let full_text = logs
+            .iter()
+            .map(|l| format!("[{}] {} [{}] {}", l.time, l.level, l.group, l.message))
+            .collect::<Vec<_>>()
+            .join("\n");
+
+        (logs.len(), filtered, full_text)
+    }
+
+    /// Initiates the download and installation of an available update in a background thread.
+    pub fn start_update(&mut self) {
+        if let crate::app::autoupdate::UpdateStatus::Available(release) = &self.update_status {
+            let release_clone = release.clone();
+            std::thread::spawn(move || {
+                let _ = crate::app::autoupdate::download_and_install(release_clone);
+            });
+            self.update_status = crate::app::autoupdate::UpdateStatus::Downloading(0.0);
+        }
+    }
+
+    /// Dismisses the update notification for the current session.
+    pub fn dismiss_update(&mut self) {
+        self.update_status = crate::app::autoupdate::UpdateStatus::Idle;
+    }
+
+    /// Atomically updates the shared config and bumps the version counter.
+    fn apply_config(&mut self, cfg: MappingConfig) {
+        {
+            let mut shared_config = self.shared.config.write().ignore_poison();
+            *shared_config = cfg.clone();
+            self.shared
+                .config_version
+                .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        }
+        let _ = self.save_sender.try_send(cfg);
     }
 }

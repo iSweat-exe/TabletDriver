@@ -31,12 +31,7 @@ pub fn render_performance_panel(
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                 if ui.button("Reset Stats").clicked() {
                     if let Ok(mut s) = shared.stats.write() {
-                        s.min_hid_read_ms = f32::MAX;
-                        s.max_hid_read_ms = 0.0;
-                        s.avg_hid_read_ms = 0.0;
-                        s.min_parser_ms = f32::MAX;
-                        s.max_parser_ms = 0.0;
-                        s.avg_parser_ms = 0.0;
+                        s.reset_latency();
                     }
                     reset_requested = true;
                 }

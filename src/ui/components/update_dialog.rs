@@ -2,8 +2,6 @@ use crate::app::state::TabletMapperApp;
 use eframe::egui;
 
 pub fn render_update_dialog(app: &mut TabletMapperApp, ctx: &egui::Context) {
-    let mut update_action = None;
-
     if let crate::app::autoupdate::UpdateStatus::Available(release) = &app.update_status {
         let screen_rect = ctx.content_rect();
         egui::Area::new(egui::Id::new("update_overlay"))
@@ -106,7 +104,7 @@ pub fn render_update_dialog(app: &mut TabletMapperApp, ctx: &egui::Context) {
                                 .min_size(egui::vec2(120.0, 36.0));
 
                                 if ui.add(later_btn).clicked() {
-                                    update_action = Some(false);
+                                    app.dismiss_update();
                                 }
 
                                 ui.with_layout(
@@ -123,7 +121,7 @@ pub fn render_update_dialog(app: &mut TabletMapperApp, ctx: &egui::Context) {
                                         .min_size(egui::vec2(160.0, 36.0));
 
                                         if ui.add(update_btn).clicked() {
-                                            update_action = Some(true);
+                                            app.start_update();
                                         }
                                     },
                                 );
@@ -133,19 +131,5 @@ pub fn render_update_dialog(app: &mut TabletMapperApp, ctx: &egui::Context) {
                     ui.add_space(5.0);
                 });
             });
-    }
-
-    if let Some(install) = update_action {
-        if install {
-            if let Some(release) = app.update_status.as_release() {
-                let release_clone = release.clone();
-                std::thread::spawn(move || {
-                    let _ = crate::app::autoupdate::download_and_install(release_clone);
-                });
-                app.update_status = crate::app::autoupdate::UpdateStatus::Downloading(0.0);
-            }
-        } else {
-            app.update_status = crate::app::autoupdate::UpdateStatus::Idle;
-        }
     }
 }

@@ -182,23 +182,23 @@ pub fn render_tablet_section(ui: &mut egui::Ui, config: &mut MappingConfig, snap
 
                     ui_input_box(ui, "Width", &mut w, "mm");
                     if w != config.active_area.w {
+                        config.active_area.w = w;
                         if config.lock_aspect_ratio {
-                            let ratio = config.active_area.w / config.active_area.h;
-                            config.active_area.w = w;
-                            config.active_area.h = (w / ratio).clamp(1.0, phys_h);
-                        } else {
-                            config.active_area.w = w;
+                            let ratio = config.target_area.w / config.target_area.h;
+                            config
+                                .active_area
+                                .apply_aspect_ratio(ratio, true, phys_w, phys_h);
                         }
                     }
 
                     ui_input_box(ui, "Height", &mut h, "mm");
                     if h != config.active_area.h {
+                        config.active_area.h = h;
                         if config.lock_aspect_ratio {
-                            let ratio = config.active_area.w / config.active_area.h;
-                            config.active_area.h = h;
-                            config.active_area.w = (h * ratio).clamp(1.0, phys_w);
-                        } else {
-                            config.active_area.h = h;
+                            let ratio = config.target_area.w / config.target_area.h;
+                            config
+                                .active_area
+                                .apply_aspect_ratio(ratio, false, phys_w, phys_h);
                         }
                     }
 
@@ -206,23 +206,9 @@ pub fn render_tablet_section(ui: &mut egui::Ui, config: &mut MappingConfig, snap
                     ui_input_box(ui, "Y", &mut config.active_area.y, "mm");
                     ui_input_box(ui, "Rotation", &mut config.active_area.rotation, "°");
 
-                    config.active_area.rotation %= 360.0;
-                    if config.active_area.rotation < 0.0 {
-                        config.active_area.rotation += 360.0;
-                    }
-
                     ui.end_row();
 
-                    config.active_area.w = config.active_area.w.clamp(1.0, phys_w);
-                    config.active_area.h = config.active_area.h.clamp(1.0, phys_h);
-                    config.active_area.x = config.active_area.x.clamp(
-                        config.active_area.w / 2.0,
-                        phys_w - config.active_area.w / 2.0,
-                    );
-                    config.active_area.y = config.active_area.y.clamp(
-                        config.active_area.h / 2.0,
-                        phys_h - config.active_area.h / 2.0,
-                    );
+                    config.active_area.clamp_to_surface(phys_w, phys_h);
                 });
         });
     });
@@ -261,14 +247,9 @@ fn handle_tablet_drag(
                 current_drag_delta += delta;
                 ui.data_mut(|d| d.insert_temp(drag_id, current_drag_delta));
 
-                config.active_area.x = (config.active_area.x + delta.x).clamp(
-                    config.active_area.w / 2.0,
-                    phys_w - config.active_area.w / 2.0,
-                );
-                config.active_area.y = (config.active_area.y + delta.y).clamp(
-                    config.active_area.h / 2.0,
-                    phys_h - config.active_area.h / 2.0,
-                );
+                config.active_area.x += delta.x;
+                config.active_area.y += delta.y;
+                config.active_area.clamp_to_surface(phys_w, phys_h);
             }
         }
     } else if response.drag_stopped() {

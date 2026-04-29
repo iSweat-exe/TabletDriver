@@ -29,15 +29,7 @@ pub fn render_stats_settings(
 
             ui.add_space(15.0);
 
-            let dist = stats.total_distance_mm;
-            let (dist_val, dist_unit) = if dist < 1000.0 {
-                (format!("{:.1}", dist), "mm")
-            } else if dist < 1000000.0 {
-                (format!("{:.3}", dist / 1000.0), "m")
-            } else {
-                (format!("{:.3}", dist / 1000000.0), "km")
-            };
-
+            let (dist_val, dist_unit) = stats.format_distance();
             render_stat_badge(ui, "Total Distance", &dist_val, dist_unit);
 
             ui.add_space(15.0);
@@ -48,7 +40,7 @@ pub fn render_stats_settings(
                 .clicked()
                 && let Ok(mut stats) = app.shared.stats.write()
             {
-                stats.total_distance_mm = 0.0;
+                stats.reset_distance();
             }
         });
     });

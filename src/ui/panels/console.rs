@@ -1,5 +1,4 @@
 use crate::app::state::TabletMapperApp;
-use crate::engine::state::LockResultExt;
 use eframe::egui;
 
 pub fn render_console_panel(app: &mut TabletMapperApp, ui: &mut egui::Ui) {
@@ -77,42 +76,7 @@ pub fn render_console_panel(app: &mut TabletMapperApp, ui: &mut egui::Ui) {
     ui.separator();
     ui.add_space(2.0);
 
-    let (all_logs_count, filtered_logs, full_log_text) = {
-        let logs = crate::logger::LOG_BUFFER.read().ignore_poison();
-        let search_lower = app.console_search.to_lowercase();
-
-        let mut filtered: Vec<_> = logs
-            .iter()
-            .filter(|log| {
-                let level_match = match log.level.as_str() {
-                    "Info" => app.console_show_info,
-                    "Warn" => app.console_show_warn,
-                    "Error" => app.console_show_error,
-                    "Debug" => app.console_show_debug,
-                    _ => true,
-                };
-                if !level_match {
-                    return false;
-                }
-                if search_lower.is_empty() {
-                    return true;
-                }
-                log.message.to_lowercase().contains(&search_lower)
-                    || log.group.to_lowercase().contains(&search_lower)
-            })
-            .cloned()
-            .collect();
-
-        filtered.reverse();
-
-        let text = logs
-            .iter()
-            .map(|l| format!("[{}] {} [{}] {}", l.time, l.level, l.group, l.message))
-            .collect::<Vec<_>>()
-            .join("\n");
-
-        (logs.len(), filtered, text)
-    };
+    let (all_logs_count, filtered_logs, full_log_text) = app.get_filtered_logs();
 
     let footer_height = 45.0;
     let table_height = ui.available_height() - footer_height;
