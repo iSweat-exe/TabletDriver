@@ -11,16 +11,48 @@ use std::sync::Arc;
 use std::time::Duration;
 use std::time::Instant;
 
+/// Internal stage tracking for debug telemetry.
+#[cfg(debug_assertions)]
+#[derive(Debug, Clone, Copy)]
+pub enum DebugStage {
+    Normalize,
+    Filter,
+    Project,
+    Inject,
+}
+
+#[cfg(debug_assertions)]
+impl DebugStage {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            DebugStage::Normalize => "Normalize",
+            DebugStage::Filter => "Filter",
+            DebugStage::Project => "Project",
+            DebugStage::Inject => "Inject",
+        }
+    }
+}
+
+/// A structure to hold the intermediate results of the pipeline processing.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct ProcessedFrame {
+    pub u: f32,
+    pub v: f32,
+    pub screen_x: f32,
+    pub screen_y: f32,
+    pub is_down: bool,
+}
+
 /// The core processing pipeline for tablet input events.
 ///
 /// It maintains internal state across frames (such as previous coordinates for
 /// relative mode or filter history) and orchestrates the flow from raw data ->
 /// filters -> transformation -> OS injection.
 pub struct Pipeline {
-    /// The last known absolute screen X coordinate, used for calculating relative deltas.
-    last_screen_x: f32,
-    /// The last known absolute screen Y coordinate, used for calculating relative deltas.
-    last_screen_y: f32,
+    /// The last known absolute screen position (pixels), used for relative mode fallback.
+    last_abs_screen: Option<(f32, f32)>,
+    /// The last known physical position (mm), used for calculating relative deltas.
+    last_rel_mm: Option<(f32, f32)>,
     /// The timestamp of the previous packet, used to reset relative tracking after inactivity.
     last_packet_time: Instant,
 }
@@ -34,8 +66,8 @@ impl Default for Pipeline {
 impl Pipeline {
     pub fn new() -> Self {
         Self {
-            last_screen_x: -1.0,
-            last_screen_y: -1.0,
+            last_abs_screen: None,
+            last_rel_mm: None,
             last_packet_time: Instant::now(),
         }
     }
@@ -44,24 +76,11 @@ impl Pipeline {
     /// This prevents massive cursor jumps when the pen is lifted and placed back
     /// down on a different part of the tablet.
     pub fn reset_relative(&mut self) {
-        self.last_screen_x = -1.0;
-        self.last_screen_y = -1.0;
+        self.last_abs_screen = None;
+        self.last_rel_mm = None;
     }
 
     /// Processes a single hardware packet through the entire stack.
-    ///
-    /// # Processing Steps
-    /// 1. **Connection Check**: If the tablet is disconnected or out of range,
-    ///    releases the primary button and resets filters/relative tracking.
-    /// 2. **Physical Mapping**: Converts raw hardware units to millimeters (`x_mm`, `y_mm`).
-    /// 3. **Normalization**: Maps the physical `mm` coordinates onto a `[0.0, 1.0]` UV
-    ///    space based on the user's Active Area and Rotation settings.
-    /// 4. **Filtering**: Passes the UV coordinates through the active `FilterPipeline`
-    ///    (e.g., Antichatter, Smoothing).
-    /// 5. **Projection & Injection**:
-    ///    - *Absolute Mode*: Projects UV to Screen Space pixels and injects absolute changes.
-    ///    - *Relative Mode*: Converts physical `mm` deltas to pixel deltas based on sensitivity.
-    /// 6. **Pressure**: Evaluates current pressure against the tip threshold to trigger clicks.
     pub fn process(
         &mut self,
         data: &TabletData,
@@ -87,22 +106,77 @@ impl Pipeline {
             return;
         }
 
-        #[cfg(debug_assertions)]
-        if let Ok(mut stage) = shared.debug_pipeline_stage.write() {
-            *stage = "Normalize".to_string();
-        }
+        self.emit_debug_stage(DebugStage::Normalize, shared);
 
-        let now = Instant::now();
         let (max_w, max_h, max_p) = driver.get_specs();
         let (phys_w, phys_h) = driver.get_physical_specs();
 
         let x_mm = (data.x as f32 / max_w) * phys_w;
         let y_mm = (data.y as f32 / max_h) * phys_h;
 
-        #[cfg(debug_assertions)]
-        let transform_start = Instant::now();
+        // 1. Normalize
+        let (u, v) = self.normalize(x_mm, y_mm, config, shared);
 
-        let (mut u, mut v) = crate::core::math::transform::physical_to_normalized(
+        self.emit_debug_stage(DebugStage::Filter, shared);
+
+        // 2. Filter
+        let (u, v) = self.filter(u, v, config, filters, shared);
+
+        self.emit_debug_stage(DebugStage::Project, shared);
+
+        // 3. Project
+        let mut frame = ProcessedFrame {
+            u,
+            v,
+            ..Default::default()
+        };
+
+        match config.mode {
+            DriverMode::Absolute => {
+                let (sx, sy) = self.project_absolute(u, v, config, shared);
+                frame.screen_x = sx;
+                frame.screen_y = sy;
+                injector.move_absolute(sx, sy, u, v);
+
+                self.last_abs_screen = Some((sx, sy));
+            }
+            DriverMode::Relative => {
+                let (dx, dy) = self.project_relative(x_mm, y_mm, config);
+                injector.move_relative(dx, dy);
+
+                // Update approximate absolute screen position for debug telemetry
+                #[cfg(debug_assertions)]
+                {
+                    if let Ok(mut debug_sc) = shared.debug_last_screen.write() {
+                        frame.screen_x = debug_sc.0 + dx;
+                        frame.screen_y = debug_sc.1 + dy;
+                        *debug_sc = (frame.screen_x, frame.screen_y);
+                    }
+                }
+            }
+        }
+
+        self.emit_debug_stage(DebugStage::Inject, shared);
+
+        // 4. Pressure & Injection
+        frame.is_down = self.evaluate_pressure(data.pressure, max_p, config);
+        injector.set_left_button(frame.is_down);
+
+        #[cfg(debug_assertions)]
+        self.emit_final_debug_telemetry(pipeline_start, shared);
+    }
+
+    fn normalize(
+        &self,
+        x_mm: f32,
+        y_mm: f32,
+        config: &MappingConfig,
+        #[allow(unused_variables)] shared: &Arc<crate::engine::state::SharedState>,
+    ) -> (f32, f32) {
+        #[cfg(debug_assertions)]
+        let start = Instant::now();
+
+        let (u, v) = crate::core::math::transform::physical_to_normalized(
             x_mm,
             y_mm,
             config.active_area.x,
@@ -114,123 +188,212 @@ impl Pipeline {
 
         #[cfg(debug_assertions)]
         {
-            if let Ok(mut uv) = shared.debug_last_uv.write() {
-                *uv = (u, v);
+            if let Ok(mut debug_uv) = shared.debug_last_uv.write() {
+                *debug_uv = (u, v);
             }
             shared.debug_transform_time_ns.store(
-                transform_start.elapsed().as_nanos() as u64,
+                start.elapsed().as_nanos() as u64,
                 std::sync::atomic::Ordering::Relaxed,
             );
         }
 
-        #[cfg(debug_assertions)]
-        if let Ok(mut stage) = shared.debug_pipeline_stage.write() {
-            *stage = "Filter".to_string();
-        }
+        (u, v)
+    }
 
+    fn filter(
+        &self,
+        u: f32,
+        v: f32,
+        config: &MappingConfig,
+        filters: &mut crate::filters::FilterPipeline,
+        #[allow(unused_variables)] shared: &Arc<crate::engine::state::SharedState>,
+    ) -> (f32, f32) {
         #[cfg(debug_assertions)]
-        let filter_start = Instant::now();
+        let start = Instant::now();
 
-        let (nx, ny) = filters.process(u, v, config);
-        u = nx;
-        v = ny;
+        let (nu, nv) = filters.process(u, v, config);
 
         #[cfg(debug_assertions)]
         {
             shared.debug_filter_time_ns.store(
-                filter_start.elapsed().as_nanos() as u64,
+                start.elapsed().as_nanos() as u64,
                 std::sync::atomic::Ordering::Relaxed,
             );
             if let Ok(mut fuv) = shared.debug_last_filtered_uv.write() {
-                *fuv = (u, v);
+                *fuv = (nu, nv);
             }
         }
+
+        (nu, nv)
+    }
+
+    fn project_absolute(
+        &self,
+        u: f32,
+        v: f32,
+        config: &MappingConfig,
+        #[allow(unused_variables)] shared: &Arc<crate::engine::state::SharedState>,
+    ) -> (f32, f32) {
+        let (sx, sy) = crate::core::math::transform::normalized_to_screen(
+            u,
+            v,
+            config.target_area.x,
+            config.target_area.y,
+            config.target_area.w,
+            config.target_area.h,
+        );
 
         #[cfg(debug_assertions)]
-        if let Ok(mut stage) = shared.debug_pipeline_stage.write() {
-            *stage = "Project".to_string();
+        if let Ok(mut debug_sc) = shared.debug_last_screen.write() {
+            *debug_sc = (sx, sy);
         }
 
-        match config.mode {
-            DriverMode::Absolute => {
-                let (screen_x, screen_y) = crate::core::math::transform::normalized_to_screen(
-                    u,
-                    v,
-                    config.target_area.x,
-                    config.target_area.y,
-                    config.target_area.w,
-                    config.target_area.h,
-                );
+        (sx, sy)
+    }
 
-                #[cfg(debug_assertions)]
-                {
-                    if let Ok(mut debug_sc) = shared.debug_last_screen.write() {
-                        *debug_sc = (screen_x, screen_y);
-                    }
-                }
+    fn project_relative(&mut self, x_mm: f32, y_mm: f32, config: &MappingConfig) -> (f32, f32) {
+        let now = Instant::now();
+        if now.duration_since(self.last_packet_time)
+            > Duration::from_millis(config.relative_config.reset_time_ms as u64)
+        {
+            self.reset_relative();
+        }
+        self.last_packet_time = now;
 
-                injector.move_absolute(screen_x, screen_y, u, v);
-                self.last_screen_x = screen_x;
-                self.last_screen_y = screen_y;
-            }
-            DriverMode::Relative => {
-                if now.duration_since(self.last_packet_time)
-                    > Duration::from_millis(config.relative_config.reset_time_ms as u64)
-                {
-                    self.reset_relative();
-                }
-                self.last_packet_time = now;
+        let mut delta = (0.0, 0.0);
 
-                if self.last_screen_x != -1.0 && self.last_screen_y != -1.0 {
-                    let (dx_px, dy_px) = crate::core::math::transform::apply_relative_delta(
-                        x_mm,
-                        y_mm,
-                        self.last_screen_x,
-                        self.last_screen_y,
-                        config.relative_config.rotation,
-                        config.relative_config.x_sensitivity,
-                        config.relative_config.y_sensitivity,
-                    );
-                    injector.move_relative(dx_px, dy_px);
-
-                    // Approximate screen pos — no absolute reference in relative mode
-                    #[cfg(debug_assertions)]
-                    {
-                        if let Ok(mut debug_sc) = shared.debug_last_screen.write() {
-                            *debug_sc = (debug_sc.0 + dx_px, debug_sc.1 + dy_px);
-                        }
-                    }
-                }
-
-                self.last_screen_x = x_mm;
-                self.last_screen_y = y_mm;
-            }
+        if let Some((lx, ly)) = self.last_rel_mm {
+            delta = crate::core::math::transform::apply_relative_delta(
+                x_mm,
+                y_mm,
+                lx,
+                ly,
+                config.relative_config.rotation,
+                config.relative_config.x_sensitivity,
+                config.relative_config.y_sensitivity,
+            );
         }
 
-        #[cfg(debug_assertions)]
-        if let Ok(mut stage) = shared.debug_pipeline_stage.write() {
-            *stage = "Inject".to_string();
-        }
+        self.last_rel_mm = Some((x_mm, y_mm));
+        delta
+    }
 
+    fn evaluate_pressure(&self, pressure_raw: u16, max_p: f32, config: &MappingConfig) -> bool {
         let pressure = if config.disable_pressure {
             max_p as u16
         } else {
-            data.pressure
+            pressure_raw
         };
         let threshold_raw = (config.tip_threshold as f32 / 100.0) * max_p;
-        let is_down = pressure as f32 > threshold_raw;
+        pressure as f32 > threshold_raw
+    }
 
-        injector.set_left_button(is_down);
+    #[inline(always)]
+    fn emit_debug_stage(
+        &self,
+        #[allow(unused_variables)] stage: DebugStage,
+        #[allow(unused_variables)] shared: &Arc<crate::engine::state::SharedState>,
+    ) {
+        #[cfg(debug_assertions)]
+        if let Ok(mut s) = shared.debug_pipeline_stage.write() {
+            *s = stage.as_str().to_string();
+        }
+    }
+
+    #[cfg(debug_assertions)]
+    fn emit_final_debug_telemetry(
+        &self,
+        start_time: Instant,
+        shared: &Arc<crate::engine::state::SharedState>,
+    ) {
+        shared
+            .debug_inject_count
+            .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        shared.debug_pipeline_time_ns.store(
+            start_time.elapsed().as_nanos() as u64,
+            std::sync::atomic::Ordering::Relaxed,
+        );
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::core::config::models::MappingConfig;
+    use crate::drivers::TabletData;
+    use crate::engine::injector::Injector;
+    use crate::engine::state::SharedState;
+    use crate::filters::FilterPipeline;
+
+    struct MockDriver;
+    impl crate::drivers::NextTabletDriver for MockDriver {
+        fn get_specs(&self) -> (f32, f32, f32) {
+            (1000.0, 1000.0, 1000.0)
+        }
+        fn get_physical_specs(&self) -> (f32, f32) {
+            (100.0, 100.0)
+        }
+        fn parse(&self, _buf: &[u8]) -> Option<TabletData> {
+            None
+        }
+    }
+
+    #[test]
+    fn test_pipeline_absolute_normalization() {
+        let mut pipeline = Pipeline::new();
+        let mut config = MappingConfig::default_test();
+        config.active_area.x = 50.0;
+        config.active_area.y = 50.0;
+        config.active_area.w = 100.0;
+        config.active_area.h = 100.0;
+
+        let shared = Arc::new(SharedState::test_default());
+        let mut injector = Injector::new();
+        let mut filters = FilterPipeline::new();
+        let driver = MockDriver;
+
+        let mut data = TabletData::default();
+        data.is_connected = true;
+        data.status = "Contact".to_string();
+        data.x = 500; // Center (50mm)
+        data.y = 500; // Center (50mm)
+
+        pipeline.process(
+            &data,
+            &driver,
+            &config,
+            &mut injector,
+            &mut filters,
+            &shared,
+        );
 
         #[cfg(debug_assertions)]
         {
-            shared
-                .debug_inject_count
-                .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-            shared.debug_pipeline_time_ns.store(
-                pipeline_start.elapsed().as_nanos() as u64,
-                std::sync::atomic::Ordering::Relaxed,
-            );
+            let uv = *shared.debug_last_uv.read().ignore_poison();
+            assert!((uv.0 - 0.5).abs() < 1e-6);
+            assert!((uv.1 - 0.5).abs() < 1e-6);
         }
+    }
+
+    #[test]
+    fn test_pipeline_pressure_threshold() {
+        let pipeline = Pipeline::new();
+        let mut config = MappingConfig::default_test();
+        config.tip_threshold = 50; // 50%
+
+        // max_p = 1000.0, so threshold = 500.0
+        assert!(pipeline.evaluate_pressure(501, 1000.0, &config));
+        assert!(!pipeline.evaluate_pressure(499, 1000.0, &config));
+    }
+
+    #[test]
+    fn test_pipeline_disable_pressure() {
+        let pipeline = Pipeline::new();
+        let mut config = MappingConfig::default_test();
+        config.disable_pressure = true;
+        config.tip_threshold = 50;
+
+        // Should always be true (down) regardless of raw pressure
+        assert!(pipeline.evaluate_pressure(0, 1000.0, &config));
     }
 }
