@@ -63,21 +63,20 @@ pub fn render_stats_settings(
 
             ui.add_enabled_ui(config.speed_stats.enabled, |ui| {
                 ui.horizontal(|ui| {
-                    ui.vertical(|ui| {
-                        ui.label(egui::RichText::new("IP Address").weak().size(11.0));
-                        ui.add_space(4.0);
-                        ui.text_edit_singleline(&mut config.speed_stats.ip);
-                    });
+                    crate::ui::theme::ui_input_box_string(
+                        ui,
+                        "IP Address",
+                        &mut config.speed_stats.ip,
+                        180.0,
+                    );
 
-                    ui.add_space(15.0);
+                    ui.add_space(8.0);
 
                     ui_input_box_u16(ui, "Port", &mut config.speed_stats.port, "");
 
-                    ui.add_space(15.0);
+                    ui.add_space(8.0);
 
-                    ui.vertical(|ui| {
-                        ui.label(egui::RichText::new("Speed Unit").weak().size(11.0));
-                        ui.add_space(4.0);
+                    crate::ui::theme::ui_labeled_box(ui, "Speed Unit", 170.0, |ui| {
                         egui::ComboBox::from_id_salt("speed_unit_combo")
                             .selected_text(match config.speed_stats.unit {
                                 crate::core::config::models::SpeedUnit::MillimetersPerSecond => {
@@ -87,7 +86,7 @@ pub fn render_stats_settings(
                                 crate::core::config::models::SpeedUnit::KilometersPerHour => "km/h",
                                 crate::core::config::models::SpeedUnit::MilesPerHour => "mph",
                             })
-                            .show_ui(ui, |ui| {
+                            .show_ui(ui, |ui: &mut egui::Ui| {
                                 ui.selectable_value(
                                     &mut config.speed_stats.unit,
                                     crate::core::config::models::SpeedUnit::MillimetersPerSecond,

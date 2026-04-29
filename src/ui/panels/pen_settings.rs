@@ -11,7 +11,7 @@ pub fn render_pen_settings_panel(
 ) {
     ui.add_space(15.0);
 
-    ui_card(ui, "Pen Configuration", egui_phosphor::regular::PEN, |ui| {
+    ui_card(ui, "Pen Settings", egui_phosphor::regular::PEN, |ui| {
         ui.horizontal(|ui| {
             ui.vertical(|ui| {
                 ui.label(egui::RichText::new("Thresholds").weak().size(11.0));
