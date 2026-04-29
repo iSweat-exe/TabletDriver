@@ -154,8 +154,11 @@ pub fn ui_labeled_box<R>(
                             .strong(),
                     );
 
-                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), add_contents)
-                        .inner
+                    ui.with_layout(
+                        egui::Layout::right_to_left(egui::Align::Center),
+                        add_contents,
+                    )
+                    .inner
                 })
                 .inner
             })

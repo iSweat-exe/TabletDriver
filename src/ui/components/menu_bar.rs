@@ -58,6 +58,7 @@ pub fn render_menu_bar(app: &mut TabletMapperApp, ctx: &egui::Context, snapshot:
                         }
                     });
                 });
+
                 ui.menu_button("Tablet", |ui| {
                     if ui.button("Open Debugger").clicked() {
                         ui.close();
@@ -68,6 +69,7 @@ pub fn render_menu_bar(app: &mut TabletMapperApp, ctx: &egui::Context, snapshot:
                         app.show_latency_stats = true;
                     }
                 });
+
                 ui.menu_button("Help", |ui| {
                     if ui.button("Github Repository").clicked() {
                         ui.close();
