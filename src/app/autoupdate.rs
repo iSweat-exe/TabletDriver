@@ -59,8 +59,8 @@ const REPO: &str = "NextTabletDriver";
 pub struct Version {
     pub major: u32,
     pub year: u32,
-    pub day: u32,
     pub month: u32,
+    pub day: u32,
     pub patch: u32,
 }
 
@@ -87,8 +87,8 @@ impl Version {
         Some(Self {
             major,
             year,
-            day,
             month,
+            day,
             patch,
         })
     }
