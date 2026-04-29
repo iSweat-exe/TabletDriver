@@ -235,6 +235,7 @@ pub struct TabletMapperApp {
     // Event Receivers
     pub tablet_receiver: Receiver<TabletData>,
     pub update_receiver: Receiver<UpdateStatus>,
+    pub update_sender: crossbeam_channel::Sender<UpdateStatus>,
     pub update_status: UpdateStatus,
 
     // Background Saver
@@ -501,8 +502,13 @@ impl TabletMapperApp {
     pub fn start_update(&mut self) {
         if let crate::app::autoupdate::UpdateStatus::Available(release) = &self.update_status {
             let release_clone = release.clone();
+            let sender = self.update_sender.clone();
             std::thread::spawn(move || {
-                let _ = crate::app::autoupdate::download_and_install(release_clone);
+                if let Err(e) =
+                    crate::app::autoupdate::download_and_install(release_clone, sender.clone())
+                {
+                    let _ = sender.send(crate::app::autoupdate::UpdateStatus::Error(e.to_string()));
+                }
             });
             self.update_status = crate::app::autoupdate::UpdateStatus::Downloading(0.0);
         }

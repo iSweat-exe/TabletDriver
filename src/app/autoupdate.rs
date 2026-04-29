@@ -6,8 +6,12 @@
 
 use std::env;
 use std::fs;
+use std::io::{Read, Write};
 use std::path::PathBuf;
 use std::process::Command;
+
+use hex;
+use sha2::{Digest, Sha256};
 
 use serde::Deserialize;
 
@@ -51,6 +55,45 @@ impl UpdateStatus {
 const OWNER: &str = "Next-Tablet-Driver";
 const REPO: &str = "NextTabletDriver";
 
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy)]
+pub struct Version {
+    pub major: u32,
+    pub year: u32,
+    pub day: u32,
+    pub month: u32,
+    pub patch: u32,
+}
+
+impl Version {
+    pub fn parse(s: &str) -> Option<Self> {
+        let s = s.trim_start_matches('v');
+        let parts: Vec<&str> = s.split('.').collect();
+        if parts.len() != 4 {
+            return None;
+        }
+
+        let major = parts[0].parse().ok()?;
+        let year = parts[1].parse().ok()?;
+
+        let ddmm = parts[2];
+        if ddmm.len() != 4 {
+            return None;
+        }
+        let day = ddmm[0..2].parse().ok()?;
+        let month = ddmm[2..4].parse().ok()?;
+
+        let patch = parts[3].parse().ok()?;
+
+        Some(Self {
+            major,
+            year,
+            day,
+            month,
+            patch,
+        })
+    }
+}
+
 fn github_api_url() -> String {
     format!(
         "https://api.github.com/repos/{}/{}/releases/latest",
@@ -76,24 +119,31 @@ pub fn check_for_updates() -> Result<Option<Release>, Box<dyn std::error::Error>
 
     let release: Release = response.into_json()?;
 
-    let remote_version = release.tag_name.trim_start_matches('v');
-    let local_version = crate::VERSION;
+    let remote_version_str = &release.tag_name;
+    let local_version_str = crate::VERSION;
 
-    if remote_version != local_version {
-        log::info!(
-            target: "Update",
-            "New version available: {} (local version: {})",
-            remote_version,
-            local_version
-        );
-        Ok(Some(release))
-    } else {
-        log::info!(
-            target: "Update",
-            "No new updates found. You are on the latest version ({})",
-            local_version
-        );
-        Ok(None)
+    let remote_v = Version::parse(remote_version_str);
+    let local_v = Version::parse(local_version_str);
+
+    match (remote_v, local_v) {
+        (Some(remote), Some(local)) if remote > local => {
+            log::info!(
+                target: "Update",
+                "New version available: {} (local version: {})",
+                remote_version_str,
+                local_version_str
+            );
+            Ok(Some(release))
+        }
+        _ => {
+            log::info!(
+                target: "Update",
+                "No new updates found or version format mismatch. (Remote: {}, Local: {})",
+                remote_version_str,
+                local_version_str
+            );
+            Ok(None)
+        }
     }
 }
 
@@ -102,22 +152,34 @@ pub fn check_for_updates() -> Result<Option<Release>, Box<dyn std::error::Error>
 /// # Process
 /// 1. Finds a suitable asset for the current platform.
 /// 2. Downloads the binary to a temporary location.
-/// 3. Spawns the installer/updater process.
-/// 4. Exits the current application instance so the installer can overwrite files.
-///
-/// # Platform Specifics
-/// - **Windows**: Looks for `.exe` assets, saves to `%TEMP%\Next_Tablet_Driver_Setup.exe`.
-/// - **Linux**: Looks for `.AppImage` or `.tar.gz` assets, saves to `/tmp/`.
-pub fn download_and_install(release: Release) -> Result<(), Box<dyn std::error::Error>> {
+/// 3. Verifies SHA256 integrity if a checksum file is available.
+/// 4. Spawns the installer/updater process.
+/// 5. Exits the current application instance so the installer can overwrite files.
+pub fn download_and_install(
+    release: Release,
+    status_sender: crossbeam_channel::Sender<UpdateStatus>,
+) -> Result<(), Box<dyn std::error::Error>> {
     let asset = find_platform_asset(&release)?;
-
     let download_url = &asset.browser_download_url;
 
-    log::info!(
-        target: "Update",
-        "Downloading update from {}",
-        download_url
-    );
+    // Optional: Look for a .sha256 file in release assets
+    let checksum_asset = release
+        .assets
+        .iter()
+        .find(|a| a.name == format!("{}.sha256", asset.name));
+    let expected_hash = if let Some(checksum_asset) = checksum_asset {
+        log::info!(target: "Update", "Found checksum asset: {}", checksum_asset.name);
+        let resp = ureq::get(&checksum_asset.browser_download_url)
+            .set("User-Agent", "NextTabletDriver-AutoUpdate")
+            .call()?;
+        let hash_str = resp.into_string()?;
+        // Take the first word (the hash)
+        Some(hash_str.split_whitespace().next().unwrap_or("").to_string())
+    } else {
+        None
+    };
+
+    log::info!(target: "Update", "Downloading update from {}", download_url);
 
     let response = ureq::get(download_url)
         .set("User-Agent", "NextTabletDriver-AutoUpdate")
@@ -127,19 +189,52 @@ pub fn download_and_install(release: Release) -> Result<(), Box<dyn std::error::
         return Err(format!("Download failed: {}", response.status()).into());
     }
 
+    let total_size = response
+        .header("Content-Length")
+        .and_then(|v| v.parse::<u64>().ok())
+        .unwrap_or(0);
+
     let mut temp_path = env::temp_dir();
     temp_path.push(&asset.name);
 
+    let mut downloaded: u64 = 0;
+    let mut buffer = [0u8; 8192];
+    let mut hasher = Sha256::new();
+    let mut reader = response.into_reader();
+
     {
         let mut file = fs::File::create(&temp_path)?;
-        std::io::copy(&mut response.into_reader(), &mut file)?;
+        loop {
+            let bytes_read = reader.read(&mut buffer)?;
+            if bytes_read == 0 {
+                break;
+            }
+            file.write_all(&buffer[..bytes_read])?;
+            hasher.update(&buffer[..bytes_read]);
+            downloaded += bytes_read as u64;
+
+            if total_size > 0 {
+                let progress = downloaded as f32 / total_size as f32;
+                let _ = status_sender.send(UpdateStatus::Downloading(progress));
+            }
+        }
     }
 
-    log::info!(
-        target: "Update",
-        "Download complete, saved to {:?}",
-        temp_path
-    );
+    // Verify SHA256 if available
+    if let Some(expected) = expected_hash {
+        let actual = hex::encode(hasher.finalize());
+        if actual.to_lowercase() != expected.to_lowercase() {
+            let _ = fs::remove_file(&temp_path);
+            return Err(format!(
+                "Checksum mismatch! Expected: {}, Actual: {}",
+                expected, actual
+            )
+            .into());
+        }
+        log::info!(target: "Update", "SHA256 integrity verified successfully.");
+    }
+
+    log::info!(target: "Update", "Download complete, saved to {:?}", temp_path);
 
     // Make the file executable on Linux
     #[cfg(target_os = "linux")]
@@ -156,6 +251,7 @@ pub fn download_and_install(release: Release) -> Result<(), Box<dyn std::error::
             std::process::exit(0);
         }
         Err(e) => {
+            let _ = fs::remove_file(&temp_path);
             log::error!(target: "Update", "Failed to launch installer: {}", e);
             Err(e.into())
         }

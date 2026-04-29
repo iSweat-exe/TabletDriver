@@ -135,10 +135,11 @@ impl TabletMapperApp {
         });
 
         let (update_sender, update_receiver) = crossbeam_channel::bounded(1);
+        let sender = update_sender.clone();
         log::info!(target: "App", "Spawning Auto-Updater thread");
         thread::spawn(move || match autoupdate::check_for_updates() {
             Ok(Some(release)) => {
-                let _ = update_sender.send(UpdateStatus::Available(release));
+                let _ = sender.send(UpdateStatus::Available(release));
             }
             Ok(None) => {}
             Err(e) => {
@@ -266,6 +267,7 @@ impl TabletMapperApp {
             active_tab: AppTab::Output,
             tablet_receiver,
             update_receiver,
+            update_sender,
             update_status: UpdateStatus::Idle,
             save_sender,
             toasts: initial_toasts,
