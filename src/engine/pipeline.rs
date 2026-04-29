@@ -322,16 +322,23 @@ mod tests {
     use crate::core::config::models::MappingConfig;
     use crate::drivers::TabletData;
     use crate::engine::injector::Injector;
+    use crate::engine::state::LockResultExt;
     use crate::engine::state::SharedState;
     use crate::filters::FilterPipeline;
 
     struct MockDriver;
     impl crate::drivers::NextTabletDriver for MockDriver {
+        fn get_name(&self) -> &str {
+            "Mock Driver"
+        }
         fn get_specs(&self) -> (f32, f32, f32) {
             (1000.0, 1000.0, 1000.0)
         }
         fn get_physical_specs(&self) -> (f32, f32) {
             (100.0, 100.0)
+        }
+        fn get_vid_pid(&self) -> (u16, u16) {
+            (0x0000, 0x0000)
         }
         fn parse(&self, _buf: &[u8]) -> Option<TabletData> {
             None
