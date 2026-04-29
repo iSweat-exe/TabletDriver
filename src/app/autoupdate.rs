@@ -128,7 +128,7 @@ pub fn check_for_updates() -> Result<Option<Release>, Box<dyn std::error::Error>
     match (remote_v, local_v) {
         (Some(remote), Some(local)) if remote > local => {
             log::info!(
-                target: "Update",
+                target: "Update::Check",
                 "New version available: {} (local version: {})",
                 remote_version_str,
                 local_version_str
@@ -137,7 +137,7 @@ pub fn check_for_updates() -> Result<Option<Release>, Box<dyn std::error::Error>
         }
         _ => {
             log::info!(
-                target: "Update",
+                target: "Update::Check",
                 "No new updates found or version format mismatch. (Remote: {}, Local: {})",
                 remote_version_str,
                 local_version_str
@@ -168,7 +168,7 @@ pub fn download_and_install(
         .iter()
         .find(|a| a.name == format!("{}.sha256", asset.name));
     let expected_hash = if let Some(checksum_asset) = checksum_asset {
-        log::info!(target: "Update", "Found checksum asset: {}", checksum_asset.name);
+        log::info!(target: "Update::Download", "Found checksum asset: {}", checksum_asset.name);
         let resp = ureq::get(&checksum_asset.browser_download_url)
             .set("User-Agent", "NextTabletDriver-AutoUpdate")
             .call()?;
@@ -179,7 +179,7 @@ pub fn download_and_install(
         None
     };
 
-    log::info!(target: "Update", "Downloading update from {}", download_url);
+    log::info!(target: "Update::Download", "Downloading update from {}", download_url);
 
     let response = ureq::get(download_url)
         .set("User-Agent", "NextTabletDriver-AutoUpdate")
@@ -231,10 +231,10 @@ pub fn download_and_install(
             )
             .into());
         }
-        log::info!(target: "Update", "SHA256 integrity verified successfully.");
+        log::info!(target: "Update::Verify", "SHA256 integrity verified successfully.");
     }
 
-    log::info!(target: "Update", "Download complete, saved to {:?}", temp_path);
+    log::info!(target: "Update::Download", "Download complete, saved to {:?}", temp_path);
 
     // Make the file executable on Linux
     #[cfg(target_os = "linux")]
@@ -247,12 +247,12 @@ pub fn download_and_install(
 
     match status {
         Ok(_) => {
-            log::info!(target: "Update", "Installer launched, exiting...");
+            log::info!(target: "Update::Process", "Installer launched, exiting...");
             std::process::exit(0);
         }
         Err(e) => {
             let _ = fs::remove_file(&temp_path);
-            log::error!(target: "Update", "Failed to launch installer: {}", e);
+            log::error!(target: "Update::Process", "Failed to launch installer: {}", e);
             Err(e.into())
         }
     }

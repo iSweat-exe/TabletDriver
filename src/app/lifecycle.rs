@@ -57,7 +57,7 @@ impl TabletMapperApp {
         let is_first_run = loaded.is_none();
 
         let (config, load_corrections) = if let Some((cfg, corrections)) = loaded {
-            log::info!(target: "App", "Using loaded configuration from last session");
+            log::info!(target: "Config", "Using loaded configuration from last session");
             (cfg, corrections)
         } else {
             let cfg = MappingConfig {
@@ -129,7 +129,7 @@ impl TabletMapperApp {
         });
 
         let ws_shared = Arc::clone(&shared);
-        log::info!(target: "App", "Spawning WebSocket thread");
+        log::info!(target: "WebSocket", "Spawning WebSocket thread");
         thread::spawn(move || {
             crate::app::websocket::websocket_loop(ws_shared);
         });
@@ -150,7 +150,7 @@ impl TabletMapperApp {
         // Background saver: receives configs from the UI thread and writes
         // last_session.json without blocking the render loop.
         let (save_sender, save_receiver) = crossbeam_channel::bounded::<MappingConfig>(1);
-        log::info!(target: "App", "Spawning Background Saver thread");
+        log::info!(target: "Config", "Spawning Background Saver thread");
         thread::spawn(move || {
             while let Ok(cfg) = save_receiver.recv() {
                 // Drain any queued updates, keep only the latest
@@ -159,10 +159,10 @@ impl TabletMapperApp {
                     latest = newer;
                 }
                 if let Err(e) = crate::settings::save_last_session(&latest) {
-                    log::error!(target: "Settings", "Background saver failed: {}", e);
+                    log::error!(target: "Config", "Background saver failed: {}", e);
                 }
             }
-            log::error!(target: "Settings", "Background saver thread exited");
+            log::error!(target: "Config", "Background saver thread exited");
         });
 
         let icon_bytes = include_bytes!("../../resources/icon.png");

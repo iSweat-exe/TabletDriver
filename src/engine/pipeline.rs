@@ -106,6 +106,7 @@ impl Pipeline {
             return;
         }
 
+        #[cfg(debug_assertions)]
         self.emit_debug_stage(DebugStage::Normalize, shared);
 
         let (max_w, max_h, max_p) = driver.get_specs();
@@ -114,14 +115,16 @@ impl Pipeline {
         let x_mm = (data.x as f32 / max_w) * phys_w;
         let y_mm = (data.y as f32 / max_h) * phys_h;
 
-        // 1. Normalize
+        // Normalize
         let (u, v) = self.normalize(x_mm, y_mm, config, shared);
 
+        #[cfg(debug_assertions)]
         self.emit_debug_stage(DebugStage::Filter, shared);
 
         // 2. Filter
         let (u, v) = self.filter(u, v, config, filters, shared);
 
+        #[cfg(debug_assertions)]
         self.emit_debug_stage(DebugStage::Project, shared);
 
         // 3. Project
@@ -156,6 +159,7 @@ impl Pipeline {
             }
         }
 
+        #[cfg(debug_assertions)]
         self.emit_debug_stage(DebugStage::Inject, shared);
 
         // 4. Pressure & Injection
@@ -288,13 +292,9 @@ impl Pipeline {
         pressure as f32 > threshold_raw
     }
 
+    #[cfg(debug_assertions)]
     #[inline(always)]
-    fn emit_debug_stage(
-        &self,
-        #[allow(unused_variables)] stage: DebugStage,
-        #[allow(unused_variables)] shared: &Arc<crate::engine::state::SharedState>,
-    ) {
-        #[cfg(debug_assertions)]
+    fn emit_debug_stage(&self, stage: DebugStage, shared: &Arc<crate::engine::state::SharedState>) {
         if let Ok(mut s) = shared.debug_pipeline_stage.write() {
             *s = stage.as_str().to_string();
         }

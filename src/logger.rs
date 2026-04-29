@@ -29,21 +29,25 @@ impl Log for GlobalLogger {
             // Whitelist: only these named targets appear in the in-app console
             let allowed_targets = [
                 "App",
-                "Detect",
-                "Input",
-                "Config",
-                "Driver",
-                "NextTabletDriver",
-                "WebSocket",
-                "Update",
-                "Telemetry",
+                "UI",
+                "HID",
                 "TabletManager",
+                "Pipeline",
+                "Config",
                 "Startup",
-                "Settings",
+                "Update",
+                "Stats",
+                "Tray",
                 "Timer",
+                "WebSocket",
+                "Telemetry",
+                "Driver",
+                "Detect",
             ];
-            let is_allowed =
-                allowed_targets.contains(&target) || target.starts_with("NextTabletDriver");
+            let is_allowed = allowed_targets
+                .iter()
+                .any(|&t| target == t || target.starts_with(&format!("{}::", t)))
+                || target.starts_with("NextTabletDriver");
 
             let entry = LogEntry {
                 time: Local::now().format("%H:%M:%S").to_string(),

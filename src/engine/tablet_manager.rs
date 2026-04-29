@@ -45,11 +45,11 @@ pub fn run_manager(
         let hid_api = match hidapi::HidApi::new() {
             Ok(api) => api,
             Err(e) => {
-                log::error!(target: "TabletManager", "CRITICAL: Failed to initialise HID API: {e}");
+                log::error!(target: "HID", "CRITICAL: Failed to initialise HID API: {e}");
                 return;
             }
         };
-        log::info!(target: "TabletManager", "HID API initialised in {:.2?}", hid_init_start.elapsed());
+        log::info!(target: "HID", "HID API initialised in {:.2?}", hid_init_start.elapsed());
 
         let mut injector = Injector::new();
         let mut pipeline = Pipeline::new();
@@ -61,7 +61,7 @@ pub fn run_manager(
 
         loop {
             if let Some((device, driver, vid, pid)) = detect_tablet(&hid_api) {
-                log::info!(target: "TabletManager", "Device connected: {:04x}:{:04x}", vid, pid);
+                log::info!(target: "HID", "Device connected: {:04x}:{:04x}", vid, pid);
                 on_device_connected(&shared, driver.as_ref(), vid, pid, &mut local_config);
                 let mut local_config_version = shared.config_version.load(Ordering::Relaxed);
 
@@ -85,7 +85,7 @@ pub fn run_manager(
                     &mut local_config,
                     &mut local_config_version,
                 );
-                log::warn!(target: "TabletManager", "Polling loop exited, restarting...");
+                log::warn!(target: "HID", "Polling loop exited, restarting...");
             }
 
             on_disconnected(&shared);
@@ -170,6 +170,7 @@ fn on_device_connected(
 }
 
 fn on_disconnected(shared: &Arc<SharedState>) {
+    log::info!(target: "HID", "Device disconnected, resetting shared state");
     *shared.tablet_name.write().ignore_poison() = "No Tablet Detected".to_string();
     *shared.tablet_vid.write().ignore_poison() = 0;
     *shared.tablet_pid.write().ignore_poison() = 0;
@@ -241,7 +242,7 @@ fn run_polling_loop(
                 );
             }
             Err(e) => {
-                log::error!(target: "TabletManager", "HID read error: {e}");
+                log::error!(target: "HID", "HID read error: {e}");
                 return;
             }
         }
@@ -314,6 +315,6 @@ fn maybe_reload_config(
         *local_config = shared.config.read().ignore_poison().clone();
         *local_config_version = cv;
         filters.update_config(local_config);
-        log::info!(target: "TabletManager", "Configuration reloaded to version {}", cv);
+        log::info!(target: "Config", "Configuration reloaded to version {}", cv);
     }
 }
