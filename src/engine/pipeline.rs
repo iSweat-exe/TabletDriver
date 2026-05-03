@@ -359,11 +359,13 @@ mod tests {
         let mut filters = FilterPipeline::new();
         let driver = MockDriver;
 
-        let mut data = TabletData::default();
-        data.is_connected = true;
-        data.status = "Contact".to_string();
-        data.x = 500; // Center (50mm)
-        data.y = 500; // Center (50mm)
+        let data = TabletData {
+            is_connected: true,
+            status: "Contact".to_string(),
+            x: 500, // Center (50mm)
+            y: 500, // Center (50mm)
+            ..Default::default()
+        };
 
         pipeline.process(
             &data,

@@ -77,7 +77,13 @@ pub fn render_menu_bar(app: &mut TabletMapperApp, ctx: &egui::Context, snapshot:
                             "https://github.com/Next-Tablet-Driver/NextTabletDriver",
                         ));
                     }
-                    if ui.button("Search Updates").clicked() {
+
+                    // TODO: Report an issues -> Tablet Report / Others
+                    // Multiple choice like `presets` function
+
+                    ui.separator();
+
+                    if ui.button("Check for Update").clicked() {
                         ui.close();
                         app.check_for_updates();
                     }

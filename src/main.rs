@@ -5,8 +5,22 @@
 //! configures the window properties, and launches the `eframe` (egui) graphical interface.
 
 #![windows_subsystem = "windows"]
-#![warn(clippy::all, clippy::pedantic, clippy::nursery)]
+#![deny(clippy::unwrap_used)]
+#![deny(clippy::expect_used)]
+#![deny(clippy::panic)]
+#![deny(clippy::indexing_slicing)]
+#![deny(clippy::exit)]
+#![deny(clippy::todo)]
+#![deny(clippy::unimplemented)]
+#![deny(clippy::lossy_float_literal)]
 #![deny(dead_code)]
+#![deny(missing_docs)]
+#![warn(clippy::all, clippy::pedantic, clippy::nursery)]
+#![warn(clippy::missing_panics_doc)]
+#![warn(clippy::missing_errors_doc)]
+#![warn(clippy::undocumented_unsafe_blocks)]
+#![warn(clippy::multiple_unsafe_ops_per_block)]
+#![warn(clippy::fn_to_numeric_cast_any)]
 
 use eframe::egui;
 use next_tablet_driver::app::TabletMapperApp;
@@ -34,6 +48,11 @@ use windows_sys::Win32::System::LibraryLoader::{GetModuleHandleA, GetProcAddress
 /// timer resolution once the driver process terminates.
 #[cfg(windows)]
 fn set_fast_timer(enable: u8) {
+    // SAFETY:
+    // - `GetModuleHandleA` is called with a valid static C string literal the returned handle is checked for null before any use.
+    // - `GetProcAddress` is called with valid static C string function names on a verified ntdll handle. Addresses are checked via `Option` before transmuting.
+    // - Both `transmute` calls are correct: the signatures match the documented prototypes of `NtSetTimerResolution` and `NtQueryTimerResolution`.
+    // - All `&raw mut` pointers passed to NT functions point to valid, correctly aligned local variables.
     unsafe {
         let ntdll = GetModuleHandleA(c"ntdll.dll".as_ptr().cast::<u8>());
         if ntdll.is_null() {
@@ -95,11 +114,15 @@ fn main() -> eframe::Result {
 
         log::debug!(target: "Startup", "Checking for single instance (Windows Mutex)...");
         let mutex_name: Vec<u16> = "NextTabletDriverMutex\0".encode_utf16().collect();
+        // SAFETY: `mutex_name` is a valid null-terminated wide string pointer. `null()` is valid
+        // for the optional `lpMutexAttributes` parameter. The returned handle is checked below.
         let handle: HANDLE = unsafe { CreateMutexW(std::ptr::null(), 1, mutex_name.as_ptr()) };
         if handle.is_null() {
             log::error!(target: "Startup", "Failed to create mutex handle");
             return Ok(());
         }
+        // SAFETY: called immediately after CreateMutexW on the same thread; the Win32 last error
+        // code is valid and unmodified at this point.
         if unsafe { GetLastError() } == ERROR_ALREADY_EXISTS {
             log::error!(target: "Startup", "Another instance of NextTabletDriver is already running.");
             return Ok(());
@@ -152,7 +175,10 @@ fn main() -> eframe::Result {
     );
 
     let icon_data = eframe::icon_data::from_png_bytes(include_bytes!("../resources/icon.png"))
-        .expect("Critical error: Failed to load application icon from embedded resources");
+        .unwrap_or_else(|e| {
+            log::warn!(target: "Startup", "Failed to load icon: {e}");
+            egui::IconData::default()
+        });
 
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
