@@ -62,12 +62,14 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_floogoo_pen_contact() {
+    fn test_floogoo_pen_contact() -> Result<(), Box<dyn std::error::Error>> {
         let parser = FlooGooParser;
         let data: [u8; 12] = [
             0x01, 0x2A, 0x02, 0x01, 0x04, 0x03, 0x05, 0x00, 0xE8, 0x03, 0x18, 0xFC,
         ];
-        let report = parser.parse(&data).unwrap();
+        let report = parser
+            .parse(&data)
+            .ok_or("FlooGoo parser failed to parse tablet packet")?;
         assert_eq!(report.status, "Contact");
         assert_eq!(report.x, 258);
         assert_eq!(report.y, 772);
@@ -76,6 +78,7 @@ mod tests {
         assert!(report.eraser); // 0x08 is eraser
         assert_eq!(report.tilt_x, 10);
         assert_eq!(report.tilt_y, -10);
+        Ok(())
     }
 
     #[test]

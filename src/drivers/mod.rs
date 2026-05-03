@@ -78,6 +78,40 @@ pub struct DriverStats {
     pub total_packets: u64,
 }
 
+impl DriverStats {
+    /// Resets all statistics to their default values.
+    pub fn reset(&mut self) {
+        *self = Self::default();
+    }
+
+    /// Resets only the latency-related statistics.
+    pub fn reset_latency(&mut self) {
+        self.min_hid_read_ms = f32::MAX;
+        self.max_hid_read_ms = 0.0;
+        self.avg_hid_read_ms = 0.0;
+        self.min_parser_ms = f32::MAX;
+        self.max_parser_ms = 0.0;
+        self.avg_parser_ms = 0.0;
+    }
+
+    /// Resets the accumulated distance.
+    pub fn reset_distance(&mut self) {
+        self.total_distance_mm = 0.0;
+    }
+
+    /// Formats the total distance into a human-readable string and unit.
+    pub fn format_distance(&self) -> (String, &'static str) {
+        let dist = self.total_distance_mm;
+        if dist < 1000.0 {
+            (format!("{:.1}", dist), "mm")
+        } else if dist < 1000000.0 {
+            (format!("{:.3}", dist / 1000.0), "m")
+        } else {
+            (format!("{:.3}", dist / 1000000.0), "km")
+        }
+    }
+}
+
 impl Default for DriverStats {
     fn default() -> Self {
         Self {

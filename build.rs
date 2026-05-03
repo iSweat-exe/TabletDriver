@@ -18,20 +18,30 @@
 /// # Technical Note
 /// The `winres` crate interacts with the Windows SDK (specifically `rc.exe` or `windres.exe`)
 /// to compile the `.rc` file into a COFF object that the Rust linker can include.
+#[cfg(windows)]
 fn main() {
     // Only compile resources if we are targeting Windows
-    if std::env::var("CARGO_CFG_TARGET_OS").unwrap() == "windows" {
-        let mut res = winres::WindowsResource::new();
+    let mut res = winres::WindowsResource::new();
 
-        // Path to the application icon (visible in File Explorer and Taskbar)
-        res.set_icon("resources/icon.ico");
+    // Path to the application icon (visible in File Explorer and Taskbar)
+    res.set_icon("resources/icon.ico");
 
-        // Metadata visible in File Properties -> Details
-        res.set("ProductName", "NextTabletDriver");
-        res.set("FileDescription", "Next Tablet Driver");
-        res.set("CompanyName", "iSweat");
+    // Metadata visible in File Properties -> Details
+    res.set("ProductName", "NextTabletDriver");
+    res.set("FileDescription", "Next Tablet Driver");
+    res.set("CompanyName", "iSweat");
 
-        // Compiles the resource. Fails if the Windows SDK tools are missing.
-        res.compile().unwrap();
+    // Compiles the resource. Fails if the Windows SDK tools are missing.
+    if let Err(e) = res.compile() {
+        eprintln!(
+            "Erreur lors de la compilation des ressources Windows : {}",
+            e
+        );
+        std::process::exit(1);
     }
+}
+
+#[cfg(not(windows))]
+fn main() {
+    // Linux or MacOS
 }

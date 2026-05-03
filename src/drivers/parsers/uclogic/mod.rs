@@ -149,22 +149,28 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_uclogic_tablet() {
+    fn test_uclogic_tablet() -> Result<(), Box<dyn std::error::Error>> {
         let parser = UCLogicParser;
         let data: [u8; 8] = [0, 0x01, 0x02, 0x01, 0x04, 0x03, 0x01, 0x00];
-        let report = parser.parse(&data).unwrap();
+        let report = parser
+            .parse(&data)
+            .ok_or("UCLogic parser failed to parse tablet packet")?;
         assert_eq!(report.status, "Contact");
         assert_eq!(report.x, 258);
         assert_eq!(report.pressure, 1);
         assert_eq!(report.buttons, 1);
+        Ok(())
     }
 
     #[test]
-    fn test_uclogic_aux() {
+    fn test_uclogic_aux() -> Result<(), Box<dyn std::error::Error>> {
         let parser = UCLogicParser;
         let data: [u8; 8] = [0, 0x40, 0, 0, 5, 0, 0, 0];
-        let report = parser.parse(&data).unwrap();
+        let report = parser
+            .parse(&data)
+            .ok_or("UCLogic parser failed to parse aux packet")?;
         assert_eq!(report.status, "Aux");
         assert_eq!(report.buttons, 5);
+        Ok(())
     }
 }

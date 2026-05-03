@@ -104,10 +104,12 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_acepen_pen_contact() {
+    fn test_acepen_pen_contact() -> Result<(), Box<dyn std::error::Error>> {
         let parser = AcepenParser::new();
         let data: [u8; 11] = [0, 0x41, 0xA2, 0x02, 0x01, 0x04, 0x03, 0x01, 0x00, 10, 20];
-        let report = parser.parse(&data).unwrap();
+        let report = parser
+            .parse(&data)
+            .ok_or("Acepen parser failed to parse pen packet")?;
         assert_eq!(report.status, "Contact");
         assert_eq!(report.x, 258);
         assert_eq!(report.y, 772);
@@ -115,14 +117,18 @@ mod tests {
         assert_eq!(report.buttons, 1);
         assert_eq!(report.tilt_x, 10);
         assert_eq!(report.tilt_y, 20);
+        Ok(())
     }
 
     #[test]
-    fn test_acepen_aux() {
+    fn test_acepen_aux() -> Result<(), Box<dyn std::error::Error>> {
         let parser = AcepenParser::new();
         let data: [u8; 11] = [0, 0x42, 0, 1, 4, 0, 0, 0, 0, 0, 0];
-        let report = parser.parse(&data).unwrap();
+        let report = parser
+            .parse(&data)
+            .ok_or("Acepen parser failed to parse aux packet")?;
         assert_eq!(report.status, "Aux");
         assert_eq!(report.buttons, 4);
+        Ok(())
     }
 }

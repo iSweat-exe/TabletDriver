@@ -1,5 +1,6 @@
 use crate::drivers::TabletData;
 use crate::drivers::parsers::ReportParser;
+use crate::engine::state::LockResultExt;
 use std::sync::Mutex;
 
 // Intuos V1
@@ -70,10 +71,10 @@ impl IntuosV1Parser {
                 buttons |= 1 << 1;
             }
 
-            *self.prev_pressure.lock().unwrap() = pressure;
-            *self.prev_tilt_x.lock().unwrap() = tilt_x;
-            *self.prev_tilt_y.lock().unwrap() = tilt_y;
-            *self.prev_buttons.lock().unwrap() = buttons;
+            *self.prev_pressure.lock().ignore_poison() = pressure;
+            *self.prev_tilt_x.lock().ignore_poison() = tilt_x;
+            *self.prev_tilt_y.lock().ignore_poison() = tilt_y;
+            *self.prev_buttons.lock().ignore_poison() = buttons;
 
             let status = if pressure > 0 { "Contact" } else { "Hover" };
             let hover_distance = data[9];
@@ -100,10 +101,10 @@ impl IntuosV1Parser {
                 status: "Rotation".to_string(),
                 x,
                 y,
-                pressure: *self.prev_pressure.lock().unwrap(),
-                tilt_x: *self.prev_tilt_x.lock().unwrap(),
-                tilt_y: *self.prev_tilt_y.lock().unwrap(),
-                buttons: *self.prev_buttons.lock().unwrap(),
+                pressure: *self.prev_pressure.lock().ignore_poison(),
+                tilt_x: *self.prev_tilt_x.lock().ignore_poison(),
+                tilt_y: *self.prev_tilt_y.lock().ignore_poison(),
+                buttons: *self.prev_buttons.lock().ignore_poison(),
                 hover_distance: data[9],
                 raw_data: raw,
                 is_connected: true,
@@ -191,7 +192,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_intuos_v1_tablet_report() {
+    fn test_intuos_v1_tablet_report() -> Result<(), Box<dyn std::error::Error>> {
         let parser = IntuosV1Parser::new();
         // Report ID 0x02, status with bit 5 set (tablet), X/Y/Pressure/Tilt
         let data = [
@@ -204,7 +205,10 @@ mod tests {
             0x40, // Tilt
             0x00, // Hover distance/coord low bit
         ];
-        let result = parser.parse(&data).expect("Should parse");
+        let result = parser
+            .parse(&data)
+            .ok_or("Intuos V1 parser failed to parse tablet report")?;
         assert_eq!(result.status, "Contact");
+        Ok(())
     }
 }

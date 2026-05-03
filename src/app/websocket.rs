@@ -14,7 +14,7 @@ use serde::Serialize;
 use tungstenite::protocol::WebSocket;
 use tungstenite::{Message, accept};
 
-use crate::engine::state::SharedState;
+use crate::engine::state::{LockResultExt, SharedState};
 
 /// The JSON payload broadcasted to all connected WebSocket clients.
 ///
@@ -54,7 +54,7 @@ pub fn websocket_loop(shared: Arc<SharedState>) {
 
     loop {
         let (enabled, port, hz, send_coords, send_pressure, _send_tilt, send_status) = {
-            let config = shared.config.read().unwrap();
+            let config = shared.config.read().ignore_poison();
             let ws = &config.websocket;
             (
                 ws.enabled,
@@ -79,7 +79,8 @@ pub fn websocket_loop(shared: Arc<SharedState>) {
 
             match TcpListener::bind(format!("127.0.0.1:{}", port)) {
                 Ok(l) => {
-                    l.set_nonblocking(true).unwrap();
+                    l.set_nonblocking(true)
+                        .expect("Failed to set WebSocket listener to non-blocking");
                     listener = Some(l);
                     current_port = port;
                 }
@@ -94,10 +95,15 @@ pub fn websocket_loop(shared: Arc<SharedState>) {
             match l.accept() {
                 Ok((stream, addr)) => {
                     log::info!(target: "WebSocket", "New connection from {}", addr);
-                    stream.set_nonblocking(false).unwrap(); // Blocking for WS handshake
+                    stream
+                        .set_nonblocking(false)
+                        .expect("Failed to set WebSocket stream to blocking"); // Blocking for WS handshake
                     match accept(stream) {
                         Ok(mut websocket) => {
-                            websocket.get_mut().set_nonblocking(true).unwrap(); // Back to non-blocking for data
+                            websocket
+                                .get_mut()
+                                .set_nonblocking(true)
+                                .expect("Failed to set WebSocket stream to non-blocking"); // Back to non-blocking for data
                             clients.insert(next_client_id, websocket);
                             next_client_id += 1;
                         }
@@ -113,7 +119,8 @@ pub fn websocket_loop(shared: Arc<SharedState>) {
             }
 
             if !clients.is_empty() {
-                let data = shared.tablet_data.read().unwrap().clone();
+                let data: crate::drivers::TabletData =
+                    shared.tablet_data.read().ignore_poison().clone();
 
                 let payload = WsPayload {
                     x: if send_coords { Some(data.x) } else { None },

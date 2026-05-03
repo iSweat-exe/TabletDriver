@@ -99,14 +99,17 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_tenmoon_tablet() {
+    fn test_tenmoon_tablet() -> Result<(), Box<dyn std::error::Error>> {
         let parser = TenMoonParser;
         let data: [u8; 13] = [0, 1, 2, 3, 4, 0x05, 0x06, 0, 0, 4, 0, 0xFF, 0];
-        let report = parser.parse(&data).unwrap();
+        let report = parser
+            .parse(&data)
+            .ok_or("TenMoon parser failed to parse tablet packet")?;
         assert_eq!(report.status, "Contact");
         assert_eq!(report.x, 258);
         assert_eq!(report.y, 772);
         assert_eq!(report.pressure, 414); // 1650 - (1286 - 50)
         assert_eq!(report.buttons, 1);
+        Ok(())
     }
 }

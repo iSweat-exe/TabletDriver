@@ -15,10 +15,7 @@ use std::path::PathBuf;
 /// The name of the application used for shortcut/autostart naming.
 const APP_NAME: &str = "NextTabletDriver";
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// Windows Implementation — .lnk shortcut in Startup folder
-// ═══════════════════════════════════════════════════════════════════════════════
-
+// Windows Implementation .lnk shortcut in Startup folder
 #[cfg(windows)]
 mod platform {
     use super::*;
@@ -106,10 +103,7 @@ mod platform {
     }
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// Linux Implementation — .desktop file in ~/.config/autostart/
-// ═══════════════════════════════════════════════════════════════════════════════
-
+// Linux Implementation .desktop file in ~/.config/autostart/
 #[cfg(target_os = "linux")]
 mod platform {
     use super::*;
@@ -176,9 +170,6 @@ mod platform {
     }
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// Public re-exports — unified cross-platform API
-// ═══════════════════════════════════════════════════════════════════════════════
-
+// Public re-exports unified cross-platform API
 pub use platform::is_run_at_startup_registered;
 pub use platform::set_run_at_startup;

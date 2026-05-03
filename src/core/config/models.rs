@@ -23,6 +23,36 @@ pub struct ActiveArea {
     pub rotation: f32,
 }
 
+impl ActiveArea {
+    /// Clamps the area dimensions and position to fit within the physical tablet surface.
+    pub fn clamp_to_surface(&mut self, phys_w: f32, phys_h: f32) {
+        self.w = self.w.clamp(1.0, phys_w);
+        self.h = self.h.clamp(1.0, phys_h);
+        self.x = self.x.clamp(self.w / 2.0, phys_w - self.w / 2.0);
+        self.y = self.y.clamp(self.h / 2.0, phys_h - self.h / 2.0);
+
+        self.rotation %= 360.0;
+        if self.rotation < 0.0 {
+            self.rotation += 360.0;
+        }
+    }
+
+    /// Adjusts the width or height to match the target aspect ratio, ensuring it stays within physical limits.
+    pub fn apply_aspect_ratio(
+        &mut self,
+        target_ratio: f32,
+        prefer_width: bool,
+        phys_w: f32,
+        phys_h: f32,
+    ) {
+        if prefer_width {
+            self.h = (self.w / target_ratio).clamp(1.0, phys_h);
+        } else {
+            self.w = (self.h * target_ratio).clamp(1.0, phys_w);
+        }
+    }
+}
+
 impl Default for ActiveArea {
     fn default() -> Self {
         Self {
@@ -378,11 +408,12 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_config_serialization() {
+    fn test_config_serialization() -> Result<(), Box<dyn std::error::Error>> {
         let config = MappingConfig::default_test();
-        let json = serde_json::to_string(&config).unwrap();
-        let deserialized: MappingConfig = serde_json::from_str(&json).unwrap();
+        let json = serde_json::to_string(&config)?;
+        let deserialized: MappingConfig = serde_json::from_str(&json)?;
         assert_eq!(config, deserialized);
+        Ok(())
     }
 
     #[test]

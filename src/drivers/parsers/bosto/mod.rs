@@ -53,15 +53,18 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_bosto_pen_contact() {
+    fn test_bosto_pen_contact() -> Result<(), Box<dyn std::error::Error>> {
         let parser = BostoParser;
         let data: [u8; 8] = [0, 0x22, 0x02, 0x01, 0x04, 0x03, 0x01, 0x00];
-        let report = parser.parse(&data).unwrap();
+        let report = parser
+            .parse(&data)
+            .ok_or("Bosto parser failed to parse contact packet")?;
         assert_eq!(report.status, "Contact");
         assert_eq!(report.x, 258);
         assert_eq!(report.y, 772);
         assert_eq!(report.pressure, 1);
         assert_eq!(report.buttons, 3); // 0x20 and 0x02 map to bits 0 and 1
+        Ok(())
     }
 
     #[test]

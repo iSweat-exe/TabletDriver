@@ -5,12 +5,27 @@
 //! configures the window properties, and launches the `eframe` (egui) graphical interface.
 
 #![windows_subsystem = "windows"]
-#![warn(clippy::all, clippy::pedantic, clippy::nursery)]
+#![deny(clippy::unwrap_used)]
+#![deny(clippy::expect_used)]
+#![deny(clippy::panic)]
+#![deny(clippy::indexing_slicing)]
+#![deny(clippy::exit)]
+#![deny(clippy::todo)]
+#![deny(clippy::unimplemented)]
+#![deny(clippy::lossy_float_literal)]
 #![deny(dead_code)]
+#![deny(missing_docs)]
+#![warn(clippy::all, clippy::pedantic, clippy::nursery)]
+#![warn(clippy::missing_panics_doc)]
+#![warn(clippy::missing_errors_doc)]
+#![warn(clippy::undocumented_unsafe_blocks)]
+#![warn(clippy::multiple_unsafe_ops_per_block)]
+#![warn(clippy::fn_to_numeric_cast_any)]
 
 use eframe::egui;
 use next_tablet_driver::app::TabletMapperApp;
 use next_tablet_driver::logger;
+#[cfg(windows)]
 use windows_sys::Win32::System::LibraryLoader::{GetModuleHandleA, GetProcAddress};
 
 /// Adjusts the Windows system timer resolution to minimize input latency.
@@ -26,49 +41,60 @@ use windows_sys::Win32::System::LibraryLoader::{GetModuleHandleA, GetProcAddress
 ///
 /// # Arguments
 /// * `enable` - `1` to request high precision, `0` to release the request.
-///
-/// # Safety
-/// This function performs direct FFI calls to `ntdll.dll`. The resolution
-/// change is process-specific; Windows will automatically restore the default
-/// timer resolution once the driver process terminates.
 #[cfg(windows)]
 fn set_fast_timer(enable: u8) {
-    unsafe {
-        let ntdll = GetModuleHandleA(c"ntdll.dll".as_ptr().cast::<u8>());
-        if ntdll.is_null() {
-            log::warn!(target: "Timer", "Failed to get ntdll handle for timer resolution");
-            return;
-        }
+    // SAFETY: `GetModuleHandleA` is called with a valid static C string literal.
+    let ntdll = unsafe { GetModuleHandleA(c"ntdll.dll".as_ptr().cast::<u8>()) };
+    if ntdll.is_null() {
+        log::warn!(target: "Timer", "Failed to get ntdll handle for timer resolution");
+        return;
+    }
 
-        let addr_set = GetProcAddress(ntdll, c"NtSetTimerResolution".as_ptr().cast::<u8>());
-        let addr_query = GetProcAddress(ntdll, c"NtQueryTimerResolution".as_ptr().cast::<u8>());
+    // SAFETY: `GetProcAddress` is called with a valid static C string function name on a verified ntdll handle.
+    let addr_set = unsafe { GetProcAddress(ntdll, c"NtSetTimerResolution".as_ptr().cast::<u8>()) };
 
-        if let (Some(addr_set), Some(addr_query)) = (addr_set, addr_query) {
-            let nt_set: extern "system" fn(u32, u8, *mut u32) -> i32 =
-                std::mem::transmute(addr_set);
-            let nt_query: extern "system" fn(*mut u32, *mut u32, *mut u32) -> i32 =
-                std::mem::transmute(addr_query);
+    // SAFETY: `GetProcAddress` is called with a valid static C string function name on a verified ntdll handle.
+    let addr_query =
+        unsafe { GetProcAddress(ntdll, c"NtQueryTimerResolution".as_ptr().cast::<u8>()) };
 
-            let mut min = 0;
-            let mut max = 0;
-            let mut cur = 0;
+    if let (Some(addr_set), Some(addr_query)) = (addr_set, addr_query) {
+        // SAFETY: The signature matches the documented prototype of `NtSetTimerResolution`.
+        // Including `unsafe` in the type signature ensures the call itself is correctly flagged as unsafe.
+        let nt_set: unsafe extern "system" fn(u32, u8, *mut u32) -> i32 =
+            unsafe { std::mem::transmute(addr_set) };
 
-            let _ = nt_query(&raw mut min, &raw mut max, &raw mut cur);
-            log::debug!(target: "Timer", "System Timer Resolution: Min={:.1}ms, Max={:.1}ms, Current={:.1}ms", 
-                f64::from(min) / 10000.0, f64::from(max) / 10000.0, f64::from(cur) / 10000.0);
-            windows_sys::Win32::Media::timeBeginPeriod(1);
+        // SAFETY: The signature matches the documented prototype of `NtQueryTimerResolution`.
+        // Including `unsafe` in the type signature ensures the call itself is correctly flagged as unsafe.
+        let nt_query: unsafe extern "system" fn(*mut u32, *mut u32, *mut u32) -> i32 =
+            unsafe { std::mem::transmute(addr_query) };
 
-            let mut new_cur = 0;
-            let status = nt_set(max, enable, &raw mut new_cur);
+        let mut min = 0;
+        let mut max = 0;
+        let mut cur = 0;
 
-            if status == 0 {
-                log::info!(target: "Timer", "Timer resolution adjusted to {:.1}ms", f64::from(new_cur) / 10000.0);
-            } else {
-                log::warn!(target: "Timer", "Failed to adjust timer resolution (NTSTATUS: 0x{status:08X})");
-            }
+        // SAFETY: All `&raw mut` pointers passed to NT functions point to valid, correctly aligned local variables.
+        // This `unsafe` block is strictly required by the compiler because of the function pointer type.
+        let _ = unsafe { nt_query(&raw mut min, &raw mut max, &raw mut cur) };
+
+        log::debug!(target: "Timer", "System Timer Resolution: Min={:.1}ms, Max={:.1}ms, Current={:.1}ms",
+            f64::from(min) / 10000.0, f64::from(max) / 10000.0, f64::from(cur) / 10000.0);
+
+        // SAFETY: `timeBeginPeriod` is called with a valid parameter.
+        unsafe { windows_sys::Win32::Media::timeBeginPeriod(1) };
+
+        let mut new_cur = 0;
+
+        // SAFETY: All `&raw mut` pointers passed to NT functions point to valid, correctly aligned local variables.
+        // This `unsafe` block is strictly required by the compiler because of the function pointer type.
+        let status = unsafe { nt_set(max, enable, &raw mut new_cur) };
+
+        if status == 0 {
+            log::info!(target: "Timer", "Timer resolution adjusted to {:.1}ms", f64::from(new_cur) / 10000.0);
         } else {
-            log::warn!(target: "Timer", "Could not find timer resolution functions in ntdll.dll");
+            log::warn!(target: "Timer", "Failed to adjust timer resolution (NTSTATUS: 0x{status:08X})");
         }
+    } else {
+        log::warn!(target: "Timer", "Could not find timer resolution functions in ntdll.dll");
     }
 }
 
@@ -94,11 +120,15 @@ fn main() -> eframe::Result {
 
         log::debug!(target: "Startup", "Checking for single instance (Windows Mutex)...");
         let mutex_name: Vec<u16> = "NextTabletDriverMutex\0".encode_utf16().collect();
+        // SAFETY: `mutex_name` is a valid null-terminated wide string pointer. `null()` is valid
+        // for the optional `lpMutexAttributes` parameter. The returned handle is checked below.
         let handle: HANDLE = unsafe { CreateMutexW(std::ptr::null(), 1, mutex_name.as_ptr()) };
         if handle.is_null() {
             log::error!(target: "Startup", "Failed to create mutex handle");
             return Ok(());
         }
+        // SAFETY: called immediately after CreateMutexW on the same thread; the Win32 last error
+        // code is valid and unmodified at this point.
         if unsafe { GetLastError() } == ERROR_ALREADY_EXISTS {
             log::error!(target: "Startup", "Another instance of NextTabletDriver is already running.");
             return Ok(());
@@ -150,8 +180,11 @@ fn main() -> eframe::Result {
         std::env::consts::ARCH
     );
 
-    let icon_data =
-        eframe::icon_data::from_png_bytes(include_bytes!("../resources/icon.png")).unwrap();
+    let icon_data = eframe::icon_data::from_png_bytes(include_bytes!("../resources/icon.png"))
+        .unwrap_or_else(|e| {
+            log::warn!(target: "Startup", "Failed to load icon: {e}");
+            egui::IconData::default()
+        });
 
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()

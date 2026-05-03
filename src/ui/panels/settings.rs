@@ -1,4 +1,4 @@
-use crate::app::state::TabletMapperApp;
+use crate::app::state::{TabletMapperApp, UiSnapshot};
 use crate::core::config::models::MappingConfig;
 use crate::ui::theme::{panel_bg, panel_border, ui_input_box_u16, ui_input_box_u32};
 use eframe::egui;
@@ -7,6 +7,7 @@ pub fn render_settings_panel(
     _app: &TabletMapperApp,
     ui: &mut egui::Ui,
     config: &mut MappingConfig,
+    _snapshot: &UiSnapshot,
 ) {
     ui.add_space(15.0);
 
@@ -22,7 +23,7 @@ pub fn render_settings_panel(
                 .changed()
                 && let Err(e) = crate::startup::set_run_at_startup(config.run_at_startup)
             {
-                log::error!(target: "App", "Failed to update startup setting: {}", e);
+                log::error!(target: "Config", "Failed to update startup setting: {}", e);
                 config.run_at_startup = old_run_at_startup;
             }
 

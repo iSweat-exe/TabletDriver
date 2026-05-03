@@ -17,7 +17,7 @@ pub fn render_antichatter_settings(ui: &mut egui::Ui, config: &mut MappingConfig
 
             ui.add_enabled_ui(config.antichatter.enabled, |ui| {
                 ui.vertical(|ui| {
-                    ui_setting_row(ui, "Latency", &mut config.antichatter.latency, "ms");
+                    ui_setting_row(ui, "Latency (ms)", &mut config.antichatter.latency, "");
                     ui_setting_row(
                         ui,
                         "Antichatter Strength",
@@ -31,25 +31,22 @@ pub fn render_antichatter_settings(ui: &mut egui::Ui, config: &mut MappingConfig
                         "",
                     );
 
-                    ui.add_space(8.0);
-                    ui.columns(2, |cols| {
+                    ui.horizontal(|ui| {
                         ui_input_box(
-                            &mut cols[0],
+                            ui,
                             "Offset X",
                             &mut config.antichatter.antichatter_offset_x,
                             "",
                         );
                         ui_input_box(
-                            &mut cols[1],
+                            ui,
                             "Offset Y",
                             &mut config.antichatter.antichatter_offset_y,
                             "",
                         );
                     });
 
-                    ui.add_space(10.0);
                     ui.separator();
-                    ui.add_space(10.0);
 
                     ui_setting_row(
                         ui,
@@ -92,7 +89,6 @@ pub fn render_antichatter_settings(ui: &mut egui::Ui, config: &mut MappingConfig
                         "",
                     );
 
-                    ui.add_space(8.0);
                     ui.horizontal(|ui| {
                         ui_input_box(
                             ui,
@@ -100,7 +96,6 @@ pub fn render_antichatter_settings(ui: &mut egui::Ui, config: &mut MappingConfig
                             &mut config.antichatter.prediction_offset_x,
                             "",
                         );
-                        ui.add_space(10.0);
                         ui_input_box(
                             ui,
                             "Offset Y",

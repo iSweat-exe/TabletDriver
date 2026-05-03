@@ -57,7 +57,7 @@ impl TabletMapperApp {
         let is_first_run = loaded.is_none();
 
         let (config, load_corrections) = if let Some((cfg, corrections)) = loaded {
-            log::info!(target: "App", "Using loaded configuration from last session");
+            log::info!(target: "Config", "Using loaded configuration from last session");
             (cfg, corrections)
         } else {
             let cfg = MappingConfig {
@@ -129,16 +129,17 @@ impl TabletMapperApp {
         });
 
         let ws_shared = Arc::clone(&shared);
-        log::info!(target: "App", "Spawning WebSocket thread");
+        log::info!(target: "WebSocket", "Spawning WebSocket thread");
         thread::spawn(move || {
             crate::app::websocket::websocket_loop(ws_shared);
         });
 
         let (update_sender, update_receiver) = crossbeam_channel::bounded(1);
+        let sender = update_sender.clone();
         log::info!(target: "App", "Spawning Auto-Updater thread");
         thread::spawn(move || match autoupdate::check_for_updates() {
             Ok(Some(release)) => {
-                let _ = update_sender.send(UpdateStatus::Available(release));
+                let _ = sender.send(UpdateStatus::Available(release));
             }
             Ok(None) => {}
             Err(e) => {
@@ -149,7 +150,7 @@ impl TabletMapperApp {
         // Background saver: receives configs from the UI thread and writes
         // last_session.json without blocking the render loop.
         let (save_sender, save_receiver) = crossbeam_channel::bounded::<MappingConfig>(1);
-        log::info!(target: "App", "Spawning Background Saver thread");
+        log::info!(target: "Config", "Spawning Background Saver thread");
         thread::spawn(move || {
             while let Ok(cfg) = save_receiver.recv() {
                 // Drain any queued updates, keep only the latest
@@ -158,10 +159,10 @@ impl TabletMapperApp {
                     latest = newer;
                 }
                 if let Err(e) = crate::settings::save_last_session(&latest) {
-                    log::error!(target: "Settings", "Background saver failed: {}", e);
+                    log::error!(target: "Config", "Background saver failed: {}", e);
                 }
             }
-            log::error!(target: "Settings", "Background saver thread exited");
+            log::error!(target: "Config", "Background saver thread exited");
         });
 
         let icon_bytes = include_bytes!("../../resources/icon.png");
@@ -169,7 +170,8 @@ impl TabletMapperApp {
             .expect("Failed to load icon")
             .into_rgba8();
         let (width, height) = image.dimensions();
-        let icon = tray_icon::Icon::from_rgba(image.into_raw(), width, height).unwrap();
+        let icon = tray_icon::Icon::from_rgba(image.into_raw(), width, height)
+            .expect("Failed to create tray icon from RGBA data");
 
         let tray_icon = tray_icon::TrayIconBuilder::new()
             .with_icon(icon)
@@ -251,6 +253,7 @@ impl TabletMapperApp {
             shared,
             displays,
             last_update: Instant::now(),
+            last_config_log: Instant::now(),
             profile: {
                 // Restore profile identity from session_meta.json (silent, no toast)
                 let meta = load_session_meta();
@@ -265,19 +268,14 @@ impl TabletMapperApp {
             active_tab: AppTab::Output,
             tablet_receiver,
             update_receiver,
+            update_sender,
             update_status: UpdateStatus::Idle,
             save_sender,
             toasts: initial_toasts,
             selected_filter: "Devocub Antichatter".to_string(),
             show_debugger: false,
             show_latency_stats: false,
-            displayed_hz: 0.0,
-            last_hz_update: Instant::now(),
-            last_packet_count: 0,
-            ui_latency_ms: 0.0,
-            min_ui_latency_ms: f32::MAX,
-            max_ui_latency_ms: 0.0,
-            avg_ui_latency_ms: 0.0,
+            metrics: crate::app::state::Metrics::default(),
             was_minimized: false,
             console_search: String::new(),
             console_show_info: true,

@@ -80,14 +80,17 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_xencelabs_tablet() {
+    fn test_xencelabs_tablet() -> Result<(), Box<dyn std::error::Error>> {
         let parser = XenceLabsParser;
         let data: [u8; 10] = [0, 0x2E, 0x02, 0x01, 0x04, 0x03, 0x01, 0x00, 10, 20];
-        let report = parser.parse(&data).unwrap();
+        let report = parser
+            .parse(&data)
+            .ok_or("XenceLabs parser failed to parse tablet packet")?;
         assert_eq!(report.status, "Contact");
         assert_eq!(report.x, 258);
         assert_eq!(report.pressure, 1);
         assert_eq!(report.buttons, 7);
         assert_eq!(report.tilt_x, 10);
+        Ok(())
     }
 }

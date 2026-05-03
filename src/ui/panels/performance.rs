@@ -1,32 +1,22 @@
+use crate::app::state::UiSnapshot;
 use crate::engine::state::SharedState;
 use eframe::egui;
 use std::sync::Arc;
 
+#[allow(clippy::too_many_arguments)]
 pub fn render_performance_panel(
-    shared: Arc<SharedState>,
+    snapshot: &UiSnapshot,
     displayed_hz: f32,
     ui_latency: f32,
     min_ui_latency: f32,
     max_ui_latency: f32,
     avg_ui_latency: f32,
     ui: &mut egui::Ui,
+    shared: Arc<SharedState>,
 ) -> bool {
-    let (tablet_status, is_connected, x, y, pressure, tilt_x, tilt_y, raw_data) = {
-        let data = shared.tablet_data.read().unwrap();
-        (
-            data.status.clone(),
-            data.is_connected,
-            data.x,
-            data.y,
-            data.pressure,
-            data.tilt_x,
-            data.tilt_y,
-            data.raw_data.clone(),
-        )
-    };
-
-    let stats = *shared.stats.read().unwrap();
-    let (max_w, max_h) = *shared.hardware_size.read().unwrap();
+    let tablet_data = &snapshot.tablet_data;
+    let stats = &snapshot.stats;
+    let (max_w, max_h) = snapshot.hardware_size;
     let mut reset_requested = false;
 
     ui.add_space(10.0);
@@ -41,12 +31,7 @@ pub fn render_performance_panel(
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                 if ui.button("Reset Stats").clicked() {
                     if let Ok(mut s) = shared.stats.write() {
-                        s.min_hid_read_ms = f32::MAX;
-                        s.max_hid_read_ms = 0.0;
-                        s.avg_hid_read_ms = 0.0;
-                        s.min_parser_ms = f32::MAX;
-                        s.max_parser_ms = 0.0;
-                        s.avg_parser_ms = 0.0;
+                        s.reset_latency();
                     }
                     reset_requested = true;
                 }
@@ -178,10 +163,14 @@ pub fn render_performance_panel(
             ui.label(egui::RichText::new("Hardware Info").strong());
             ui.add_space(5.0);
             ui.label(format!("Resolution: {} x {}", max_w as u32, max_h as u32));
-            ui.label(format!("Current Pen Status: {}", tablet_status));
+            ui.label(format!("Current Pen Status: {}", tablet_data.status));
             ui.label(format!(
                 "Connected: {}",
-                if is_connected { "Yes" } else { "No" }
+                if tablet_data.is_connected {
+                    "Yes"
+                } else {
+                    "No"
+                }
             ));
         });
     });
@@ -201,26 +190,26 @@ pub fn render_performance_panel(
                 ui.horizontal(|ui| {
                     ui.vertical(|ui| {
                         ui.label(egui::RichText::new("COORDS").weak().size(9.0));
-                        ui.label(format!("X: {:<5}", x));
-                        ui.label(format!("Y: {:<5}", y));
+                        ui.label(format!("X: {:<5}", tablet_data.x));
+                        ui.label(format!("Y: {:<5}", tablet_data.y));
                     });
                     ui.add_space(20.0);
                     ui.vertical(|ui| {
                         ui.label(egui::RichText::new("PRESSURE").weak().size(9.0));
-                        ui.label(format!("{:<5}", pressure));
+                        ui.label(format!("{:<5}", tablet_data.pressure));
                     });
                     ui.add_space(20.0);
                     ui.vertical(|ui| {
                         ui.label(egui::RichText::new("TILT").weak().size(9.0));
-                        ui.label(format!("X: {:<3}", tilt_x));
-                        ui.label(format!("Y: {:<3}", tilt_y));
+                        ui.label(format!("X: {:<3}", tablet_data.tilt_x));
+                        ui.label(format!("Y: {:<3}", tablet_data.tilt_y));
                     });
                 });
 
                 ui.add_space(10.0);
                 ui.label(egui::RichText::new("RAW BYTES").weak().size(9.0));
                 ui.label(
-                    egui::RichText::new(&raw_data)
+                    egui::RichText::new(&tablet_data.raw_data)
                         .code()
                         .size(11.0)
                         .color(egui::Color32::LIGHT_GRAY),

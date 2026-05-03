@@ -1,13 +1,8 @@
-use crate::app::state::TabletMapperApp;
-use crate::core::config::models::MappingConfig;
+use crate::app::state::{TabletMapperApp, UiSnapshot};
 use eframe::egui;
 use std::sync::atomic::Ordering;
 
-pub fn render_developer_panel(
-    app: &mut TabletMapperApp,
-    ui: &mut egui::Ui,
-    config: &MappingConfig,
-) {
+pub fn render_developer_panel(app: &mut TabletMapperApp, ui: &mut egui::Ui, snapshot: &UiSnapshot) {
     ui.add_space(5.0);
 
     // 1. Thread & System Info
@@ -60,18 +55,16 @@ pub fn render_developer_panel(
         "Pipeline Math Operations",
         egui_phosphor::regular::MATH_OPERATIONS,
         |ui| {
-            let tx_time =
-                app.shared.debug_transform_time_ns.load(Ordering::Relaxed) as f32 / 1000.0;
-            let fil_time = app.shared.debug_filter_time_ns.load(Ordering::Relaxed) as f32 / 1000.0;
-            let pipe_time =
-                app.shared.debug_pipeline_time_ns.load(Ordering::Relaxed) as f32 / 1000.0;
-            let inject_count = app.shared.debug_inject_count.load(Ordering::Relaxed);
-            let stage = app.shared.debug_pipeline_stage.read().unwrap().clone();
+            let tx_time = snapshot.debug_transform_time_ns as f32 / 1000.0;
+            let fil_time = snapshot.debug_filter_time_ns as f32 / 1000.0;
+            let pipe_time = snapshot.debug_pipeline_time_ns as f32 / 1000.0;
+            let inject_count = snapshot.debug_inject_count;
+            let stage = &snapshot.debug_pipeline_stage;
 
             ui.horizontal(|ui| {
                 ui.label(egui::RichText::new("Status:").weak().size(12.0));
                 ui.label(
-                    egui::RichText::new(&stage)
+                    egui::RichText::new(stage)
                         .color(egui::Color32::from_rgb(137, 180, 250))
                         .strong()
                         .size(12.0),
@@ -98,9 +91,9 @@ pub fn render_developer_panel(
 
             ui.add_space(10.0);
 
-            let last_uv = *app.shared.debug_last_uv.read().unwrap();
-            let fuv = *app.shared.debug_last_filtered_uv.read().unwrap();
-            let screen = *app.shared.debug_last_screen.read().unwrap();
+            let last_uv = snapshot.debug_last_uv;
+            let fuv = snapshot.debug_last_filtered_uv;
+            let screen = snapshot.debug_last_screen;
 
             egui::Frame::new()
                 .fill(ui.visuals().window_fill.gamma_multiply(0.4))
@@ -229,10 +222,10 @@ pub fn render_developer_panel(
         "Engine Memory State",
         egui_phosphor::regular::DATABASE,
         |ui| {
-            let tname = app.shared.tablet_name.read().unwrap().clone();
-            let tvid = *app.shared.tablet_vid.read().unwrap();
-            let tpid = *app.shared.tablet_pid.read().unwrap();
-            let pcount = app.shared.packet_count.load(Ordering::Relaxed);
+            let tname = &snapshot.tablet_name;
+            let tvid = snapshot.tablet_vid;
+            let tpid = snapshot.tablet_pid;
+            let pcount = snapshot.packet_count;
             let cver = app.shared.config_version.load(Ordering::Relaxed);
 
             egui::Grid::new("dev_memory_grid")
@@ -287,7 +280,7 @@ pub fn render_developer_panel(
 
             if app.dev_show_full_config {
                 ui.add_space(5.0);
-                if let Ok(json) = serde_json::to_string_pretty(config) {
+                if let Ok(json) = serde_json::to_string_pretty(&snapshot.config) {
                     egui::Frame::new()
                         .fill(egui::Color32::from_gray(18))
                         .corner_radius(4.0)

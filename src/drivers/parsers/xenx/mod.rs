@@ -84,13 +84,16 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_xenx_tablet() {
+    fn test_xenx_tablet() -> Result<(), Box<dyn std::error::Error>> {
         let parser = XenxParser;
         let data: [u8; 8] = [0x01, 0x06, 0x02, 0x01, 0x04, 0x03, 0x01, 0x00];
-        let report = parser.parse(&data).unwrap();
+        let report = parser
+            .parse(&data)
+            .ok_or("Xenx parser failed to parse tablet packet")?;
         assert_eq!(report.status, "Contact");
         assert_eq!(report.x, 258);
         assert_eq!(report.pressure, 1);
         assert_eq!(report.buttons, 3);
+        Ok(())
     }
 }

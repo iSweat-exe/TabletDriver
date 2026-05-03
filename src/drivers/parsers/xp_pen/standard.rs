@@ -33,7 +33,13 @@ pub fn parse(data: &[u8]) -> Option<TabletData> {
         0xA0 => "Hover",
         0xA1 => "Contact",
         0xC0 | 0x00 => "Out of Range",
-        _ => "Active",
+        _ => {
+            if (data[1] & 0x80) != 0 {
+                "Out of Range"
+            } else {
+                "Active"
+            }
+        }
     }
     .to_string();
 

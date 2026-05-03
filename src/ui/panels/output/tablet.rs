@@ -1,13 +1,14 @@
-use crate::app::state::TabletMapperApp;
+use crate::app::state::UiSnapshot;
 use crate::core::config::models::MappingConfig;
+use crate::core::math::geometry::ActiveAreaGeometry;
 use crate::ui::theme::{ui_input_box, ui_section_header};
 use eframe::egui;
 
-pub fn render_tablet_section(app: &TabletMapperApp, ui: &mut egui::Ui, config: &mut MappingConfig) {
+pub fn render_tablet_section(ui: &mut egui::Ui, config: &mut MappingConfig, snapshot: &UiSnapshot) {
     ui_section_header(ui, "Tablet");
 
-    let (phys_w, phys_h) = *app.shared.physical_size.read().unwrap();
-    let tablet_data = app.shared.tablet_data.read().unwrap();
+    let (phys_w, phys_h) = snapshot.physical_size;
+    let tablet_data = &snapshot.tablet_data;
 
     egui::Frame::canvas(ui.style())
         .fill(crate::ui::theme::panel_bg(ui.visuals()))
@@ -23,16 +24,24 @@ pub fn render_tablet_section(app: &TabletMapperApp, ui: &mut egui::Ui, config: &
                 egui::Sense::click_and_drag(),
             );
 
-            let scale = (rect.width() / phys_w).min(rect.height() / phys_h) * 0.8;
-            let draw_w = phys_w * scale;
-            let draw_h = phys_h * scale;
-            let offset_x = rect.center().x - draw_w / 2.0;
-            let offset_y = rect.center().y - draw_h / 2.0;
+            let geo = ActiveAreaGeometry::calculate(
+                phys_w,
+                phys_h,
+                rect.width(),
+                rect.height(),
+                rect.center().x,
+                rect.center().y,
+                &config.active_area,
+                config.target_area.w,
+                config.target_area.h,
+                config.show_osu_playfield,
+            );
 
             let full_rect = egui::Rect::from_min_size(
-                egui::pos2(offset_x, offset_y),
-                egui::vec2(draw_w, draw_h),
+                egui::pos2(geo.offset_x, geo.offset_y),
+                egui::vec2(phys_w * geo.scale, phys_h * geo.scale),
             );
+
             ui.painter().rect_stroke(
                 full_rect,
                 0.0,
@@ -40,73 +49,30 @@ pub fn render_tablet_section(app: &TabletMapperApp, ui: &mut egui::Ui, config: &
                 egui::StrokeKind::Middle,
             );
 
-            let aa_center_x = offset_x + config.active_area.x * scale;
-            let aa_center_y = offset_y + config.active_area.y * scale;
-
-            let half_w = (config.active_area.w * scale) / 2.0;
-            let half_h = (config.active_area.h * scale) / 2.0;
-
-            let mut points = vec![
-                egui::pos2(-half_w, -half_h),
-                egui::pos2(half_w, -half_h),
-                egui::pos2(half_w, half_h),
-                egui::pos2(-half_w, half_h),
-            ];
-
-            let rot_rad = config.active_area.rotation.to_radians();
-            let (sin, cos) = rot_rad.sin_cos();
-
-            for p in &mut points {
-                let rx = p.x * cos - p.y * sin;
-                let ry = p.x * sin + p.y * cos;
-                *p = egui::pos2(rx + aa_center_x, ry + aa_center_y);
-            }
+            let points: Vec<egui::Pos2> =
+                geo.points.iter().map(|(x, y)| egui::pos2(*x, *y)).collect();
 
             let stroke_color = if ui.visuals().dark_mode {
                 egui::Color32::WHITE
             } else {
                 egui::Color32::BLACK
             };
+
             ui.painter().add(egui::Shape::convex_polygon(
                 points.clone(),
                 crate::ui::theme::accent_bg(ui.visuals()),
                 egui::Stroke::new(1.0, stroke_color),
             ));
 
-            ui.painter()
-                .circle_filled(egui::pos2(aa_center_x, aa_center_y), 1.5, stroke_color);
+            ui.painter().circle_filled(
+                egui::pos2(geo.aa_center_x, geo.aa_center_y),
+                1.5,
+                stroke_color,
+            );
 
-            if config.show_osu_playfield {
-                // Map the 1316×1028 osu! playfield (at 1080p reference) proportionally
-                // onto the user's actual active area and screen resolution
-                let target_w = config.target_area.w;
-                let target_h = config.target_area.h;
-
-                let (pf_w, pf_h, y_offset_mm) = if target_w > 0.0 && target_h > 0.0 {
-                    let h = config.active_area.h * (1028.0 / target_h);
-                    let w = (target_h * (1316.0 / 1080.0) / target_w) * config.active_area.w;
-                    let offset = config.active_area.h * (18.0 / target_h);
-                    (w, h, offset)
-                } else {
-                    (0.0, 0.0, 0.0)
-                };
-
-                let pf_half_w = (pf_w * scale) / 2.0;
-                let pf_half_h = (pf_h * scale) / 2.0;
-                let pf_offset_y = y_offset_mm * scale;
-
-                let mut pf_points = vec![
-                    egui::pos2(-pf_half_w, -pf_half_h + pf_offset_y),
-                    egui::pos2(pf_half_w, -pf_half_h + pf_offset_y),
-                    egui::pos2(pf_half_w, pf_half_h + pf_offset_y),
-                    egui::pos2(-pf_half_w, pf_half_h + pf_offset_y),
-                ];
-
-                for p in &mut pf_points {
-                    let rx = p.x * cos - p.y * sin;
-                    let ry = p.x * sin + p.y * cos;
-                    *p = egui::pos2(rx + aa_center_x, ry + aa_center_y);
-                }
+            if let Some(pf_points) = geo.osu_playfield_points {
+                let pf_points: Vec<egui::Pos2> =
+                    pf_points.iter().map(|(x, y)| egui::pos2(*x, *y)).collect();
 
                 ui.painter().add(egui::Shape::convex_polygon(
                     pf_points,
@@ -122,6 +88,7 @@ pub fn render_tablet_section(app: &TabletMapperApp, ui: &mut egui::Ui, config: &
                 egui::Color32::BLACK
             };
 
+            let rot_rad = config.active_area.rotation.to_radians();
             let left_mid = egui::pos2(
                 (points[0].x + points[3].x) / 2.0,
                 (points[0].y + points[3].y) / 2.0,
@@ -154,7 +121,7 @@ pub fn render_tablet_section(app: &TabletMapperApp, ui: &mut egui::Ui, config: &
                 0.0
             };
             ui.painter().text(
-                egui::pos2(aa_center_x, aa_center_y + 12.0),
+                egui::pos2(geo.aa_center_x, geo.aa_center_y + 12.0),
                 egui::Align2::CENTER_CENTER,
                 format!("{:.4}", ratio).replace(".", ","),
                 font_id.clone(),
@@ -178,48 +145,12 @@ pub fn render_tablet_section(app: &TabletMapperApp, ui: &mut egui::Ui, config: &
                 color,
             );
 
-            let drag_id = ui.id().with("tablet_drag");
-            let mut current_drag_delta =
-                ui.data_mut(|d| d.get_temp::<egui::Vec2>(drag_id).unwrap_or_default());
-
-            if response.dragged() {
-                if let Some(pointer_pos) = response.interact_pointer_pos() {
-                    let click_rect = egui::Rect::from_min_max(
-                        points
-                            .iter()
-                            .fold(egui::pos2(f32::INFINITY, f32::INFINITY), |a, b| {
-                                egui::pos2(a.x.min(b.x), a.y.min(b.y))
-                            }),
-                        points
-                            .iter()
-                            .fold(egui::pos2(f32::NEG_INFINITY, f32::NEG_INFINITY), |a, b| {
-                                egui::pos2(a.x.max(b.x), a.y.max(b.y))
-                            }),
-                    );
-
-                    if click_rect.expand(20.0).contains(pointer_pos) || response.drag_started() {
-                        let delta = response.drag_delta() / scale;
-                        current_drag_delta += delta;
-                        ui.data_mut(|d| d.insert_temp(drag_id, current_drag_delta));
-
-                        config.active_area.x = (config.active_area.x + delta.x).clamp(
-                            config.active_area.w / 2.0,
-                            phys_w - config.active_area.w / 2.0,
-                        );
-                        config.active_area.y = (config.active_area.y + delta.y).clamp(
-                            config.active_area.h / 2.0,
-                            phys_h - config.active_area.h / 2.0,
-                        );
-                    }
-                }
-            } else if response.drag_stopped() {
-                ui.data_mut(|d| d.insert_temp(drag_id, egui::Vec2::ZERO));
-            }
+            handle_tablet_drag(ui, &response, &points, geo.scale, phys_w, phys_h, config);
 
             if tablet_data.is_connected {
-                let (max_w, max_h) = *app.shared.hardware_size.read().unwrap();
-                let cx = offset_x + (tablet_data.x as f32 / max_w) * phys_w * scale;
-                let cy = offset_y + (tablet_data.y as f32 / max_h) * phys_h * scale;
+                let (max_w, max_h) = snapshot.hardware_size;
+                let cx = geo.offset_x + (tablet_data.x as f32 / max_w) * phys_w * geo.scale;
+                let cy = geo.offset_y + (tablet_data.y as f32 / max_h) * phys_h * geo.scale;
                 if full_rect.contains(egui::pos2(cx, cy)) {
                     let cursor_color = if ui.visuals().dark_mode {
                         egui::Color32::WHITE
@@ -251,23 +182,23 @@ pub fn render_tablet_section(app: &TabletMapperApp, ui: &mut egui::Ui, config: &
 
                     ui_input_box(ui, "Width", &mut w, "mm");
                     if w != config.active_area.w {
+                        config.active_area.w = w;
                         if config.lock_aspect_ratio {
-                            let ratio = config.active_area.w / config.active_area.h;
-                            config.active_area.w = w;
-                            config.active_area.h = (w / ratio).clamp(1.0, phys_h);
-                        } else {
-                            config.active_area.w = w;
+                            let ratio = config.target_area.w / config.target_area.h;
+                            config
+                                .active_area
+                                .apply_aspect_ratio(ratio, true, phys_w, phys_h);
                         }
                     }
 
                     ui_input_box(ui, "Height", &mut h, "mm");
                     if h != config.active_area.h {
+                        config.active_area.h = h;
                         if config.lock_aspect_ratio {
-                            let ratio = config.active_area.w / config.active_area.h;
-                            config.active_area.h = h;
-                            config.active_area.w = (h * ratio).clamp(1.0, phys_w);
-                        } else {
-                            config.active_area.h = h;
+                            let ratio = config.target_area.w / config.target_area.h;
+                            config
+                                .active_area
+                                .apply_aspect_ratio(ratio, false, phys_w, phys_h);
                         }
                     }
 
@@ -275,24 +206,53 @@ pub fn render_tablet_section(app: &TabletMapperApp, ui: &mut egui::Ui, config: &
                     ui_input_box(ui, "Y", &mut config.active_area.y, "mm");
                     ui_input_box(ui, "Rotation", &mut config.active_area.rotation, "°");
 
-                    config.active_area.rotation %= 360.0;
-                    if config.active_area.rotation < 0.0 {
-                        config.active_area.rotation += 360.0;
-                    }
-
                     ui.end_row();
 
-                    config.active_area.w = config.active_area.w.clamp(1.0, phys_w);
-                    config.active_area.h = config.active_area.h.clamp(1.0, phys_h);
-                    config.active_area.x = config.active_area.x.clamp(
-                        config.active_area.w / 2.0,
-                        phys_w - config.active_area.w / 2.0,
-                    );
-                    config.active_area.y = config.active_area.y.clamp(
-                        config.active_area.h / 2.0,
-                        phys_h - config.active_area.h / 2.0,
-                    );
+                    config.active_area.clamp_to_surface(phys_w, phys_h);
                 });
         });
     });
+}
+
+fn handle_tablet_drag(
+    ui: &mut egui::Ui,
+    response: &egui::Response,
+    points: &[egui::Pos2],
+    scale: f32,
+    phys_w: f32,
+    phys_h: f32,
+    config: &mut MappingConfig,
+) {
+    let drag_id = ui.id().with("tablet_drag");
+    let mut current_drag_delta =
+        ui.data_mut(|d| d.get_temp::<egui::Vec2>(drag_id).unwrap_or_default());
+
+    if response.dragged() {
+        if let Some(pointer_pos) = response.interact_pointer_pos() {
+            let click_rect = egui::Rect::from_min_max(
+                points
+                    .iter()
+                    .fold(egui::pos2(f32::INFINITY, f32::INFINITY), |a, b| {
+                        egui::pos2(a.x.min(b.x), a.y.min(b.y))
+                    }),
+                points
+                    .iter()
+                    .fold(egui::pos2(f32::NEG_INFINITY, f32::NEG_INFINITY), |a, b| {
+                        egui::pos2(a.x.max(b.x), a.y.max(b.y))
+                    }),
+            );
+
+            if click_rect.expand(20.0).contains(pointer_pos) || response.drag_started() {
+                let delta = response.drag_delta() / scale;
+                current_drag_delta += delta;
+                ui.data_mut(|d| d.insert_temp(drag_id, current_drag_delta));
+
+                config.active_area.x += delta.x;
+                config.active_area.y += delta.y;
+                config.active_area.clamp_to_surface(phys_w, phys_h);
+            }
+        }
+    } else if response.drag_stopped() {
+        ui.data_mut(|d| d.insert_temp(drag_id, egui::Vec2::ZERO));
+    }
 }

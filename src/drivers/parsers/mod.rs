@@ -48,6 +48,9 @@ pub fn create_parser(parser_name: &str) -> Box<dyn ReportParser> {
         name if name.contains("XP_PenOffsetAux") => {
             Box::new(xp_pen::extended::XpPenOffsetAuxParser)
         }
+        name if name.contains("XP_PenReportParser") => {
+            Box::new(xp_pen::star_g640::XpPenStarG640Parser)
+        }
         name if name.contains("XP_Pen") => Box::new(xp_pen::extended::XpPenParser),
         name if name.contains("VeikkA15") => Box::new(veikk::generic::VeikkA15Parser),
         name if name.contains("VeikkTilt") => Box::new(veikk::generic::VeikkTiltParser),

@@ -5,10 +5,72 @@
 
 use crate::core::config::models::MappingConfig;
 use crate::drivers::TabletData;
-use std::sync::RwLock;
 use std::sync::atomic::AtomicU32;
 #[cfg(debug_assertions)]
 use std::sync::atomic::AtomicU64;
+use std::sync::{LockResult, RwLock};
+
+/// Extension trait to handle poisoned locks gracefully.
+pub trait LockResultExt<T> {
+    fn ignore_poison(self) -> T;
+}
+
+impl<T> LockResultExt<T> for LockResult<T> {
+    fn ignore_poison(self) -> T {
+        match self {
+            Ok(guard) => guard,
+            Err(poisoned) => {
+                log::error!(target: "State", "Lock poisoned! Another thread panicked while holding this lock. Recovering guard...");
+                poisoned.into_inner()
+            }
+        }
+    }
+}
+
+impl Default for SharedState {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl SharedState {
+    pub fn new() -> Self {
+        Self {
+            config: RwLock::new(MappingConfig::default()),
+            config_version: AtomicU32::new(0),
+            tablet_data: RwLock::new(TabletData::default()),
+            tablet_name: RwLock::new("No Tablet Detected".to_string()),
+            tablet_vid: RwLock::new(0),
+            tablet_pid: RwLock::new(0),
+            physical_size: RwLock::new((160.0, 100.0)),
+            hardware_size: RwLock::new((32767.0, 32767.0)),
+            is_first_run: RwLock::new(false),
+            packet_count: AtomicU32::new(0),
+            stats: RwLock::new(crate::drivers::DriverStats::default()),
+
+            #[cfg(debug_assertions)]
+            debug_pipeline_stage: RwLock::new("Idle".to_string()),
+            #[cfg(debug_assertions)]
+            debug_last_uv: RwLock::new((0.0, 0.0)),
+            #[cfg(debug_assertions)]
+            debug_last_filtered_uv: RwLock::new((0.0, 0.0)),
+            #[cfg(debug_assertions)]
+            debug_last_screen: RwLock::new((0.0, 0.0)),
+            #[cfg(debug_assertions)]
+            debug_inject_count: AtomicU32::new(0),
+            #[cfg(debug_assertions)]
+            debug_filter_time_ns: AtomicU64::new(0),
+            #[cfg(debug_assertions)]
+            debug_transform_time_ns: AtomicU64::new(0),
+            #[cfg(debug_assertions)]
+            debug_pipeline_time_ns: AtomicU64::new(0),
+        }
+    }
+
+    pub fn test_default() -> Self {
+        Self::new()
+    }
+}
 
 /// The central thread-safe state store for the application.
 ///

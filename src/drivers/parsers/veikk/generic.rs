@@ -167,15 +167,17 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_veikk_tablet() {
+    fn test_veikk_tablet() -> Result<(), Box<dyn std::error::Error>> {
         let parser = VeikkParser;
         let data: [u8; 11] = [
             0x01, 0x02, 0x22, 0x02, 0x01, 0x00, 0x04, 0x03, 0x00, 0x01, 0x00,
         ];
-        let report = parser.parse(&data).unwrap();
+        let report = parser
+            .parse(&data)
+            .ok_or("Veikk parser failed to parse tablet packet")?;
         assert_eq!(report.status, "Contact");
         assert_eq!(report.x, 258);
         assert_eq!(report.pressure, 1);
-        // Buttons might just be 0 or handled differently, dropping buttons assertion or checking correctly.
+        Ok(())
     }
 }

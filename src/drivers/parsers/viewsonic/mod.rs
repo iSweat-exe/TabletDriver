@@ -61,16 +61,19 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_viewsonic_tablet() {
+    fn test_viewsonic_tablet() -> Result<(), Box<dyn std::error::Error>> {
         let parser = ViewSonicParser;
         let data: [u8; 14] = [
             0, 0x02, 0x01, 0, 0, 0x04, 0x03, 0, 0, 0x1F, 0x01, 0x00, 10, 20,
         ];
-        let report = parser.parse(&data).unwrap();
+        let report = parser
+            .parse(&data)
+            .ok_or("ViewSonic parser failed to parse tablet packet")?;
         assert_eq!(report.status, "Contact");
         assert_eq!(report.x, 258);
         assert_eq!(report.pressure, 1);
         assert_eq!(report.buttons, 3);
         assert_eq!(report.tilt_x, 10);
+        Ok(())
     }
 }

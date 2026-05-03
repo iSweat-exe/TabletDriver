@@ -15,7 +15,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@master
+        with:
+            toolchain: 1.95.0
 
       - uses: swatinem/rust-cache@v2
 
@@ -26,11 +28,20 @@ jobs:
         run: |
           & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer.iss
 
+      - name: Calculate Checksum
+        shell: pwsh
+        run: |
+          $file = "user_mode_dist/Next_Tablet_Driver_Setup_x64.exe"
+          $hash = (Get-FileHash -Path $file -Algorithm SHA256).Hash.ToLower()
+          "$hash  Next_Tablet_Driver_Setup_x64.exe" | Out-File -Encoding utf8 "$file.sha256"
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           name: Release ${{ github.ref_name }}
           generate_release_notes: true
-          files: user_mode_dist/Next_Tablet_Driver_Setup_x64.exe
+          files: |
+            user_mode_dist/Next_Tablet_Driver_Setup_x64.exe
+            user_mode_dist/Next_Tablet_Driver_Setup_x64.exe.sha256
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

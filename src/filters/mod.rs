@@ -46,7 +46,7 @@ impl FilterPipeline {
     }
 
     pub fn add(&mut self, filter: Box<dyn Filter>) {
-        log::info!(target: "App", "Adding filter: {}", filter.name());
+        log::info!(target: "Pipeline", "Adding filter: {}", filter.name());
         self.filters.push(filter);
     }
 

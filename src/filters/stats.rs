@@ -5,7 +5,7 @@
 //! and broadcasts this data via a dedicated WebSocket server for streaming overlays.
 
 use crate::core::config::models::{MappingConfig, SpeedUnit};
-use crate::engine::state::SharedState;
+use crate::engine::state::{LockResultExt, SharedState};
 use crate::filters::Filter;
 use crossbeam_channel::{Sender, unbounded};
 use std::net::TcpListener;
@@ -64,7 +64,7 @@ impl SpeedStatsFilter {
             let clients_clone = Arc::clone(&clients);
             thread::spawn(move || {
                 while let Ok((speed, total_dist)) = rx.recv() {
-                    let mut clients = clients_clone.lock().unwrap();
+                    let mut clients = clients_clone.lock().ignore_poison();
                     let msg = serde_json::json!({
                         "handspeed": speed,
                         "total_distance": total_dist,
@@ -87,7 +87,7 @@ impl SpeedStatsFilter {
                 match stream {
                     Ok(s) => match accept(s) {
                         Ok(ws) => {
-                            let mut clients = clients.lock().unwrap();
+                            let mut clients = clients.lock().ignore_poison();
                             clients.push(ws);
                             log::debug!(target: "Stats", "New WebSocket client connected");
                         }

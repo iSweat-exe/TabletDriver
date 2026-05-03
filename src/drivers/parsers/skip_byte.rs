@@ -28,13 +28,16 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_skip_byte_tablet() {
+    fn test_skip_byte_tablet() -> Result<(), Box<dyn std::error::Error>> {
         let parser = SkipByteParser;
         // Prefix with 0x05, then standard fallback data
         let data: [u8; 9] = [0x05, 0x02, 0x01, 0x02, 0x01, 0x04, 0x03, 0x01, 0x00];
-        let report = parser.parse(&data).unwrap();
+        let report = parser
+            .parse(&data)
+            .ok_or("SkipByte parser failed to parse packet")?;
         assert_eq!(report.status, "Contact");
         assert_eq!(report.x, 258);
         assert_eq!(report.pressure, 1);
+        Ok(())
     }
 }

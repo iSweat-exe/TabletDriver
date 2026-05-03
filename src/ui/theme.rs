@@ -120,21 +120,21 @@ pub fn ui_section_header(ui: &mut egui::Ui, title: &str) {
     ui.add(egui::Separator::default().spacing(4.0).grow(2.0));
 }
 
-/// Renders a styled container holding a label and an `f32` DragValue input with an optional range.
-pub fn ui_input_box_range(
+/// Core helper for creating a styled container with a label and a right-aligned widget.
+pub fn ui_labeled_box<R>(
     ui: &mut egui::Ui,
     label: &str,
-    value: &mut f32,
-    unit: &str,
-    range: std::ops::RangeInclusive<f32>,
-) {
+    width: f32,
+    add_contents: impl FnOnce(&mut egui::Ui) -> R,
+) -> R {
     let visuals = ui.visuals();
     let bg_fill = panel_bg(visuals);
     let border_color = panel_border(visuals);
     let label_clr = label_color(visuals);
 
     ui.scope(|ui| {
-        ui.style_mut().visuals.widgets.inactive.bg_fill = egui::Color32::from_white_alpha(8);
+        ui.style_mut().visuals.widgets.inactive.bg_fill = egui::Color32::TRANSPARENT;
+        ui.style_mut().visuals.widgets.inactive.bg_stroke = egui::Stroke::NONE;
         ui.style_mut().visuals.widgets.hovered.bg_fill = egui::Color32::from_white_alpha(15);
         ui.style_mut().visuals.widgets.active.bg_fill = egui::Color32::from_white_alpha(20);
         ui.style_mut().spacing.button_padding = egui::vec2(6.0, 2.0);
@@ -145,7 +145,7 @@ pub fn ui_input_box_range(
             .stroke(egui::Stroke::new(1.0, border_color.gamma_multiply(0.6)))
             .inner_margin(egui::Margin::symmetric(10, 5))
             .show(ui, |ui| {
-                ui.set_width(140.0);
+                ui.set_width(width);
                 ui.horizontal(|ui| {
                     ui.label(
                         egui::RichText::new(label)
@@ -154,34 +154,53 @@ pub fn ui_input_box_range(
                             .strong(),
                     );
 
-                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                        if !unit.is_empty() {
-                            ui.label(
-                                egui::RichText::new(unit)
-                                    .size(10.0)
-                                    .color(label_clr.gamma_multiply(0.5)),
-                            );
-                            ui.add_space(2.0);
-                        }
+                    ui.with_layout(
+                        egui::Layout::right_to_left(egui::Align::Center),
+                        add_contents,
+                    )
+                    .inner
+                })
+                .inner
+            })
+            .inner
+    })
+    .inner
+}
 
-                        let response = ui.add(
-                            egui::DragValue::new(value)
-                                .speed(0.1)
-                                .max_decimals(2)
-                                .range(range)
-                                .custom_formatter(|val, _| {
-                                    format!("{:.2}", val)
-                                        .trim_end_matches('0')
-                                        .trim_end_matches('.')
-                                        .replace(".", ",")
-                                }),
-                        );
-                        if response.hovered() {
-                            ui.output_mut(|o| o.cursor_icon = egui::CursorIcon::ResizeHorizontal);
-                        }
-                    });
-                });
-            });
+/// Renders a styled container holding a label and an `f32` DragValue input with an optional range.
+pub fn ui_input_box_range(
+    ui: &mut egui::Ui,
+    label: &str,
+    value: &mut f32,
+    unit: &str,
+    range: std::ops::RangeInclusive<f32>,
+) {
+    ui_labeled_box(ui, label, 140.0, |ui| {
+        let label_clr = label_color(ui.visuals());
+        if !unit.is_empty() {
+            ui.label(
+                egui::RichText::new(unit)
+                    .size(10.0)
+                    .color(label_clr.gamma_multiply(0.5)),
+            );
+            ui.add_space(2.0);
+        }
+
+        let response = ui.add(
+            egui::DragValue::new(value)
+                .speed(0.1)
+                .max_decimals(2)
+                .range(range)
+                .custom_formatter(|val, _| {
+                    format!("{:.2}", val)
+                        .trim_end_matches('0')
+                        .trim_end_matches('.')
+                        .replace(".", ",")
+                }),
+        );
+        if response.hovered() {
+            ui.output_mut(|o| o.cursor_icon = egui::CursorIcon::ResizeHorizontal);
+        }
     });
 }
 
@@ -197,48 +216,21 @@ pub fn ui_input_box_u32_range(
     unit: &str,
     range: std::ops::RangeInclusive<u32>,
 ) {
-    let visuals = ui.visuals();
-    let bg_fill = panel_bg(visuals);
-    let border_color = panel_border(visuals);
-    let label_clr = label_color(visuals);
+    ui_labeled_box(ui, label, 140.0, |ui| {
+        let label_clr = label_color(ui.visuals());
+        if !unit.is_empty() {
+            ui.label(
+                egui::RichText::new(unit)
+                    .size(10.0)
+                    .color(label_clr.gamma_multiply(0.5)),
+            );
+            ui.add_space(2.0);
+        }
 
-    ui.scope(|ui| {
-        ui.style_mut().visuals.widgets.inactive.bg_fill = egui::Color32::from_white_alpha(8);
-        ui.style_mut().visuals.widgets.hovered.bg_fill = egui::Color32::from_white_alpha(15);
-        ui.style_mut().spacing.button_padding = egui::vec2(6.0, 2.0);
-
-        egui::Frame::new()
-            .fill(bg_fill)
-            .corner_radius(4.0)
-            .stroke(egui::Stroke::new(1.0, border_color.gamma_multiply(0.6)))
-            .inner_margin(egui::Margin::symmetric(10, 5))
-            .show(ui, |ui| {
-                ui.set_width(140.0);
-                ui.horizontal(|ui| {
-                    ui.label(
-                        egui::RichText::new(label)
-                            .size(11.0)
-                            .color(label_clr)
-                            .strong(),
-                    );
-
-                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                        if !unit.is_empty() {
-                            ui.label(
-                                egui::RichText::new(unit)
-                                    .size(10.0)
-                                    .color(label_clr.gamma_multiply(0.5)),
-                            );
-                            ui.add_space(2.0);
-                        }
-
-                        let response = ui.add(egui::DragValue::new(value).speed(1.0).range(range));
-                        if response.hovered() {
-                            ui.output_mut(|o| o.cursor_icon = egui::CursorIcon::ResizeHorizontal);
-                        }
-                    });
-                });
-            });
+        let response = ui.add(egui::DragValue::new(value).speed(1.0).range(range));
+        if response.hovered() {
+            ui.output_mut(|o| o.cursor_icon = egui::CursorIcon::ResizeHorizontal);
+        }
     });
 }
 
@@ -254,48 +246,33 @@ pub fn ui_input_box_u16_range(
     unit: &str,
     range: std::ops::RangeInclusive<u16>,
 ) {
-    let visuals = ui.visuals();
-    let bg_fill = panel_bg(visuals);
-    let border_color = panel_border(visuals);
-    let label_clr = label_color(visuals);
+    ui_labeled_box(ui, label, 140.0, |ui| {
+        let label_clr = label_color(ui.visuals());
+        if !unit.is_empty() {
+            ui.label(
+                egui::RichText::new(unit)
+                    .size(10.0)
+                    .color(label_clr.gamma_multiply(0.5)),
+            );
+            ui.add_space(2.0);
+        }
 
-    ui.scope(|ui| {
-        ui.style_mut().visuals.widgets.inactive.bg_fill = egui::Color32::from_white_alpha(8);
-        ui.style_mut().visuals.widgets.hovered.bg_fill = egui::Color32::from_white_alpha(15);
-        ui.style_mut().spacing.button_padding = egui::vec2(6.0, 2.0);
+        let response = ui.add(egui::DragValue::new(value).speed(1.0).range(range));
+        if response.hovered() {
+            ui.output_mut(|o| o.cursor_icon = egui::CursorIcon::ResizeHorizontal);
+        }
+    });
+}
 
-        egui::Frame::new()
-            .fill(bg_fill)
-            .corner_radius(4.0)
-            .stroke(egui::Stroke::new(1.0, border_color.gamma_multiply(0.6)))
-            .inner_margin(egui::Margin::symmetric(10, 5))
-            .show(ui, |ui| {
-                ui.set_width(140.0);
-                ui.horizontal(|ui| {
-                    ui.label(
-                        egui::RichText::new(label)
-                            .size(11.0)
-                            .color(label_clr)
-                            .strong(),
-                    );
-
-                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                        if !unit.is_empty() {
-                            ui.label(
-                                egui::RichText::new(unit)
-                                    .size(10.0)
-                                    .color(label_clr.gamma_multiply(0.5)),
-                            );
-                            ui.add_space(2.0);
-                        }
-
-                        let response = ui.add(egui::DragValue::new(value).speed(1.0).range(range));
-                        if response.hovered() {
-                            ui.output_mut(|o| o.cursor_icon = egui::CursorIcon::ResizeHorizontal);
-                        }
-                    });
-                });
-            });
+/// Renders a styled container holding a label and a string input.
+pub fn ui_input_box_string(ui: &mut egui::Ui, label: &str, value: &mut String, width: f32) {
+    ui_labeled_box(ui, label, width, |ui| {
+        ui.add(
+            egui::TextEdit::singleline(value)
+                .margin(egui::vec2(4.0, 2.0))
+                .frame(false)
+                .horizontal_align(egui::Align::RIGHT),
+        );
     });
 }
 

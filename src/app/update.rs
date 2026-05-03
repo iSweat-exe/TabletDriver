@@ -4,7 +4,8 @@
 //! `TabletMapperApp`. The `update` function defined here is called by egui
 //! every frame to process events, update state, and render the user interface.
 
-use crate::app::state::{AppTab, TabletMapperApp, ToastLevel};
+use crate::app::state::{AppTab, TabletMapperApp, ToastLevel, UiSnapshot};
+use crate::engine::state::LockResultExt;
 use crate::ui::panels::console::render_console_panel;
 #[cfg(debug_assertions)]
 use crate::ui::panels::developer::render_developer_panel;
@@ -15,37 +16,51 @@ use crate::ui::panels::release::render_release_panel;
 use crate::ui::panels::settings::render_settings_panel;
 use eframe::egui::{self, Shadow};
 use std::sync::atomic::Ordering;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 /// Duration before a toast notification auto-dismisses.
 const TOAST_DURATION: Duration = Duration::from_secs(3);
 
 impl eframe::App for TabletMapperApp {
     /// The main application loop called by egui.
-    ///
-    /// # Responsibilities
-    /// 1. **Data Synchronization**: Flushes the backend receiver queues to get the latest
-    ///    tablet state (`TabletData`) and update statuses.
-    /// 2. **Dialogs & Modals**: Renders global overlay elements (e.g., update dialog).
-    /// 3. **UI Layout**: Organizes the screen into Menu Bar, Tabs, Main Panel, and Footer.
-    /// 4. **State Persistence**: Detects if user interaction modified the configuration
-    ///    and sends changes to the background saver thread asynchronously.
-    /// 5. **Debugging & Overlays**: Handles the optional advanced debugger viewport.
-    /// 6. **Toast Notifications**: Renders transient notifications and auto-dismisses expired ones.
-    ///
-    /// # Performance
-    /// The GUI runs asynchronously from the input capture thread. `update` requests
-    /// repaints automatically when events are fired, but also enforces a minimum 1Hz
-    /// refresh rate for passive status updates.
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        // Shortcuts
+        // 1. Capture snapshot for the entire frame
+        let snapshot = UiSnapshot::capture(&self.shared);
+
+        // 2. Process Input/IO Events
+        self.process_io_events(ctx, &snapshot);
+
+        // 3. Handle Lifecycle (tray, close guard, etc)
+        self.handle_lifecycle(ctx, &snapshot.config);
+
+        // 4. Render Layout & Panels
+        let mut config = snapshot.config.clone();
+        let initial_config = config.clone();
+
+        self.render_main_layout(ctx, &mut config, &snapshot);
+
+        // 5. Render Overlays (Dialogs, Toasts, Viewports)
+        self.render_overlays(ctx, &snapshot);
+
+        // 6. State Persistence (Sync config back if changed)
+        self.sync_config(ctx, config, initial_config);
+
+        // 7. Repaint Strategy
+        ctx.request_repaint_after(Duration::from_secs(1));
+    }
+}
+
+impl TabletMapperApp {
+    /// Processes pending hardware events and background thread messages.
+    fn process_io_events(&mut self, ctx: &egui::Context, snapshot: &UiSnapshot) {
+        // Keyboard Shortcuts
         if ctx.input_mut(|i| {
             i.consume_shortcut(&egui::KeyboardShortcut::new(
                 egui::Modifiers::CTRL,
                 egui::Key::S,
             ))
         }) {
-            crate::ui::components::menu_bar::save_current_settings(self);
+            self.save_settings(&snapshot.config);
         }
 
         // Drain pending tablet events, keeping only the latest
@@ -53,13 +68,11 @@ impl eframe::App for TabletMapperApp {
         while let Ok(data) = self.tablet_receiver.try_recv() {
             last_data = Some(data);
         }
+
         if let Some(data) = last_data {
             if let Some(receive_time) = data.receive_time {
-                let latency = receive_time.elapsed().as_secs_f32() * 1000.0;
-                self.ui_latency_ms = latency;
-                self.min_ui_latency_ms = self.min_ui_latency_ms.min(latency);
-                self.max_ui_latency_ms = self.max_ui_latency_ms.max(latency);
-                self.avg_ui_latency_ms += (latency - self.avg_ui_latency_ms) * 0.1;
+                self.metrics
+                    .update_latency(receive_time.elapsed().as_secs_f32() * 1000.0);
             }
 
             #[cfg(debug_assertions)]
@@ -70,137 +83,80 @@ impl eframe::App for TabletMapperApp {
                 }
             }
 
-            let mut shared_data = self.shared.tablet_data.write().unwrap();
+            let mut shared_data = self.shared.tablet_data.write().ignore_poison();
             *shared_data = data;
 
             ctx.request_repaint();
         }
 
+        // Check for updates
         if let Ok(status) = self.update_receiver.try_recv() {
             if let crate::app::autoupdate::UpdateStatus::Available(release) = &status {
                 log::info!(target: "Update", "Update available: {}", release.tag_name);
             }
             self.update_status = status;
         }
+    }
 
-        crate::ui::components::update_dialog::render_update_dialog(self, ctx);
+    /// Handles application-level lifecycle events like minimization and closing.
+    fn handle_lifecycle(
+        &mut self,
+        ctx: &egui::Context,
+        config: &crate::core::config::models::MappingConfig,
+    ) {
+        // Close Guard
+        let close_requested = ctx.input(|i| i.viewport().close_requested());
+        let is_dirty = self.profile.is_dirty(config);
 
-        // Unsaved Changes Close Guard
-        {
-            let close_requested = ctx.input(|i| i.viewport().close_requested());
-            let config_snapshot = self.shared.config.read().unwrap().clone();
-            let is_dirty = self.profile.is_dirty(&config_snapshot);
-
-            if close_requested && is_dirty && !self.show_close_confirm && !self.force_close {
-                // Block the close and show the confirmation dialog
-                ctx.send_viewport_cmd(egui::ViewportCommand::CancelClose);
-                self.show_close_confirm = true;
-            }
+        if close_requested && is_dirty && !self.show_close_confirm && !self.force_close {
+            ctx.send_viewport_cmd(egui::ViewportCommand::CancelClose);
+            self.show_close_confirm = true;
         }
 
-        if self.show_close_confirm {
-            let frame = egui::Frame::window(&ctx.style()).shadow(Shadow::NONE);
-            egui::Window::new("Unsaved Changes")
-                .collapsible(false)
-                .resizable(false)
-                .anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0])
-                .frame(frame)
-                .show(ctx, |ui| {
-                    ui.vertical_centered(|ui| {
-                        ui.add_space(8.0);
-                        ui.label("Are you sure you want to close the application?");
-                        ui.label("The current profile has unsaved changes.");
-                        ui.add_space(12.0);
-                        ui.horizontal(|ui| {
-                            if ui.button("Cancel").clicked() {
-                                self.show_close_confirm = false;
-                            }
-                            ui.add_space(8.0);
-                            if ui
-                                .button(
-                                    egui::RichText::new("Close Anyway")
-                                        .color(egui::Color32::from_rgb(220, 80, 80)),
-                                )
-                                .clicked()
-                            {
-                                // REVERT last_session.json to the unmodified state before closing
-                                let _ =
-                                    crate::settings::save_last_session(&self.profile.last_saved);
-                                self.force_close = true;
-                                self.show_close_confirm = false;
-                                ctx.send_viewport_cmd(egui::ViewportCommand::Close);
-                            }
-                        });
-                        ui.add_space(4.0);
-                    });
-                });
-        }
-
-        // Clone config for diffing — UI mutates this copy, then we push back if changed
-        let mut config = self.shared.config.read().unwrap().clone();
-        let initial_config = config.clone();
-
-        // System Tray Minimize-to-Tray
+        // System Tray Minimize
         if config.system_tray_on_minimize {
             let is_minimized = ctx.input(|i| i.viewport().minimized).unwrap_or(false);
-
             if is_minimized && !self.was_minimized {
                 log::info!(target: "Tray", "Window minimized, hiding to system tray...");
                 ctx.send_viewport_cmd(egui::ViewportCommand::Visible(false));
             }
-
             self.was_minimized = is_minimized;
         }
+    }
 
-        let mut min_x = 0.0;
-        let mut min_y = 0.0;
-        let mut max_x = 1920.0;
-        let mut max_y = 1080.0;
-        if !self.displays.is_empty() {
-            let mut mx = i32::MAX;
-            let mut my = i32::MAX;
-            let mut ax = i32::MIN;
-            let mut ay = i32::MIN;
-            for d in &self.displays {
-                mx = mx.min(d.x);
-                my = my.min(d.y);
-                ax = ax.max(d.x + d.width as i32);
-                ay = ay.max(d.y + d.height as i32);
-            }
-            min_x = mx as f32;
-            min_y = my as f32;
-            max_x = ax as f32;
-            max_y = ay as f32;
-        }
+    /// Renders the primary application interface.
+    fn render_main_layout(
+        &mut self,
+        ctx: &egui::Context,
+        config: &mut crate::core::config::models::MappingConfig,
+        snapshot: &UiSnapshot,
+    ) {
+        let (min_x, min_y, max_x, max_y) = self.calculate_display_bounds();
 
-        crate::ui::components::menu_bar::render_menu_bar(self, ctx);
-
+        crate::ui::components::menu_bar::render_menu_bar(self, ctx, snapshot);
         crate::ui::components::tabs::render_tabs(self, ctx);
-
-        crate::ui::components::footer::render_footer(self, ctx, &mut config);
+        crate::ui::components::footer::render_footer(self, ctx, config, snapshot);
 
         egui::CentralPanel::default().show(ctx, |ui| match self.active_tab {
             AppTab::Output => {
                 egui::ScrollArea::vertical().show(ui, |ui| {
-                    render_output_panel(self, ui, &mut config, min_x, min_y, max_x, max_y);
+                    render_output_panel(self, ui, config, snapshot, min_x, min_y, max_x, max_y);
                 });
             }
             AppTab::Filters => {
                 egui::ScrollArea::vertical().show(ui, |ui| {
-                    render_filters_panel(self, ui, &mut config);
+                    render_filters_panel(self, ui, config, snapshot);
                 });
             }
             AppTab::PenSettings => {
                 egui::ScrollArea::vertical().show(ui, |ui| {
-                    render_pen_settings_panel(self, ui, &mut config);
+                    render_pen_settings_panel(self, ui, config, snapshot);
                 });
             }
-            AppTab::Console => {
-                render_console_panel(self, ui);
-            }
+            AppTab::Console => render_console_panel(self, ui),
             AppTab::Settings => {
                 egui::ScrollArea::vertical().show(ui, |ui| {
-                    render_settings_panel(self, ui, &mut config);
+                    render_settings_panel(self, ui, config, snapshot);
                 });
             }
             AppTab::Release => {
@@ -211,36 +167,66 @@ impl eframe::App for TabletMapperApp {
             #[cfg(debug_assertions)]
             AppTab::Developer => {
                 egui::ScrollArea::vertical().show(ui, |ui| {
-                    render_developer_panel(self, ui, &config);
+                    render_developer_panel(self, ui, snapshot);
                 });
             }
         });
+    }
 
-        // Push config back to shared state only if the UI actually mutated it
-        if config != initial_config {
-            log::info!(target: "Config", "Configuration changed via UI");
-            if config.theme != initial_config.theme {
-                crate::ui::theme::apply_theme(ctx, config.theme);
-            }
-            {
-                let mut shared_config = self.shared.config.write().unwrap();
-                *shared_config = config.clone();
+    /// Renders all non-main window elements (modals, toasts, viewports).
+    fn render_overlays(&mut self, ctx: &egui::Context, snapshot: &UiSnapshot) {
+        crate::ui::components::update_dialog::render_update_dialog(self, ctx);
+        self.render_close_confirmation(ctx);
+        self.render_toasts(ctx);
+        self.render_debugger_window(ctx, snapshot);
+        self.render_performance_window(ctx, snapshot);
+    }
 
-                self.shared.config_version.fetch_add(1, Ordering::SeqCst);
-            }
-
-            // Send to background saver — non-blocking, drops if channel full
-            let _ = self.save_sender.try_send(config.clone());
+    fn render_close_confirmation(&mut self, ctx: &egui::Context) {
+        if !self.show_close_confirm {
+            return;
         }
 
-        // Toast Notifications
-        // Expire old toasts
+        let frame = egui::Frame::window(&ctx.style()).shadow(Shadow::NONE);
+        egui::Window::new("Unsaved Changes")
+            .collapsible(false)
+            .resizable(false)
+            .anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0])
+            .frame(frame)
+            .show(ctx, |ui| {
+                ui.vertical_centered(|ui| {
+                    ui.add_space(8.0);
+                    ui.label("Are you sure you want to close the application?");
+                    ui.label("The current profile has unsaved changes.");
+                    ui.add_space(12.0);
+                    ui.horizontal(|ui| {
+                        if ui.button("Cancel").clicked() {
+                            self.show_close_confirm = false;
+                        }
+                        ui.add_space(8.0);
+                        if ui
+                            .button(
+                                egui::RichText::new("Close Anyway")
+                                    .color(egui::Color32::from_rgb(220, 80, 80)),
+                            )
+                            .clicked()
+                        {
+                            let _ = crate::settings::save_last_session(&self.profile.last_saved);
+                            self.force_close = true;
+                            self.show_close_confirm = false;
+                            ctx.send_viewport_cmd(egui::ViewportCommand::Close);
+                        }
+                    });
+                    ui.add_space(4.0);
+                });
+            });
+    }
+
+    fn render_toasts(&mut self, ctx: &egui::Context) {
         self.toasts
             .retain(|t| t.created_at.elapsed() < TOAST_DURATION);
 
-        // Render active toasts anchored to bottom-right
         if !self.toasts.is_empty() {
-            // Request repaint so toasts auto-dismiss smoothly
             ctx.request_repaint_after(Duration::from_millis(100));
         }
 
@@ -269,115 +255,145 @@ impl eframe::App for TabletMapperApp {
                         });
                 });
         }
+    }
 
-        if self.show_debugger {
-            let viewport_id = egui::ViewportId::from_hash_of("debugger_viewport");
-            let mut close_requested = false;
+    fn render_debugger_window(&mut self, ctx: &egui::Context, snapshot: &UiSnapshot) {
+        if !self.show_debugger {
+            return;
+        }
 
-            ctx.show_viewport_immediate(
-                viewport_id,
-                egui::ViewportBuilder::default()
-                    .with_title("Tablet Debugger")
-                    .with_inner_size([600.0, 750.0])
-                    .with_resizable(true),
-                |ctx, _class| {
-                    if ctx.input(|i| i.viewport().close_requested()) {
-                        close_requested = true;
-                    }
+        let mut close_requested = false;
+        ctx.show_viewport_immediate(
+            egui::ViewportId::from_hash_of("debugger_viewport"),
+            egui::ViewportBuilder::default()
+                .with_title("Tablet Debugger")
+                .with_inner_size([600.0, 750.0])
+                .with_resizable(true),
+            |ctx, _| {
+                if ctx.input(|i| i.viewport().close_requested()) {
+                    close_requested = true;
+                }
 
-                    egui::CentralPanel::default().show(ctx, |ui| {
-                        // HZ
-                        let current_packets = self.shared.packet_count.load(Ordering::Relaxed);
-                        let elapsed_hz = self.last_hz_update.elapsed();
-                        if elapsed_hz >= std::time::Duration::from_millis(200) {
-                            let delta = current_packets.saturating_sub(self.last_packet_count);
-                            let hz = delta as f32 / elapsed_hz.as_secs_f32();
-                            self.displayed_hz += (hz - self.displayed_hz) * 0.3;
-                            self.last_packet_count = current_packets;
-                            self.last_hz_update = std::time::Instant::now();
-                        }
+                egui::CentralPanel::default().show(ctx, |ui| {
+                    self.metrics
+                        .update_hz(self.shared.packet_count.load(Ordering::Relaxed));
 
-                        ui.vertical_centered(|ui| {
-                            let name = self.shared.tablet_name.read().unwrap().clone();
-                            ui.add_space(5.0);
-                            ui.heading(
-                                egui::RichText::new(name).strong().extra_letter_spacing(1.5),
-                            );
-                        });
-
-                        crate::ui::panels::debugger::render_debugger_panel(
-                            self.shared.clone(),
-                            self.displayed_hz,
-                            ui,
+                    ui.vertical_centered(|ui| {
+                        ui.add_space(5.0);
+                        ui.heading(
+                            egui::RichText::new(&snapshot.tablet_name)
+                                .strong()
+                                .extra_letter_spacing(1.5),
                         );
                     });
-                },
-            );
 
-            if close_requested {
-                self.show_debugger = false;
-            }
+                    crate::ui::panels::debugger::render_debugger_panel(
+                        snapshot,
+                        self.metrics.displayed_hz,
+                        ui,
+                    );
+                });
+            },
+        );
+
+        if close_requested {
+            self.show_debugger = false;
+        }
+    }
+
+    fn render_performance_window(&mut self, ctx: &egui::Context, snapshot: &UiSnapshot) {
+        if !self.show_latency_stats {
+            return;
         }
 
-        if self.show_latency_stats {
-            let viewport_id = egui::ViewportId::from_hash_of("performance_viewport");
-            let mut close_requested = false;
+        let mut close_requested = false;
+        ctx.show_viewport_immediate(
+            egui::ViewportId::from_hash_of("performance_viewport"),
+            egui::ViewportBuilder::default()
+                .with_title("Input Lag & Performance Analysis")
+                .with_inner_size([500.0, 600.0])
+                .with_resizable(true),
+            |ctx, _| {
+                if ctx.input(|i| i.viewport().close_requested()) {
+                    close_requested = true;
+                }
 
-            ctx.show_viewport_immediate(
-                viewport_id,
-                egui::ViewportBuilder::default()
-                    .with_title("Input Lag & Performance Analysis")
-                    .with_inner_size([500.0, 600.0])
-                    .with_resizable(true),
-                |ctx, _class| {
-                    if ctx.input(|i| i.viewport().close_requested()) {
-                        close_requested = true;
-                    }
+                egui::CentralPanel::default().show(ctx, |ui| {
+                    self.metrics
+                        .update_hz(self.shared.packet_count.load(Ordering::Relaxed));
 
-                    egui::CentralPanel::default().show(ctx, |ui| {
-                        let current_packets = self.shared.packet_count.load(Ordering::Relaxed);
-                        let elapsed_hz = self.last_hz_update.elapsed();
-                        if elapsed_hz >= std::time::Duration::from_millis(200) {
-                            let delta = current_packets.saturating_sub(self.last_packet_count);
-                            let hz = delta as f32 / elapsed_hz.as_secs_f32();
-                            self.displayed_hz += (hz - self.displayed_hz) * 0.3;
-                            self.last_packet_count = current_packets;
-                            self.last_hz_update = std::time::Instant::now();
-                        }
-
-                        ui.vertical_centered(|ui| {
-                            ui.add_space(5.0);
-                            ui.heading(
-                                egui::RichText::new("Driver Performance Monitor")
-                                    .strong()
-                                    .extra_letter_spacing(1.0),
-                            );
-                        });
-
-                        if crate::ui::panels::performance::render_performance_panel(
-                            self.shared.clone(),
-                            self.displayed_hz,
-                            self.ui_latency_ms,
-                            self.min_ui_latency_ms,
-                            self.max_ui_latency_ms,
-                            self.avg_ui_latency_ms,
-                            ui,
-                        ) {
-                            self.min_ui_latency_ms = f32::MAX;
-                            self.max_ui_latency_ms = 0.0;
-                            self.avg_ui_latency_ms = 0.0;
-                        }
+                    ui.vertical_centered(|ui| {
+                        ui.add_space(5.0);
+                        ui.heading(
+                            egui::RichText::new("Driver Performance Monitor")
+                                .strong()
+                                .extra_letter_spacing(1.0),
+                        );
                     });
-                },
-            );
 
-            if close_requested {
-                self.show_latency_stats = false;
-            }
+                    if crate::ui::panels::performance::render_performance_panel(
+                        snapshot,
+                        self.metrics.displayed_hz,
+                        self.metrics.ui_latency_ms,
+                        self.metrics.min_ui_latency_ms,
+                        self.metrics.max_ui_latency_ms,
+                        self.metrics.avg_ui_latency_ms,
+                        ui,
+                        self.shared.clone(),
+                    ) {
+                        self.metrics.reset_ui_latency();
+                    }
+                });
+            },
+        );
+
+        if close_requested {
+            self.show_latency_stats = false;
         }
+    }
 
-        // Cap UI to ~1 FPS idle repaint to avoid burning CPU/GPU
-        // when no tablet data is flowing. Real repaints are event-driven.
-        ctx.request_repaint_after(std::time::Duration::from_secs(1));
+    fn sync_config(
+        &mut self,
+        ctx: &egui::Context,
+        config: crate::core::config::models::MappingConfig,
+        initial: crate::core::config::models::MappingConfig,
+    ) {
+        if config != initial {
+            let is_interacting = ctx.input(|i| i.pointer.any_down());
+            if !is_interacting && self.last_config_log.elapsed() > Duration::from_millis(1000) {
+                log::info!(target: "Config", "Configuration changed via UI");
+                self.last_config_log = Instant::now();
+            }
+            if config.theme != initial.theme {
+                crate::ui::theme::apply_theme(ctx, config.theme);
+            }
+            {
+                let mut shared_config = self.shared.config.write().ignore_poison();
+                *shared_config = config.clone();
+                self.shared.config_version.fetch_add(1, Ordering::SeqCst);
+            }
+            let _ = self.save_sender.try_send(config);
+        }
+    }
+
+    fn calculate_display_bounds(&self) -> (f32, f32, f32, f32) {
+        let (mut min_x, mut min_y, mut max_x, mut max_y) = (0.0, 0.0, 1920.0, 1080.0);
+        if !self.displays.is_empty() {
+            let mut mx = i32::MAX;
+            let mut my = i32::MAX;
+            let mut ax = i32::MIN;
+            let mut ay = i32::MIN;
+            for d in &self.displays {
+                mx = mx.min(d.x);
+                my = my.min(d.y);
+                ax = ax.max(d.x + d.width as i32);
+                ay = ay.max(d.y + d.height as i32);
+            }
+            min_x = mx as f32;
+            min_y = my as f32;
+            max_x = ax as f32;
+            max_y = ay as f32;
+        }
+        (min_x, min_y, max_x, max_y)
     }
 }

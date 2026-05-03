@@ -11,6 +11,31 @@ struct ReleaseEntry {
 
 const RELEASES: &[ReleaseEntry] = &[
     ReleaseEntry {
+        version: "1.26.0405.01",
+        date: "04/05/2026",
+        additions: &[
+            "Add: Robust auto-updater with versioning, progress tracking, and SHA verification",
+            "Add: User presets options for customized configuration",
+            "Add: Dedicated 'Help' section and expanded logging groups",
+            "Add: Cross-compilation support via Cross.toml integration",
+        ],
+        removals: &[],
+        fixes: &[
+            "Fix: Immediate 'Out of Range' detection for XP-PEN tablets",
+            "Fix: Panic safety by replacing all '.unwrap()' calls with robust error handling",
+            "Fix: Evdev syntax and auto-updater logic regression",
+            "Fix: Sidebar layout margins and UI theme inconsistencies",
+            "Fix: Pipeline execution errors and failing unit tests",
+        ],
+        improvements: &[
+            "Improve: Decoupled UI from SharedState using the Snapshot pattern for better state management",
+            "Improve: Strict separation of domain logic from the presentation layer",
+            "Improve: Migration to Rust 1.95 toolchain for improved stability",
+            "Improve: Pipeline performance optimizations and Filters UI refinements",
+            "Improve: General codebase health through formatting and syntax standardisation",
+        ],
+    },
+    ReleaseEntry {
         version: "1.26.2004.01",
         date: "20/04/2026",
         additions: &[

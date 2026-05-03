@@ -1,15 +1,15 @@
-use crate::app::state::TabletMapperApp;
+use crate::app::state::{TabletMapperApp, UiSnapshot};
 use crate::core::config::models::MappingConfig;
 use crate::ui::theme::{panel_border, ui_card, ui_input_box_u16};
 use eframe::egui;
 
-pub fn render_stats_settings(app: &TabletMapperApp, ui: &mut egui::Ui, config: &mut MappingConfig) {
-    let stats = app
-        .shared
-        .stats
-        .read()
-        .map(|g| *g)
-        .unwrap_or_else(|e| *e.into_inner());
+pub fn render_stats_settings(
+    app: &TabletMapperApp,
+    ui: &mut egui::Ui,
+    config: &mut MappingConfig,
+    snapshot: &UiSnapshot,
+) {
+    let stats = &snapshot.stats;
 
     ui.add_space(5.0);
 
@@ -29,15 +29,7 @@ pub fn render_stats_settings(app: &TabletMapperApp, ui: &mut egui::Ui, config: &
 
             ui.add_space(15.0);
 
-            let dist = stats.total_distance_mm;
-            let (dist_val, dist_unit) = if dist < 1000.0 {
-                (format!("{:.1}", dist), "mm")
-            } else if dist < 1000000.0 {
-                (format!("{:.3}", dist / 1000.0), "m")
-            } else {
-                (format!("{:.3}", dist / 1000000.0), "km")
-            };
-
+            let (dist_val, dist_unit) = stats.format_distance();
             render_stat_badge(ui, "Total Distance", &dist_val, dist_unit);
 
             ui.add_space(15.0);
@@ -48,7 +40,7 @@ pub fn render_stats_settings(app: &TabletMapperApp, ui: &mut egui::Ui, config: &
                 .clicked()
                 && let Ok(mut stats) = app.shared.stats.write()
             {
-                stats.total_distance_mm = 0.0;
+                stats.reset_distance();
             }
         });
     });
@@ -71,21 +63,20 @@ pub fn render_stats_settings(app: &TabletMapperApp, ui: &mut egui::Ui, config: &
 
             ui.add_enabled_ui(config.speed_stats.enabled, |ui| {
                 ui.horizontal(|ui| {
-                    ui.vertical(|ui| {
-                        ui.label(egui::RichText::new("IP Address").weak().size(11.0));
-                        ui.add_space(4.0);
-                        ui.text_edit_singleline(&mut config.speed_stats.ip);
-                    });
+                    crate::ui::theme::ui_input_box_string(
+                        ui,
+                        "IP Address",
+                        &mut config.speed_stats.ip,
+                        180.0,
+                    );
 
-                    ui.add_space(15.0);
+                    ui.add_space(8.0);
 
                     ui_input_box_u16(ui, "Port", &mut config.speed_stats.port, "");
 
-                    ui.add_space(15.0);
+                    ui.add_space(8.0);
 
-                    ui.vertical(|ui| {
-                        ui.label(egui::RichText::new("Speed Unit").weak().size(11.0));
-                        ui.add_space(4.0);
+                    crate::ui::theme::ui_labeled_box(ui, "Speed Unit", 170.0, |ui| {
                         egui::ComboBox::from_id_salt("speed_unit_combo")
                             .selected_text(match config.speed_stats.unit {
                                 crate::core::config::models::SpeedUnit::MillimetersPerSecond => {
@@ -95,7 +86,7 @@ pub fn render_stats_settings(app: &TabletMapperApp, ui: &mut egui::Ui, config: &
                                 crate::core::config::models::SpeedUnit::KilometersPerHour => "km/h",
                                 crate::core::config::models::SpeedUnit::MilesPerHour => "mph",
                             })
-                            .show_ui(ui, |ui| {
+                            .show_ui(ui, |ui: &mut egui::Ui| {
                                 ui.selectable_value(
                                     &mut config.speed_stats.unit,
                                     crate::core::config::models::SpeedUnit::MillimetersPerSecond,

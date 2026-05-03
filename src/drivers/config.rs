@@ -84,7 +84,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_deserialize_g640() {
+    fn test_deserialize_g640() -> Result<(), Box<dyn std::error::Error>> {
         let json = r#"{
   "Name": "XP-Pen Star G640 (Variant 2)",
   "Specifications": {
@@ -116,14 +116,15 @@ mod tests {
   }
 }"#;
 
-        let config: TabletConfiguration = serde_json::from_str(json).unwrap();
+        let config: TabletConfiguration = serde_json::from_str(json)?;
         assert_eq!(config.name, "XP-Pen Star G640 (Variant 2)");
         assert_eq!(config.digitizer_identifiers[0].vendor_id, 10429);
         assert_eq!(config.specifications.digitizer.width, 159.99);
+        Ok(())
     }
 
     #[test]
-    fn test_deserialize_ctl472() {
+    fn test_deserialize_ctl472() -> Result<(), Box<dyn std::error::Error>> {
         let json = r#"{
   "Name": "Wacom CTL-472",
   "Specifications": {
@@ -152,14 +153,15 @@ mod tests {
   "Attributes": {}
 }"#;
 
-        let config: TabletConfiguration = serde_json::from_str(json).unwrap();
+        let config: TabletConfiguration = serde_json::from_str(json)?;
         assert_eq!(config.name, "Wacom CTL-472");
         assert_eq!(
             config.digitizer_identifiers[0]
                 .feature_init_report
                 .as_ref()
-                .unwrap()[0],
+                .ok_or("Missing feature_init_report")?[0],
             "AgI="
         );
+        Ok(())
     }
 }

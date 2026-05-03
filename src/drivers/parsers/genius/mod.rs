@@ -167,25 +167,31 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_genius_v1_tablet() {
+    fn test_genius_v1_tablet() -> Result<(), Box<dyn std::error::Error>> {
         let parser = GeniusParserV1;
         // data[0]=0x10. x=258, y=772, pressure=1
         // data[5] = 0x0C (0x04 pressure valid | 0x08 btn0)
         let data: [u8; 8] = [0x10, 0x02, 0x01, 0x04, 0x03, 0x0C, 0x01, 0x00];
-        let report = parser.parse(&data).unwrap();
+        let report = parser
+            .parse(&data)
+            .ok_or("Genius V1 parser failed to parse tablet packet")?;
         assert_eq!(report.status, "Contact");
         assert_eq!(report.x, 258);
         assert_eq!(report.y, 772);
         assert_eq!(report.pressure, 1);
         assert_eq!(report.buttons, 1);
+        Ok(())
     }
 
     #[test]
-    fn test_genius_v2_tablet() {
+    fn test_genius_v2_tablet() -> Result<(), Box<dyn std::error::Error>> {
         let parser = GeniusParserV2;
         let data: [u8; 8] = [0x02, 0x02, 0x01, 0x04, 0x03, 0x0C, 0x01, 0x00];
-        let report = parser.parse(&data).unwrap();
+        let report = parser
+            .parse(&data)
+            .ok_or("Genius V2 parser failed to parse tablet packet")?;
         assert_eq!(report.status, "Contact");
         assert_eq!(report.x, 258);
+        Ok(())
     }
 }

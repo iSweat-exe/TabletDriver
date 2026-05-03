@@ -105,12 +105,15 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_inspiroy_tablet() {
+    fn test_inspiroy_tablet() -> Result<(), Box<dyn std::error::Error>> {
         let parser = InspiroyParser;
         let data: [u8; 12] = [0x08, 0x81, 0x02, 0x01, 0, 0x04, 0x03, 0, 0x01, 0x00, 0, 0];
-        let report = parser.parse(&data).unwrap();
+        let report = parser
+            .parse(&data)
+            .ok_or("Inspiroy parser failed to parse tablet packet")?;
         assert_eq!(report.status, "Contact");
         assert_eq!(report.x, 258);
         assert_eq!(report.pressure, 3);
+        Ok(())
     }
 }

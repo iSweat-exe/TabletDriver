@@ -1,17 +1,11 @@
-use crate::engine::state::SharedState;
+use crate::app::state::UiSnapshot;
 use eframe::egui;
-use std::sync::Arc;
 
-pub fn render_debugger_panel(shared: Arc<SharedState>, displayed_hz: f32, ui: &mut egui::Ui) {
-    let tablet_data = shared.tablet_data.read().unwrap();
-    let tablet_name = shared.tablet_name.read().unwrap();
-    let is_detected = *tablet_name != "No Tablet Detected";
+pub fn render_debugger_panel(snapshot: &UiSnapshot, displayed_hz: f32, ui: &mut egui::Ui) {
+    let tablet_data = &snapshot.tablet_data;
+    let is_detected = snapshot.tablet_name != "No Tablet Detected";
 
-    let (max_x, max_y, max_p) = shared
-        .hardware_size
-        .read()
-        .map(|s| (s.0, s.1, 8192.0))
-        .unwrap_or((32767.0, 32767.0, 8192.0));
+    let (max_x, max_y, max_p) = (snapshot.hardware_size.0, snapshot.hardware_size.1, 8192.0);
 
     ui.add_space(10.0);
 
@@ -24,11 +18,11 @@ pub fn render_debugger_panel(shared: Arc<SharedState>, displayed_hz: f32, ui: &m
     );
 
     ui.painter()
-        .rect_filled(rect, 8.0, egui::Color32::from_rgb(15, 15, 15));
+        .rect_filled(rect, 8.0, ui.visuals().extreme_bg_color);
     ui.painter().rect_stroke(
         rect,
         8.0,
-        egui::Stroke::new(1.0, egui::Color32::from_gray(60)),
+        ui.visuals().widgets.noninteractive.bg_stroke,
         egui::StrokeKind::Middle,
     );
 
@@ -45,13 +39,13 @@ pub fn render_debugger_panel(shared: Arc<SharedState>, displayed_hz: f32, ui: &m
             ui.painter().circle_filled(
                 dot_pos,
                 10.0,
-                egui::Color32::from_rgba_unmultiplied(0, 120, 255, 40),
+                ui.visuals().selection.bg_fill.gamma_multiply(0.2),
             );
             ui.painter()
-                .circle_filled(dot_pos, 4.0, egui::Color32::from_rgb(0, 150, 255));
+                .circle_filled(dot_pos, 4.0, ui.visuals().selection.bg_fill);
         } else {
             ui.painter()
-                .circle_filled(dot_pos, 3.0, egui::Color32::from_gray(200));
+                .circle_filled(dot_pos, 3.0, ui.visuals().weak_text_color());
         }
     } else {
         let status_text = if !is_detected {
@@ -65,7 +59,7 @@ pub fn render_debugger_panel(shared: Arc<SharedState>, displayed_hz: f32, ui: &m
             egui::Align2::CENTER_CENTER,
             status_text,
             egui::FontId::proportional(16.0),
-            egui::Color32::DARK_GRAY,
+            ui.visuals().weak_text_color(),
         );
     }
 
@@ -77,14 +71,18 @@ pub fn render_debugger_panel(shared: Arc<SharedState>, displayed_hz: f32, ui: &m
                 ui,
                 "REPORT STATUS",
                 &tablet_data.status,
-                egui::Color32::LIGHT_GREEN,
+                if ui.visuals().dark_mode {
+                    egui::Color32::LIGHT_GREEN
+                } else {
+                    egui::Color32::from_rgb(0, 120, 0)
+                },
             );
             ui.add_space(10.0);
             status_card(
                 ui,
                 "COORDINATES",
                 &format!("X: {}, Y: {}", tablet_data.x, tablet_data.y),
-                egui::Color32::WHITE,
+                ui.visuals().strong_text_color(),
             );
             ui.add_space(10.0);
             let tilt_str = format!("X: {}, Y: {}", tablet_data.tilt_x, tablet_data.tilt_y);
@@ -92,7 +90,11 @@ pub fn render_debugger_panel(shared: Arc<SharedState>, displayed_hz: f32, ui: &m
                 ui,
                 "PEN TILT",
                 &tilt_str,
-                egui::Color32::from_rgb(255, 100, 255),
+                if ui.visuals().dark_mode {
+                    egui::Color32::from_rgb(255, 100, 255)
+                } else {
+                    egui::Color32::from_rgb(180, 0, 180)
+                },
             );
         });
         cols[1].vertical(|ui| {
@@ -100,14 +102,22 @@ pub fn render_debugger_panel(shared: Arc<SharedState>, displayed_hz: f32, ui: &m
                 ui,
                 "REPORT RATE",
                 &format!("{:.0} Hz", displayed_hz),
-                egui::Color32::GOLD,
+                if ui.visuals().dark_mode {
+                    egui::Color32::GOLD
+                } else {
+                    egui::Color32::from_rgb(180, 140, 0)
+                },
             );
             ui.add_space(10.0);
             status_card(
                 ui,
                 "PRESSURE",
                 &format!("{} / {}", tablet_data.pressure, max_p as u16),
-                egui::Color32::LIGHT_BLUE,
+                if ui.visuals().dark_mode {
+                    egui::Color32::LIGHT_BLUE
+                } else {
+                    egui::Color32::from_rgb(0, 100, 180)
+                },
             );
             ui.add_space(10.0);
             let b1 = (tablet_data.buttons & 0x01) != 0;
@@ -118,9 +128,9 @@ pub fn render_debugger_panel(shared: Arc<SharedState>, displayed_hz: f32, ui: &m
                 "BUTTONS",
                 &btn_str,
                 if b1 || b2 {
-                    egui::Color32::from_rgb(255, 165, 0)
+                    ui.visuals().selection.bg_fill
                 } else {
-                    egui::Color32::from_gray(150)
+                    ui.visuals().weak_text_color()
                 },
             );
         });
@@ -129,7 +139,7 @@ pub fn render_debugger_panel(shared: Arc<SharedState>, displayed_hz: f32, ui: &m
     ui.add_space(20.0);
 
     egui::Frame::group(ui.style())
-        .fill(egui::Color32::from_gray(30))
+        .fill(ui.visuals().widgets.noninteractive.bg_fill)
         .show(ui, |ui: &mut egui::Ui| {
             ui.set_width(ui.available_width());
 
@@ -138,7 +148,7 @@ pub fn render_debugger_panel(shared: Arc<SharedState>, displayed_hz: f32, ui: &m
                 egui::RichText::new(&tablet_data.raw_data)
                     .code()
                     .size(12.0)
-                    .color(egui::Color32::LIGHT_GRAY),
+                    .color(ui.visuals().text_color()),
             );
 
             ui.add_space(20.0);
@@ -160,14 +170,14 @@ pub fn render_debugger_panel(shared: Arc<SharedState>, displayed_hz: f32, ui: &m
                 egui::RichText::new(binary_string)
                     .code()
                     .size(12.0)
-                    .color(egui::Color32::LIGHT_GRAY),
+                    .color(ui.visuals().text_color()),
             );
         });
 }
 
 fn status_card(ui: &mut egui::Ui, label: &str, value: &str, color: egui::Color32) {
     egui::Frame::new()
-        .fill(egui::Color32::from_gray(28))
+        .fill(ui.visuals().widgets.noninteractive.bg_fill)
         .corner_radius(4.0)
         .inner_margin(12.0)
         .show(ui, |ui: &mut egui::Ui| {
